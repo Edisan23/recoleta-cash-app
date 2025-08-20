@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { Download, Moon, Sun } from 'lucide-react';
+import { Download, Moon, Sun, Trash2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 interface Entry {
@@ -22,6 +22,45 @@ export function RecoletaCashApp() {
   const [nextId, setNextId] = useState(1);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
+  useEffect(() => {
+    try {
+      const savedEntries = localStorage.getItem('recoleta-cash-entries');
+      if (savedEntries) {
+        const parsedEntries: Entry[] = JSON.parse(savedEntries);
+        setEntries(parsedEntries);
+        if (parsedEntries.length > 0) {
+          setNextId(Math.max(...parsedEntries.map(e => e.id)) + 1);
+        }
+      }
+      const savedTheme = localStorage.getItem('recoleta-cash-theme');
+      if (savedTheme) {
+        const newIsDarkMode = savedTheme === 'dark';
+        setIsDarkMode(newIsDarkMode);
+        document.documentElement.classList.toggle('dark', newIsDarkMode);
+      }
+    } catch (error) {
+      console.error("Error loading data from localStorage", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('recoleta-cash-entries', JSON.stringify(entries));
+    } catch (error) {
+      console.error("Error saving data to localStorage", error);
+    }
+  }, [entries]);
+
+  useEffect(() => {
+    try {
+       localStorage.setItem('recoleta-cash-theme', isDarkMode ? 'dark' : 'light');
+       document.documentElement.classList.toggle('dark', isDarkMode);
+    } catch (error) {
+      console.error("Error saving theme to localStorage", error);
+    }
+  }, [isDarkMode]);
+
+
   const presetAmounts = [10000, 20000, 30000, 40000];
 
   const handleAddEntry = (e: React.FormEvent) => {
@@ -33,11 +72,13 @@ export function RecoletaCashApp() {
       setAmount('');
     }
   };
+  
+  const handleRemoveEntry = (id: number) => {
+    setEntries(entries.filter(entry => entry.id !== id));
+  };
 
   const toggleTheme = () => {
-    const newIsDarkMode = !isDarkMode;
-    setIsDarkMode(newIsDarkMode);
-    document.documentElement.classList.toggle('dark', newIsDarkMode);
+    setIsDarkMode(!isDarkMode);
   }
 
   const handleDownload = () => {
@@ -132,6 +173,7 @@ export function RecoletaCashApp() {
                       <TableRow>
                         <TableHead className="w-[60%] text-base">Nombre</TableHead>
                         <TableHead className="text-right text-base">Monto</TableHead>
+                        <TableHead className="text-right text-base no-print">Acción</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -140,11 +182,16 @@ export function RecoletaCashApp() {
                           <TableRow key={entry.id}>
                             <TableCell className="font-medium">{entry.name}</TableCell>
                             <TableCell className="text-right font-mono">{formatCurrency(entry.amount)}</TableCell>
+                            <TableCell className="text-right no-print">
+                              <Button variant="ghost" size="icon" onClick={() => handleRemoveEntry(entry.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={2} className="h-24 text-center text-muted-foreground">
+                          <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
                             Aún no hay aportes registrados.
                           </TableCell>
                         </TableRow>
@@ -154,6 +201,7 @@ export function RecoletaCashApp() {
                       <TableFooter>
                         <TableRow className="bg-muted/50">
                           <TableHead className="text-base">Total</TableHead>
+                          <TableHead />
                           <TableHead className="text-right text-base font-bold font-mono">{formatCurrency(totalAmount)}</TableHead>
                         </TableRow>
                       </TableFooter>
