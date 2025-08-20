@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Download, Moon, Sun } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 interface Entry {
   id: number;
@@ -34,7 +35,18 @@ export function RecoletaCashApp() {
   };
 
   const handleDownload = () => {
-    window.print();
+    const printableArea = document.getElementById('printable-area');
+    if (printableArea) {
+      html2canvas(printableArea, {
+        useCORS: true,
+        backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
+      }).then((canvas) => {
+        const link = document.createElement('a');
+        link.download = 'aportes-recoleta.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
   };
 
   const toggleTheme = () => {
