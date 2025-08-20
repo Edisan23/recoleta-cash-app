@@ -37,6 +37,8 @@ export function RecoletaCashApp() {
         const newIsDarkMode = savedTheme === 'dark';
         setIsDarkMode(newIsDarkMode);
         document.documentElement.classList.toggle('dark', newIsDarkMode);
+      } else {
+        document.documentElement.classList.toggle('dark', isDarkMode);
       }
     } catch (error) {
       console.error("Error loading data from localStorage", error);
@@ -81,19 +83,33 @@ export function RecoletaCashApp() {
     setIsDarkMode(!isDarkMode);
   }
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     const printableArea = document.getElementById('printable-area');
     if (printableArea) {
-      html2canvas(printableArea, {
-        backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
-        scale: 2,
-        useCORS: true,
-      }).then((canvas) => {
+      printableArea.classList.add('generating-image');
+      
+      try {
+        const canvas = await html2canvas(printableArea, {
+          backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
+          scale: 2,
+          useCORS: true,
+          onclone: (document) => {
+            const clonedArea = document.getElementById('printable-area');
+            if (clonedArea) {
+              clonedArea.classList.remove('generating-image');
+            }
+          }
+        });
+        
         const link = document.createElement('a');
         link.download = 'lista-aportes.png';
         link.href = canvas.toDataURL('image/png');
         link.click();
-      });
+      } catch (error) {
+        console.error('Error generating image:', error);
+      } finally {
+        printableArea.classList.remove('generating-image');
+      }
     }
   };
 
