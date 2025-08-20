@@ -213,8 +213,7 @@ export function RecoletaCashApp() {
                       <TableFooter>
                         <TableRow className="bg-muted/50">
                           <TableHead className="text-base">Total</TableHead>
-                          <TableHead className="no-print" />
-                          <TableHead className="text-right text-base font-bold font-mono">{formatCurrency(totalAmount)}</TableHead>
+                          <TableHead colSpan={2} className="text-right text-base font-bold font-mono">{formatCurrency(totalAmount)}</TableHead>
                         </TableRow>
                       </TableFooter>
                     )}
