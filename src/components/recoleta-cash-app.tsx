@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { Moon, Sun } from 'lucide-react';
+import { Download, Moon, Sun } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 interface Entry {
   id: number;
@@ -39,6 +40,22 @@ export function RecoletaCashApp() {
     document.documentElement.classList.toggle('dark', newIsDarkMode);
   }
 
+  const handleDownload = () => {
+    const printableArea = document.getElementById('printable-area');
+    if (printableArea) {
+      html2canvas(printableArea, {
+        backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
+        scale: 2,
+        useCORS: true,
+      }).then((canvas) => {
+        const link = document.createElement('a');
+        link.download = 'lista-aportes.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+  };
+
   const totalAmount = entries.reduce((sum, entry) => sum + entry.amount, 0);
 
   const formatCurrency = (value: number) => {
@@ -59,6 +76,9 @@ export function RecoletaCashApp() {
           <div className="flex items-center gap-2 justify-center sm:justify-end">
              <Button onClick={toggleTheme} size="icon" variant="outline">
               {isDarkMode ? <Sun /> : <Moon />}
+            </Button>
+            <Button onClick={handleDownload} size="icon" variant="outline">
+              <Download />
             </Button>
           </div>
         </header>
