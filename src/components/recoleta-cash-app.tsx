@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { Download } from 'lucide-react';
+import { Download, Moon, Sun } from 'lucide-react';
 
 interface Entry {
   id: number;
@@ -19,6 +19,7 @@ export function RecoletaCashApp() {
   const [name, setName] = useState('');
   const [amount, setAmount] = useState<number | ''>('');
   const [nextId, setNextId] = useState(1);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
   const presetAmounts = [10000, 20000, 30000, 40000];
 
@@ -35,6 +36,11 @@ export function RecoletaCashApp() {
   const handleDownload = () => {
     window.print();
   };
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+    document.documentElement.classList.toggle('dark', !isDarkMode);
+  }
 
   const totalAmount = entries.reduce((sum, entry) => sum + entry.amount, 0);
 
@@ -53,10 +59,15 @@ export function RecoletaCashApp() {
           <h1 className="text-4xl md:text-5xl font-headline text-primary text-center sm:text-left">
             Recoleta Cash
           </h1>
-          <Button onClick={handleDownload} size="lg">
-            <Download className="mr-2 h-5 w-5" />
-            Descargar Lista
-          </Button>
+          <div className="flex items-center gap-2 justify-center sm:justify-end">
+             <Button onClick={toggleTheme} size="icon" variant="outline">
+              {isDarkMode ? <Sun /> : <Moon />}
+            </Button>
+            <Button onClick={handleDownload} size="lg">
+              <Download className="mr-2 h-5 w-5" />
+              Descargar Lista
+            </Button>
+          </div>
         </header>
 
         <main className="grid lg:grid-cols-3 gap-8">
