@@ -86,19 +86,14 @@ export function RecoletaCashApp() {
   const handleDownload = async () => {
     const printableArea = document.getElementById('printable-area');
     if (printableArea) {
-      printableArea.classList.add('generating-image');
+      // Add a class to hide elements during image generation
+      document.body.classList.add('generating-image');
       
       try {
         const canvas = await html2canvas(printableArea, {
           backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
           scale: 2,
           useCORS: true,
-          onclone: (document) => {
-            const clonedArea = document.getElementById('printable-area');
-            if (clonedArea) {
-              clonedArea.classList.remove('generating-image');
-            }
-          }
         });
         
         const link = document.createElement('a');
@@ -108,7 +103,8 @@ export function RecoletaCashApp() {
       } catch (error) {
         console.error('Error generating image:', error);
       } finally {
-        printableArea.classList.remove('generating-image');
+        // Remove the class after image generation
+        document.body.classList.remove('generating-image');
       }
     }
   };
@@ -217,7 +213,7 @@ export function RecoletaCashApp() {
                       <TableFooter>
                         <TableRow className="bg-muted/50">
                           <TableHead className="text-base">Total</TableHead>
-                          <TableHead />
+                          <TableHead className="no-print" />
                           <TableHead className="text-right text-base font-bold font-mono">{formatCurrency(totalAmount)}</TableHead>
                         </TableRow>
                       </TableFooter>
