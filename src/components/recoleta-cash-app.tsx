@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { Download, Moon, Sun } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { Moon, Sun } from 'lucide-react';
 
 interface Entry {
   id: number;
@@ -34,24 +33,10 @@ export function RecoletaCashApp() {
     }
   };
 
-  const handleDownload = () => {
-    const printableArea = document.getElementById('printable-area');
-    if (printableArea) {
-      html2canvas(printableArea, {
-        useCORS: true,
-        backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
-      }).then((canvas) => {
-        const link = document.createElement('a');
-        link.download = 'aportes-recoleta.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      });
-    }
-  };
-
   const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    document.documentElement.classList.toggle('dark', !isDarkMode);
+    const newIsDarkMode = !isDarkMode;
+    setIsDarkMode(newIsDarkMode);
+    document.documentElement.classList.toggle('dark', newIsDarkMode);
   }
 
   const totalAmount = entries.reduce((sum, entry) => sum + entry.amount, 0);
@@ -74,10 +59,6 @@ export function RecoletaCashApp() {
           <div className="flex items-center gap-2 justify-center sm:justify-end">
              <Button onClick={toggleTheme} size="icon" variant="outline">
               {isDarkMode ? <Sun /> : <Moon />}
-            </Button>
-            <Button onClick={handleDownload} size="lg">
-              <Download className="mr-2 h-5 w-5" />
-              Descargar Lista
             </Button>
           </div>
         </header>
