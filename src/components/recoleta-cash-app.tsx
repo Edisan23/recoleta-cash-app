@@ -198,15 +198,17 @@ export function RecoletaCashApp() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[50%] text-base">Nombre</TableHead>
+                        <TableHead className="w-[40px] text-base">#</TableHead>
+                        <TableHead className="w-[calc(50%-40px)] text-base">Nombre</TableHead>
                         <TableHead className="text-right text-base">Monto</TableHead>
                         <TableHead className="text-right text-base no-print">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {entries.length > 0 ? (
-                        entries.map((entry) => (
+                        entries.map((entry, index) => (
                           <TableRow key={entry.id}>
+                            <TableCell>{index + 1}</TableCell>
                             <TableCell className="font-medium">{entry.name}</TableCell>
                             <TableCell className="text-right font-mono">{formatCurrency(entry.amount)}</TableCell>
                             <TableCell className="text-right no-print">
@@ -221,7 +223,7 @@ export function RecoletaCashApp() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                          <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                             Aún no hay aportes registrados.
                           </TableCell>
                         </TableRow>
@@ -230,7 +232,7 @@ export function RecoletaCashApp() {
                     {entries.length > 0 && (
                       <TableFooter>
                         <TableRow className="bg-muted/50">
-                          <TableHead className="text-base">Total</TableHead>
+                          <TableHead colSpan={2} className="text-base">Total</TableHead>
                           <TableHead colSpan={2} className="text-right text-base font-bold font-mono">{formatCurrency(totalAmount)}</TableHead>
                         </TableRow>
                       </TableFooter>
@@ -286,5 +288,3 @@ export function RecoletaCashApp() {
     </div>
   );
 }
-
-    
