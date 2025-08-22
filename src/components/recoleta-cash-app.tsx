@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,45 @@ interface Entry {
   amount: number;
 }
 
+const PrintableTable = ({ entries, total, title, formatCurrency }: { entries: Entry[], total: number, title: string, formatCurrency: (value: number) => string }) => (
+    <div className="p-6">
+        <Card className="shadow-lg h-full">
+            <CardHeader>
+                <CardTitle className="font-headline text-2xl">{title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <div className="border rounded-lg">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[40px] text-base">#</TableHead>
+                                <TableHead className="w-[calc(50%-40px)] text-base">Nombre</TableHead>
+                                <TableHead className="text-right text-base">Monto</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {entries.map((entry, index) => (
+                                <TableRow key={entry.id}>
+                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell className="font-medium">{entry.name}</TableCell>
+                                    <TableCell className="text-right font-mono">{formatCurrency(entry.amount)}</TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                         <TableFooter>
+                            <TableRow className="bg-muted/50">
+                                <TableHead colSpan={2} className="text-base">Total</TableHead>
+                                <TableHead className="text-right text-base font-bold font-mono">{formatCurrency(total)}</TableHead>
+                            </TableRow>
+                        </TableFooter>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    </div>
+);
+
+
 export function RecoletaCashApp() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [name, setName] = useState('');
@@ -24,6 +63,10 @@ export function RecoletaCashApp() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  const printableRef = useRef<HTMLDivElement>(null);
+  const [printableChunks, setPrintableChunks] = useState<Entry[][]>([]);
+
 
   useEffect(() => {
     try {
@@ -99,30 +142,43 @@ export function RecoletaCashApp() {
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
   }
-
+  
   const handleDownload = async () => {
-    const printableArea = document.getElementById('printable-area');
-    if (printableArea) {
-      document.body.classList.add('generating-image');
-      
-      try {
-        const canvas = await html2canvas(printableArea, {
-          backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
-          scale: 2,
-          useCORS: true,
-        });
-        
-        const link = document.createElement('a');
-        link.download = 'lista-aportes.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      } catch (error) {
-        console.error('Error generating image:', error);
-      } finally {
-        document.body.classList.remove('generating-image');
-      }
+    const CHUNK_SIZE = 10;
+    const chunks: Entry[][] = [];
+    for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
+        chunks.push(entries.slice(i, i + CHUNK_SIZE));
     }
-  };
+    
+    setPrintableChunks(chunks);
+    document.body.classList.add('generating-image');
+
+    // Wait for the printable area to re-render with the chunks
+    setTimeout(async () => {
+        if (printableRef.current) {
+            const chunkElements = printableRef.current.children;
+            for (let i = 0; i < chunkElements.length; i++) {
+                try {
+                    const canvas = await html2canvas(chunkElements[i] as HTMLElement, {
+                        backgroundColor: isDarkMode ? '#1a1a2e' : '#ffffff',
+                        scale: 2,
+                        useCORS: true,
+                    });
+                    
+                    const link = document.createElement('a');
+                    link.download = `lista-aportes-pag-${i + 1}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                } catch (error) {
+                    console.error('Error generating image for chunk ' + i, error);
+                }
+            }
+        }
+        document.body.classList.remove('generating-image');
+        setPrintableChunks([]);
+    }, 500); // A small delay to ensure DOM update
+};
+
 
   const totalAmount = entries.reduce((sum, entry) => sum + entry.amount, 0);
 
@@ -145,7 +201,7 @@ export function RecoletaCashApp() {
              <Button onClick={toggleTheme} size="icon" variant="outline">
               {isDarkMode ? <Sun /> : <Moon />}
             </Button>
-            <Button onClick={handleDownload} size="icon" variant="outline">
+            <Button onClick={handleDownload} size="icon" variant="outline" disabled={entries.length === 0}>
               <Download />
             </Button>
           </div>
@@ -232,8 +288,8 @@ export function RecoletaCashApp() {
                     {entries.length > 0 && (
                       <TableFooter>
                         <TableRow className="bg-muted/50">
-                          <TableHead colSpan={2} className="text-base">Total</TableHead>
-                          <TableHead colSpan={2} className="text-right text-base font-bold font-mono">{formatCurrency(totalAmount)}</TableHead>
+                          <TableHead colSpan={3} className="text-base">Total</TableHead>
+                          <TableHead className="text-right text-base font-bold font-mono">{formatCurrency(totalAmount)}</TableHead>
                         </TableRow>
                       </TableFooter>
                     )}
@@ -284,6 +340,19 @@ export function RecoletaCashApp() {
                 </form>
             </DialogContent>
         </Dialog>
+
+        {/* Hidden area for printing */}
+        <div ref={printableRef} className="absolute -left-[9999px] top-0">
+            {printableChunks.map((chunk, index) => (
+                <PrintableTable
+                    key={index}
+                    entries={chunk}
+                    total={chunk.reduce((sum, entry) => sum + entry.amount, 0)}
+                    title={`Lista de Aportes (Pág. ${index + 1})`}
+                    formatCurrency={formatCurrency}
+                />
+            ))}
+        </div>
       </div>
     </div>
   );

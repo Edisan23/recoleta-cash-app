@@ -82,6 +82,10 @@
   display: none !important;
 }
 
+body:not(.generating-image) #printable-area {
+    display: block;
+}
+
 @media print {
   .no-print {
     display: none !important;
