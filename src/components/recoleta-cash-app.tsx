@@ -16,7 +16,7 @@ interface Entry {
   amount: number;
 }
 
-const PrintableTable = ({ entries, total, title, formatCurrency }: { entries: Entry[], total: number, title: string, formatCurrency: (value: number) => string }) => (
+const PrintableTable = ({ entries, startIndex, total, title, showTotal, formatCurrency }: { entries: Entry[], startIndex: number, total: number, title: string, showTotal: boolean, formatCurrency: (value: number) => string }) => (
     <div className="p-6">
         <Card className="shadow-lg h-full">
             <CardHeader>
@@ -35,18 +35,20 @@ const PrintableTable = ({ entries, total, title, formatCurrency }: { entries: En
                         <TableBody>
                             {entries.map((entry, index) => (
                                 <TableRow key={entry.id}>
-                                    <TableCell>{index + 1}</TableCell>
+                                    <TableCell>{startIndex + index + 1}</TableCell>
                                     <TableCell className="font-medium">{entry.name}</TableCell>
                                     <TableCell className="text-right font-mono">{formatCurrency(entry.amount)}</TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
-                         <TableFooter>
-                            <TableRow className="bg-muted/50">
-                                <TableHead colSpan={2} className="text-base">Total</TableHead>
-                                <TableHead className="text-right text-base font-bold font-mono">{formatCurrency(total)}</TableHead>
-                            </TableRow>
-                        </TableFooter>
+                         {showTotal && (
+                            <TableFooter>
+                                <TableRow className="bg-muted/50">
+                                    <TableHead colSpan={2} className="text-base">Total</TableHead>
+                                    <TableHead className="text-right text-base font-bold font-mono">{formatCurrency(total)}</TableHead>
+                                </TableRow>
+                            </TableFooter>
+                         )}
                     </Table>
                 </div>
             </CardContent>
@@ -143,6 +145,8 @@ export function RecoletaCashApp() {
     setIsDarkMode(!isDarkMode);
   }
   
+  const totalAmount = entries.reduce((sum, entry) => sum + entry.amount, 0);
+  
   const handleDownload = async () => {
     const CHUNK_SIZE = 10;
     const chunks: Entry[][] = [];
@@ -178,9 +182,6 @@ export function RecoletaCashApp() {
         setPrintableChunks([]);
     }, 500); // A small delay to ensure DOM update
 };
-
-
-  const totalAmount = entries.reduce((sum, entry) => sum + entry.amount, 0);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-CL', {
@@ -347,8 +348,10 @@ export function RecoletaCashApp() {
                 <PrintableTable
                     key={index}
                     entries={chunk}
-                    total={chunk.reduce((sum, entry) => sum + entry.amount, 0)}
+                    startIndex={index * 10}
+                    total={totalAmount}
                     title={`Lista de Aportes (Pág. ${index + 1})`}
+                    showTotal={index === printableChunks.length - 1}
                     formatCurrency={formatCurrency}
                 />
             ))}
