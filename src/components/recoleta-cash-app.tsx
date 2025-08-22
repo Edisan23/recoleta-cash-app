@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
-import { Download, Moon, Sun, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Download, Moon, Sun, Trash2, Pencil } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 interface Entry {
@@ -21,6 +22,8 @@ export function RecoletaCashApp() {
   const [amount, setAmount] = useState<number | ''>('');
   const [nextId, setNextId] = useState(1);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -78,6 +81,20 @@ export function RecoletaCashApp() {
   const handleRemoveEntry = (id: number) => {
     setEntries(entries.filter(entry => entry.id !== id));
   };
+  
+  const handleEditEntry = (entry: Entry) => {
+    setEditingEntry(entry);
+    setIsEditDialogOpen(true);
+  };
+  
+  const handleUpdateEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingEntry) {
+        setEntries(entries.map(entry => entry.id === editingEntry.id ? editingEntry : entry));
+        setIsEditDialogOpen(false);
+        setEditingEntry(null);
+    }
+  };
 
   const toggleTheme = () => {
     setIsDarkMode(!isDarkMode);
@@ -86,7 +103,6 @@ export function RecoletaCashApp() {
   const handleDownload = async () => {
     const printableArea = document.getElementById('printable-area');
     if (printableArea) {
-      // Add a class to hide elements during image generation
       document.body.classList.add('generating-image');
       
       try {
@@ -103,7 +119,6 @@ export function RecoletaCashApp() {
       } catch (error) {
         console.error('Error generating image:', error);
       } finally {
-        // Remove the class after image generation
         document.body.classList.remove('generating-image');
       }
     }
@@ -183,9 +198,9 @@ export function RecoletaCashApp() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[60%] text-base">Nombre</TableHead>
+                        <TableHead className="w-[50%] text-base">Nombre</TableHead>
                         <TableHead className="text-right text-base">Monto</TableHead>
-                        <TableHead className="text-right text-base no-print">Acción</TableHead>
+                        <TableHead className="text-right text-base no-print">Acciones</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -195,6 +210,9 @@ export function RecoletaCashApp() {
                             <TableCell className="font-medium">{entry.name}</TableCell>
                             <TableCell className="text-right font-mono">{formatCurrency(entry.amount)}</TableCell>
                             <TableCell className="text-right no-print">
+                               <Button variant="ghost" size="icon" onClick={() => handleEditEntry(entry)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
                               <Button variant="ghost" size="icon" onClick={() => handleRemoveEntry(entry.id)}>
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
@@ -223,7 +241,50 @@ export function RecoletaCashApp() {
             </Card>
           </div>
         </main>
+        
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+                <form onSubmit={handleUpdateEntry}>
+                    <DialogHeader>
+                        <DialogTitle>Editar Aporte</DialogTitle>
+                    </DialogHeader>
+                    {editingEntry && (
+                        <div className="grid gap-4 py-4">
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="edit-name" className="text-right">Nombre</Label>
+                                <Input
+                                    id="edit-name"
+                                    value={editingEntry.name}
+                                    onChange={(e) => setEditingEntry({ ...editingEntry, name: e.target.value })}
+                                    className="col-span-3"
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="edit-amount" className="text-right">Monto</Label>
+                                <Input
+                                    id="edit-amount"
+                                    type="number"
+                                    value={editingEntry.amount}
+                                    onChange={(e) => setEditingEntry({ ...editingEntry, amount: Number(e.target.value) })}
+                                    className="col-span-3"
+                                    required
+                                />
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                         <DialogClose asChild>
+                            <Button type="button" variant="secondary">Cancelar</Button>
+                         </DialogClose>
+                        <Button type="submit">Guardar Cambios</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
 }
+
+    
