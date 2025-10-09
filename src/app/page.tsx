@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
-import { List, Trash2, Calendar as CalendarIcon, Clock, MessageSquare, PlayCircle } from 'lucide-react';
+import { List, Trash2, Calendar as CalendarIcon, Clock, MessageSquare, PlayCircle, Phone } from 'lucide-react';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 
@@ -16,6 +16,7 @@ interface Commitment {
   date: string;
   time: string;
   message: string;
+  phoneNumber: string;
 }
 
 export default function CommitmentsPage() {
@@ -24,6 +25,7 @@ export default function CommitmentsPage() {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [time, setTime] = useState('09:00');
   const [message, setMessage] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export default function CommitmentsPage() {
   }, [commitments]);
 
   const handleAddCommitment = () => {
-    if (!title || !date || !time || !message) {
+    if (!title || !date || !time || !message || !phoneNumber) {
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -61,10 +63,12 @@ export default function CommitmentsPage() {
       date: date.toISOString().split('T')[0],
       time,
       message,
+      phoneNumber,
     };
     setCommitments([...commitments, newCommitment]);
     setTitle('');
     setMessage('');
+    setPhoneNumber('');
     toast({
       title: '¡Éxito!',
       description: 'Compromiso agregado correctamente.',
@@ -112,6 +116,12 @@ export default function CommitmentsPage() {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                   />
+                  <Input
+                    type="tel"
+                    placeholder="N° de teléfono (ej: +14155552671)"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                  />
                   <div className='flex items-center gap-4'>
                     <Calendar
                         mode="single"
@@ -150,10 +160,17 @@ export default function CommitmentsPage() {
                     <Card key={commitment.id} className="flex items-center justify-between p-4 shadow-md hover:shadow-lg transition-shadow">
                       <div className="space-y-1">
                         <h3 className="font-semibold text-lg text-primary">{commitment.title}</h3>
-                        <p className="text-sm text-muted-foreground flex items-center gap-2">
-                          <CalendarIcon className="h-4 w-4" /> {new Date(commitment.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                           <Clock className="h-4 w-4" /> {commitment.time}
-                        </p>
+                        <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <span className="flex items-center gap-2">
+                            <CalendarIcon className="h-4 w-4" /> {new Date(commitment.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                          </span>
+                           <span className="flex items-center gap-2">
+                             <Clock className="h-4 w-4" /> {commitment.time}
+                           </span>
+                           <span className="flex items-center gap-2">
+                             <Phone className="h-4 w-4" /> {commitment.phoneNumber}
+                           </span>
+                        </div>
                          <p className="text-sm flex items-center gap-2 pt-1">
                           <MessageSquare className="h-4 w-4" /> <em>"{commitment.message}"</em>
                         </p>
