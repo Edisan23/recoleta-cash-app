@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
-import { List, Trash2, Calendar as CalendarIcon, Clock, MessageSquare, PlayCircle, Phone, Loader2 } from 'lucide-react';
-import { Toaster } from '@/components/ui/toaster';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { List, Trash2, Calendar as CalendarIcon, Clock, MessageSquare, PlayCircle, Phone, Loader2, User, Mic } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { textToSpeech } from '@/ai/flows/text-to-speech';
 
@@ -19,7 +19,15 @@ interface Commitment {
   time: string;
   message: string;
   phoneNumber: string;
+  voice: string;
 }
+
+const voices = [
+    { value: 'Algenib', label: 'Español - Femenina' },
+    { value: 'Achernar', label: 'Español - Masculina' },
+    { value: 'en-US-Standard-C', label: 'Inglés (EE.UU.) - Femenina' },
+    { value: 'en-US-Standard-D', label: 'Inglés (EE.UU.) - Masculina' },
+];
 
 export default function CommitmentsPage() {
   const [commitments, setCommitments] = useState<Commitment[]>([]);
@@ -28,6 +36,7 @@ export default function CommitmentsPage() {
   const [time, setTime] = useState('09:00');
   const [message, setMessage] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [voice, setVoice] = useState(voices[0].value);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const { toast } = useToast();
@@ -68,6 +77,7 @@ export default function CommitmentsPage() {
       time,
       message,
       phoneNumber,
+      voice,
     };
     setCommitments([...commitments, newCommitment]);
     setTitle('');
@@ -95,7 +105,7 @@ export default function CommitmentsPage() {
     setPlayingId(commitment.id);
     setAudioSrc(null);
     try {
-        const response = await textToSpeech(commitment.message);
+        const response = await textToSpeech({ text: commitment.message, voice: commitment.voice });
         if (response?.media) {
             setAudioSrc(response.media);
         } else {
@@ -111,6 +121,10 @@ export default function CommitmentsPage() {
         setPlayingId(null);
     }
   };
+  
+  const getVoiceLabel = (value: string) => {
+    return voices.find(v => v.value === value)?.label || value;
+  }
 
   return (
     <>
@@ -142,6 +156,16 @@ export default function CommitmentsPage() {
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                   />
+                  <Select value={voice} onValueChange={setVoice}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Selecciona una voz" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {voices.map((v) => (
+                            <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                   <div className='flex items-center gap-4'>
                     <Calendar
                         mode="single"
@@ -182,15 +206,18 @@ export default function CommitmentsPage() {
                             <div className="space-y-1">
                                 <h3 className="font-semibold text-lg text-primary">{commitment.title}</h3>
                                 <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
-                                <span className="flex items-center gap-2">
-                                    <CalendarIcon className="h-4 w-4" /> {new Date(commitment.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                                </span>
-                                <span className="flex items-center gap-2">
-                                    <Clock className="h-4 w-4" /> {commitment.time}
-                                </span>
-                                <span className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4" /> {commitment.phoneNumber}
-                                </span>
+                                    <span className="flex items-center gap-2">
+                                        <CalendarIcon className="h-4 w-4" /> {new Date(commitment.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                    </span>
+                                    <span className="flex items-center gap-2">
+                                        <Clock className="h-4 w-4" /> {commitment.time}
+                                    </span>
+                                    <span className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4" /> {commitment.phoneNumber}
+                                    </span>
+                                    <span className="flex items-center gap-2">
+                                        <Mic className="h-4 w-4" /> {getVoiceLabel(commitment.voice)}
+                                    </span>
                                 </div>
                                 <p className="text-sm flex items-center gap-2 pt-1">
                                 <MessageSquare className="h-4 w-4" /> <em>"{commitment.message}"</em>
