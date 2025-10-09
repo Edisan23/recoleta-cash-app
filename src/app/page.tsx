@@ -6,9 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
-import { List, Trash2, Calendar as CalendarIcon, Clock, MessageSquare, PlayCircle, Phone } from 'lucide-react';
+import { List, Trash2, Calendar as CalendarIcon, Clock, MessageSquare, PlayCircle, Phone, Loader2 } from 'lucide-react';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
+import { textToSpeech } from '@/ai/flows/text-to-speech';
+
 
 interface Commitment {
   id: string;
@@ -26,6 +28,8 @@ export default function CommitmentsPage() {
   const [time, setTime] = useState('09:00');
   const [message, setMessage] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -82,18 +86,34 @@ export default function CommitmentsPage() {
     });
   };
   
-  const handlePlayAudio = (text: string) => {
-    // This will be implemented in the next step with Genkit
-    toast({
-        title: 'Función en desarrollo',
-        description: 'La generación de audio se implementará a continuación.',
-      });
-    console.log(`Generando audio para: "${text}"`);
+  const handlePlayAudio = async (commitment: Commitment) => {
+    if (playingId === commitment.id) {
+        setPlayingId(null);
+        setAudioSrc(null);
+        return;
+    }
+    setPlayingId(commitment.id);
+    setAudioSrc(null);
+    try {
+        const response = await textToSpeech(commitment.message);
+        if (response?.media) {
+            setAudioSrc(response.media);
+        } else {
+            throw new Error('No se recibió audio.');
+        }
+    } catch (error) {
+        console.error('Error generating audio:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Error de audio',
+            description: 'No se pudo generar el audio para este compromiso.',
+        });
+        setPlayingId(null);
+    }
   };
 
   return (
     <>
-      <Toaster />
       <main className="min-h-screen bg-background text-foreground p-4 sm:p-8">
         <div className="mx-auto max-w-6xl">
           <header className="text-center mb-10">
@@ -157,32 +177,39 @@ export default function CommitmentsPage() {
                   commitments
                     .sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime())
                     .map((commitment) => (
-                    <Card key={commitment.id} className="flex items-center justify-between p-4 shadow-md hover:shadow-lg transition-shadow">
-                      <div className="space-y-1">
-                        <h3 className="font-semibold text-lg text-primary">{commitment.title}</h3>
-                        <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
-                          <span className="flex items-center gap-2">
-                            <CalendarIcon className="h-4 w-4" /> {new Date(commitment.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                          </span>
-                           <span className="flex items-center gap-2">
-                             <Clock className="h-4 w-4" /> {commitment.time}
-                           </span>
-                           <span className="flex items-center gap-2">
-                             <Phone className="h-4 w-4" /> {commitment.phoneNumber}
-                           </span>
+                    <Card key={commitment.id} className="flex flex-col p-4 shadow-md hover:shadow-lg transition-shadow">
+                        <div className="flex items-center justify-between">
+                            <div className="space-y-1">
+                                <h3 className="font-semibold text-lg text-primary">{commitment.title}</h3>
+                                <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1">
+                                <span className="flex items-center gap-2">
+                                    <CalendarIcon className="h-4 w-4" /> {new Date(commitment.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                </span>
+                                <span className="flex items-center gap-2">
+                                    <Clock className="h-4 w-4" /> {commitment.time}
+                                </span>
+                                <span className="flex items-center gap-2">
+                                    <Phone className="h-4 w-4" /> {commitment.phoneNumber}
+                                </span>
+                                </div>
+                                <p className="text-sm flex items-center gap-2 pt-1">
+                                <MessageSquare className="h-4 w-4" /> <em>"{commitment.message}"</em>
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button variant="ghost" size="icon" onClick={() => handlePlayAudio(commitment)} title="Escuchar audio">
+                                    {playingId === commitment.id && !audioSrc ? <Loader2 className="h-5 w-5 animate-spin" /> : <PlayCircle className="h-5 w-5 text-green-500" />}
+                                </Button>
+                                <Button variant="destructive" size="icon" onClick={() => handleDeleteCommitment(commitment.id)} title="Eliminar">
+                                <Trash2 className="h-5 w-5" />
+                                </Button>
+                            </div>
                         </div>
-                         <p className="text-sm flex items-center gap-2 pt-1">
-                          <MessageSquare className="h-4 w-4" /> <em>"{commitment.message}"</em>
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handlePlayAudio(commitment.message)} title="Escuchar audio">
-                            <PlayCircle className="h-5 w-5 text-green-500" />
-                        </Button>
-                        <Button variant="destructive" size="icon" onClick={() => handleDeleteCommitment(commitment.id)} title="Eliminar">
-                          <Trash2 className="h-5 w-5" />
-                        </Button>
-                      </div>
+                        {playingId === commitment.id && audioSrc && (
+                            <div className="mt-4">
+                                <audio src={audioSrc} controls autoPlay onEnded={() => { setPlayingId(null); setAudioSrc(null); }} className="w-full" />
+                            </div>
+                        )}
                     </Card>
                   ))
                 ) : (
