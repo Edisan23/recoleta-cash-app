@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Calendar } from '@/components/ui/calendar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { List, Trash2, Calendar as CalendarIcon, Clock, MessageSquare, PlayCircle, Phone, Loader2, User, Mic } from 'lucide-react';
+import { List, Trash2, Calendar as CalendarIcon, Clock, MessageSquare, PlayCircle, Phone, Loader2, Mic, PhoneCall } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { textToSpeech } from '@/ai/flows/text-to-speech';
+import { makePhoneCall } from '@/ai/flows/make-phone-call';
 
 
 interface Commitment {
@@ -38,6 +39,7 @@ export default function CommitmentsPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [voice, setVoice] = useState(voices[0].value);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [callingId, setCallingId] = useState<string | null>(null);
   const [audioSrc, setAudioSrc] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -121,6 +123,34 @@ export default function CommitmentsPage() {
         setPlayingId(null);
     }
   };
+
+  const handleMakeCall = async (commitment: Commitment) => {
+    setCallingId(commitment.id);
+    try {
+        const result = await makePhoneCall({
+            to: commitment.phoneNumber,
+            message: commitment.message,
+            voice: commitment.voice,
+        });
+        if (result.success) {
+            toast({
+                title: 'Llamada iniciada',
+                description: `Llamando al número ${commitment.phoneNumber}.`,
+            });
+        } else {
+            throw new Error(result.error || 'Error desconocido al iniciar la llamada.');
+        }
+    } catch (error: any) {
+        console.error('Error making phone call:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Error de llamada',
+            description: error.message || 'No se pudo realizar la llamada. Revisa las credenciales y el número.',
+        });
+    } finally {
+        setCallingId(null);
+    }
+  };
   
   const getVoiceLabel = (value: string) => {
     return voices.find(v => v.value === value)?.label || value;
@@ -152,7 +182,7 @@ export default function CommitmentsPage() {
                   />
                   <Input
                     type="tel"
-                    placeholder="N° de teléfono (ej: +14155552671)"
+                    placeholder="N° de teléfono (ej: +573001234567)"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                   />
@@ -224,6 +254,9 @@ export default function CommitmentsPage() {
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
+                                <Button variant="outline" size="icon" onClick={() => handleMakeCall(commitment)} title="Llamar ahora" disabled={callingId === commitment.id}>
+                                    {callingId === commitment.id ? <Loader2 className="h-5 w-5 animate-spin" /> : <PhoneCall className="h-5 w-5 text-blue-500" />}
+                                </Button>
                                 <Button variant="ghost" size="icon" onClick={() => handlePlayAudio(commitment)} title="Escuchar audio">
                                     {playingId === commitment.id && !audioSrc ? <Loader2 className="h-5 w-5 animate-spin" /> : <PlayCircle className="h-5 w-5 text-green-500" />}
                                 </Button>
