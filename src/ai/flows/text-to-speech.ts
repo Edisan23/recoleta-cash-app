@@ -50,7 +50,7 @@ const textToSpeechFlow = ai.defineFlow(
   },
   async ({ text, voice }) => {
     const ttsModel = googleAI.model('gemini-2.5-flash-preview-tts');
-    const { media } = await ai.generate({
+    const response = await ai.generate({
       model: ttsModel,
       config: {
         responseModalities: ['AUDIO'],
@@ -62,6 +62,7 @@ const textToSpeechFlow = ai.defineFlow(
       },
       prompt: text,
     });
+    const media = response.output?.media;
     if (!media) {
       throw new Error('no media returned');
     }
