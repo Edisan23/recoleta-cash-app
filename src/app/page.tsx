@@ -25,8 +25,8 @@ interface Commitment {
 const voices = [
     { value: 'Algenib', label: 'Español - Femenina' },
     { value: 'Achernar', label: 'Español - Masculina' },
-    { value: 'en-US-Standard-C', label: 'Inglés (EE.UU.) - Femenina' },
-    { value: 'en-US-Standard-D', label: 'Inglés (EE.UU.) - Masculina' },
+    { value: 'Erinome', label: 'Inglés (EE.UU.) - Femenina' },
+    { value: 'Puck', label: 'Inglés (EE.UU.) - Masculina' },
 ];
 
 export default function CommitmentsPage() {
