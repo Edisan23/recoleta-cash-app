@@ -1,0 +1,192 @@
+/**
+ * Core Philosophy: This ruleset enforces a multi-tenant, role-based security model for a time-tracking application.
+ * There are two primary roles: 'admin' and 'operator'. Admins have broad management capabilities over companies,
+ * settings, and can view user data. Operators are scoped to a specific company and can only manage their own
+ * personal data, such as shifts and payrolls. The fundamental principle is strict data siloing between users.
+ *
+ * Data Structure:
+ * - Top-level collections like `/companies`, `/users`, and `/payment_rules` store core application data.
+ * - User-specific data, such as `/shifts` and `/payrolls`, are nested within a user's document path
+ *   (e.g., `/users/{userId}/shifts/{shiftId}`), creating a clear ownership hierarchy.
+ * - Company-specific data, such as `/items`, is nested under the respective company document.
+ *
+ * Key Security Decisions:
+ * - Admin vs. Operator Roles: Access is determined by the `role` field in a user's document (`/users/{uid}`).
+ *   A user with `role == 'admin'` has elevated privileges. This requires a `get()` call for role verification.
+ * - Strict User Data Ownership: The `/users/{userId}` path is the cornerstone of security. A user can only access
+ *   documents within their own data tree (e.g., their own shifts, their own payrolls).
+ * - User Listing Disabled: Direct listing of the `/users` collection is explicitly forbidden to prevent user data
+ *   enumeration and protect privacy.
+ * - Denormalization for Authorization: User-generated documents like `shifts` and `payrolls` must contain a
+ *   denormalized `userId` field. This is validated on creation and enforced as immutable on update, ensuring
+ *   data integrity and preventing documents from being moved between users. This avoids costly cross-collection queries.
+ * - Read Access for Configuration: Signed-in users are granted read access to global and company-level configuration
+ *   (e.g., `companies`, `payment_rules`, `settings`) to enable client-side functionality like company selection lists.
+ *   All write operations on these collections are restricted to admins.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =====================================================================
+    // Helper Functions
+    // =====================================================================
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the authenticated user's UID matches the provided userId.
+     * This is the foundation of the user-ownership model.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks if a document exists. Used to secure update/delete operations.
+     */
+    function isExistingDoc() {
+      return resource != null;
+    }
+    
+    /**
+     * Combines ownership and existence checks for state-changing operations.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && isExistingDoc();
+    }
+    
+    /**
+     * Checks if the current user has the 'admin' role.
+     * Requires a read to the user's own document.
+     */
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    /**
+     * Checks if the current user belongs to the specified company.
+     * Requires a read to the user's own document.
+     */
+    function isUserInCompany(companyId) {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+    }
+
+    // =====================================================================
+    // Collection Rules
+    // =====================================================================
+
+    /**
+     * @description Manages company profiles. Readable by any signed-in user, but writable only by admins.
+     * @path /companies/{companyId}
+     * @allow (get) An operator can read company details to select their workplace.
+     * @deny (create) An operator cannot create a new company profile.
+     * @principle Separates public-read configuration from admin-only writes.
+     */
+    match /companies/{companyId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Manages work items (e.g., TT, bulto) specific to a company.
+     * @path /companies/{companyId}/items/{itemId}
+     * @allow (get) An operator assigned to 'companyId' can read the company's work items.
+     * @deny (get) An operator from a different company cannot read these items.
+     * @deny (create) An operator cannot create new work items.
+     * @principle Enforces company-level data siloing for associated users.
+     */
+    match /companies/{companyId}/items/{itemId} {
+      allow get, list: if isUserInCompany(companyId) || isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Stores payment rule configurations. Readable by any user, writable only by admins.
+     * @path /payment_rules/{paymentRuleId}
+     * @allow (get) Any signed-in user can read payment rules, which might be needed for display.
+     * @deny (create) An operator cannot create or modify payment rules.
+     * @principle Separates public-read configuration from admin-only writes.
+     */
+    match /payment_rules/{paymentRuleId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Manages user profiles. Users can manage their own profile. Admins can read any profile.
+     * @path /users/{userId}
+     * @allow (create) A new user can create their own user document ('self-creation').
+     * @allow (get, update) A user can read and modify their own document.
+     * @deny (list) Listing all users is forbidden to prevent data leakage.
+     * @deny (delete) A user from deleting another user's profile.
+     * @principle Enforces document ownership and prevents user enumeration.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && isExistingDoc();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Manages a user's work shifts. Access is strictly limited to the user who owns them.
+     * @path /users/{userId}/shifts/{shiftId}
+     * @allow (create, get, list, update, delete) A user can manage their own shifts.
+     * @deny (get) A user cannot read another user's shifts.
+     * @deny (create) A user cannot create a shift for another user.
+     * @principle Restricts access to a user's own data tree and validates relational integrity.
+     */
+    match /users/{userId}/shifts/{shiftId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Manages a user's payroll documents. Access is strictly limited to the user who owns them.
+     * @path /users/{userId}/payrolls/{payrollId}
+     * @allow (create, get, list, update, delete) A user can manage their own payrolls.
+     * @deny (get) A user cannot read another user's payroll data.
+     * @deny (create) A user cannot create a payroll document under another user's account.
+     * @principle Restricts access to a user's own data tree and validates relational integrity.
+     */
+    match /users/{userId}/payrolls/{payrollId} {
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Stores global application settings.
+     * @path /settings/{settingId}
+     * @allow (get, list) Any authenticated user can read global settings.
+     * @deny (create, update, delete) Only admins can modify global settings.
+     * @principle Separates public-read configuration from admin-only writes.
+     */
+    match /settings/{settingId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Stores global holiday calendars for payroll calculations.
+     * @path /holiday_calendars/{holidayCalendarId}
+     * @allow (get, list) Any authenticated user can read holiday data.
+     * @deny (create, update, delete) Only admins can modify holiday calendars.
+     * @principle Separates public-read configuration from admin-only writes.
+     */
+    match /holiday_calendars/{holidayCalendarId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}
