@@ -30,13 +30,25 @@
         "role": {
           "type": "string",
           "description": "The user's role within the application (e.g., operator, admin)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the user account was created."
+        },
+        "paymentStatus": {
+            "type": "string",
+            "description": "The payment status of the user's account.",
+            "enum": ["trial", "paid", "blocked"]
         }
       },
       "required": [
         "id",
         "name",
         "email",
-        "role"
+        "role",
+        "createdAt",
+        "paymentStatus"
       ]
     },
     "Company": {
@@ -102,10 +114,16 @@
           "description": "The base salary, if applicable."
         },
         "hourlyRates": {
-          "type": "array",
-          "description": "Hourly rates for different types of work (diurna, nocturna, extraDiurna, etc.).",
-          "items": {
-            "type": "number"
+          "type": "object",
+          "properties": {
+              "diurna": { "type": "number" },
+              "nocturna": { "type": "number" },
+              "extraDiurna": { "type": "number" },
+              "extraNocturna": { "type": "number" },
+              "festivaDiurna": { "type": "number" },
+              "festivaNocturna": { "type": "number" },
+              "extraFestivaDiurna": { "type": "number" },
+              "extraFestivaNocturna": { "type": "number" }
           }
         },
         "incentives": {
@@ -116,17 +134,18 @@
           }
         },
         "socialContributions": {
-          "type": "array",
+          "type": "object",
           "description": "Social contribution percentages (salud, pension, etc.).",
-          "items": {
-            "type": "number"
-          }
+           "properties": {
+               "salud_pct": { "type": "number" },
+               "pension_pct": { "type": "number" }
+           }
         },
         "subsidies": {
-          "type": "array",
+          "type": "object",
           "description": "Subsidies such as transportation.",
-          "items": {
-            "type": "string"
+          "properties": {
+              "transporte": { "type": "number" }
           }
         }
       },
@@ -191,10 +210,15 @@
           "description": "Indicates if the shift was manually entered."
         },
         "hoursBreakdown": {
-          "type": "array",
+          "type": "object",
           "description": "Breakdown of hours by type (diurna, nocturna, extra, festiva, etc.).",
-          "items": {
-            "type": "number"
+           "properties": {
+              "diurna": { "type": "number" },
+              "nocturna": { "type": "number" },
+              "extraDiurna": { "type": "number" },
+              "extraNocturna": { "type": "number" },
+              "festivaDiurna": { "type": "number" },
+              "festivaNocturna": { "type": "number" }
           }
         },
         "grossValue": {
@@ -363,20 +387,23 @@
           "type": "array",
           "description": "An array of holiday dates.",
           "items": {
-            "type": "string"
+            "type": "string",
+            "format": "date"
           }
         }
       },
       "required": [
         "id",
-        "name"
+        "name",
+        "holidays"
       ]
     }
   },
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "anonymous",
+      "google.com"
     ]
   },
   "firestore": {
@@ -525,3 +552,5 @@
     "reasoning": "This Firestore structure is designed to support a multi-company time tracking and payroll application. It prioritizes authorization independence and QAPs through denormalization and structural segregation.\n\n*   **Authorization Independence:** The `shifts` collection stores `companyId` and `userId`, denormalizing this data to avoid `get()` calls in security rules. User roles (operator/admin) are stored directly within the `users` document.\n\n*   **Structural Segregation:** Each entity type (companies, users, shifts, etc.) is stored in its own top-level collection, ensuring a homogeneous security posture for each collection. User specific data (shifts, payrolls) are created in a heirarchy.\n\n*   **QAPs:** List operations are secured by the path structure (e.g., listing shifts for a specific user under `/users/{userId}/shifts`). Admin access to company-related data is controlled by checking the user's role and the relevant `companyId`.\n\n\nThis structure supports the core application features, including user authentication, company management, shift recording, payroll calculation, and reporting. The design facilitates clear and robust security rules, making the application more secure and maintainable."
   }
 }
+
+    
