@@ -120,14 +120,6 @@ export default function LoginPage() {
           >
             Continuar con Google
           </Button>
-          <Button
-            variant="secondary"
-            className="w-full"
-            onClick={handleAnonymousSignIn}
-            disabled={isUserLoading || !!user}
-          >
-            Continuar en Modo Anónimo
-          </Button>
         </CardContent>
         {user && (
           <CardFooter className="flex flex-col gap-4">
