@@ -12,10 +12,11 @@ export default function Home() {
 
   useEffect(() => {
     if (!isUserLoading && user) {
-      // Once the user is loaded and logged in, you might want to redirect them
-      // For now, we'll just log it.
-      console.log('User is logged in:', user.uid);
-      // Example redirect: router.push('/dashboard');
+      // Check if the user is the admin
+      if (user.email === 'tjedisan@gmail.com') {
+        router.push('/admin'); // Redirect admin to admin dashboard
+      }
+      // For other users, stay on the operator dashboard
     }
   }, [user, isUserLoading, router]);
 
@@ -27,9 +28,18 @@ export default function Home() {
     );
   }
 
-  // If user is logged in, show the operator dashboard.
-  if (user) {
+  // If user is logged in and not an admin, show the operator dashboard.
+  if (user && user.email !== 'tjedisan@gmail.com') {
     return <OperatorDashboard />;
+  }
+
+  // If it's the admin, they will be redirected. In the meantime, show loading or null.
+  if (user && user.email === 'tjedisan@gmail.com') {
+     return (
+        <div className="flex min-h-screen items-center justify-center">
+            Redirecting to admin dashboard...
+        </div>
+     );
   }
 
   // If no user is logged in, show the landing page

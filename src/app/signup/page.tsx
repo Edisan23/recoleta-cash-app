@@ -34,6 +34,16 @@ export default function SignUpPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Prevent admin email from being registered again
+    if (email.toLowerCase() === 'tjedisan@gmail.com') {
+      toast({
+        variant: 'destructive',
+        title: 'Error de registro',
+        description: 'Esta dirección de correo está reservada.',
+      });
+      return;
+    }
+
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -52,7 +62,7 @@ export default function SignUpPage() {
           id: user.uid,
           name: name,
           email: user.email,
-          role: 'operator', // Default role
+          role: 'operator', // Default role for new sign-ups
           createdAt: serverTimestamp(),
           paymentStatus: 'trial',
         });
@@ -129,5 +139,3 @@ export default function SignUpPage() {
     </div>
   );
 }
-
-    
