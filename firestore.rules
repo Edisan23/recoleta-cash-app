@@ -10,8 +10,9 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
+    // Use a specific UID for the admin for better security
     function isAdmin() {
-      return request.auth != null && request.auth.token.email == 'tjedisan@gmail.com';
+      return request.auth != null && request.auth.uid == '15sJqL2prSVL2adSXRyqsefg26v1';
     }
 
     // A user can be associated with a company
@@ -28,7 +29,7 @@ service cloud.firestore {
     // Companies can be read by any signed-in user, but only created/updated/deleted by an admin.
     match /companies/{companyId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdmin();
 
       // Company subcollections can be managed by admins.
       // Operators who are members of the company can read settings and items.
@@ -57,5 +58,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

@@ -19,7 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Upload, Image as ImageIcon } from 'lucide-react';
 import { useStorage } from '@/firebase/provider';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { errorEmitter, FirestorePermissionError } from '@/firebase';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 
 export function CreateCompanyDialog() {
@@ -68,10 +69,10 @@ export function CreateCompanyDialog() {
 
     setIsSubmitting(true);
     
-    // Define company data structure without logoUrl initially
+    let logoUrl = '';
     const companyData = {
         name: companyName,
-        logoUrl: '', // Will be updated after upload
+        logoUrl: '',
         isActive: true,
         createdAt: serverTimestamp(),
     };
@@ -81,7 +82,7 @@ export function CreateCompanyDialog() {
       if (logoFile && storage) {
         const storageRef = ref(storage, `company-logos/${Date.now()}_${logoFile.name}`);
         const uploadResult = await uploadBytes(storageRef, logoFile);
-        const logoUrl = await getDownloadURL(uploadResult.ref);
+        logoUrl = await getDownloadURL(uploadResult.ref);
         companyData.logoUrl = logoUrl; // Update logoUrl in the data object
       }
 
