@@ -16,7 +16,7 @@ export default function AdminPage() {
   const auth = useAuth();
 
   useEffect(() => {
-    if (!isUserLoading && (!user || user.email !== 'tjedisan@gmail.com')) {
+    if (!isUserLoading && (!user || user.uid !== '15sJqL2prSVL2adSXRyqsefg26v1')) {
       router.push('/login');
     }
   }, [user, isUserLoading, router]);

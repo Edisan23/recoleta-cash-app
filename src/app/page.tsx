@@ -1,45 +1,66 @@
 'use client';
 
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { LandingPage } from '@/components/LandingPage';
 import { OperatorDashboard } from '@/components/OperatorDashboard';
+import { useDoc } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import type { User } from '@/types/db-entities';
+import { useMemoFirebase } from '@/firebase/provider';
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const firestore = useFirestore();
+
+  const userRef = useMemoFirebase(
+    () => (user ? doc(firestore, 'users', user.uid) : null),
+    [firestore, user]
+  );
+  const { data: userData, isLoading: isUserDataLoading } = useDoc<User>(userRef);
 
   useEffect(() => {
-    if (!isUserLoading && user) {
-      // Check if the user is the admin
-      if (user.email === 'tjedisan@gmail.com') {
-        router.push('/admin'); // Redirect admin to admin dashboard
-      }
-      // For other users, stay on the operator dashboard
+    if (isUserLoading || isUserDataLoading) {
+      return; // Wait until all user data is loaded
     }
-  }, [user, isUserLoading, router]);
 
-  if (isUserLoading) {
+    if (user && userData) {
+      // User is logged in and we have their DB record
+      if (userData.role === 'admin') {
+        router.push('/admin');
+      } else if (!userData.companyId) {
+        // Operator without a company needs to select one
+        router.push('/select-company');
+      }
+      // Otherwise, stay on this page to render OperatorDashboard
+    }
+  }, [user, userData, isUserLoading, isUserDataLoading, router]);
+
+  const isLoading = isUserLoading || isUserDataLoading;
+
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        Loading...
+        Cargando...
       </div>
     );
   }
 
-  // If user is logged in and not an admin, show the operator dashboard.
-  if (user && user.email !== 'tjedisan@gmail.com') {
+  // If user is logged in, is an operator, and has a company, show the dashboard.
+  if (user && userData?.role === 'operator' && userData?.companyId) {
     return <OperatorDashboard />;
   }
 
-  // If it's the admin, they will be redirected. In the meantime, show loading or null.
-  if (user && user.email === 'tjedisan@gmail.com') {
-     return (
-        <div className="flex min-h-screen items-center justify-center">
-            Redirecting to admin dashboard...
-        </div>
-     );
+  // If it's the admin or an operator without a company, they will be redirected.
+  // In the meantime, show a loading message.
+  if (user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        Redirigiendo...
+      </div>
+    );
   }
 
   // If no user is logged in, show the landing page
