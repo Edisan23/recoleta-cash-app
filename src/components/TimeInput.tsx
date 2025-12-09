@@ -42,7 +42,7 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
   };
 
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2 text-center">
       <Label htmlFor={label.toLowerCase().replace(' ', '-')}>{label}</Label>
       <Input
         id={label.toLowerCase().replace(' ', '-')}
@@ -51,7 +51,7 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
         value={value}
         onChange={handleInputChange}
         maxLength={5}
-        className="text-center text-lg font-mono"
+        className="w-32 text-center text-2xl font-mono"
       />
     </div>
   );

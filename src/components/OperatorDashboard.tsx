@@ -36,8 +36,8 @@ export function OperatorDashboard() {
           <CardHeader>
             <CardTitle>Nuevo Turno</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CardContent className="flex flex-col items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
               <TimeInput
                 label="Hora de Entrada"
                 value={startTime}
@@ -49,7 +49,7 @@ export function OperatorDashboard() {
                 onChange={setEndTime}
               />
             </div>
-            <div className="mt-8 flex justify-end">
+            <div className="mt-4 flex justify-center">
               <Button onClick={handleSave}>Calcular y Guardar Turno</Button>
             </div>
           </CardContent>
