@@ -7,7 +7,7 @@ import { TimeInput } from './TimeInput';
 import { useAuth, useUser } from '@/firebase';
 import { DatePicker } from './DatePicker';
 import { signOut } from 'firebase/auth';
-import { LogOut } from 'lucide-react';
+import { LogOut, CalendarCheck, Wallet } from 'lucide-react';
 
 export function OperatorDashboard() {
   const { user } = useUser();
@@ -53,32 +53,74 @@ export function OperatorDashboard() {
           </Button>
         </header>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Registrar Turno(s)</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-6">
-            <DatePicker date={date} setDate={setDate} />
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              <TimeInput
-                label="Hora de Entrada"
-                value={startTime}
-                onChange={setStartTime}
-              />
-              <span className="text-muted-foreground">a</span>
-              <TimeInput
-                label="Hora de Salida"
-                value={endTime}
-                onChange={setEndTime}
-              />
-            </div>
-            <div className="mt-4 flex justify-center">
-              <Button onClick={handleSave}>Calcular y Guardar Turno</Button>
-            </div>
-          </CardContent>
-        </Card>
+        <main className="grid gap-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Registrar Turno(s)</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-6">
+              <DatePicker date={date} setDate={setDate} />
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                <TimeInput
+                  label="Hora de Entrada"
+                  value={startTime}
+                  onChange={setStartTime}
+                />
+                <span className="text-muted-foreground">a</span>
+                <TimeInput
+                  label="Hora de Salida"
+                  value={endTime}
+                  onChange={setEndTime}
+                />
+              </div>
+              <div className="mt-4 flex justify-center">
+                <Button onClick={handleSave}>Calcular y Guardar Turno</Button>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* TODO: Add sections for shift history, summaries, etc. */}
+          <div className="grid md:grid-cols-2 gap-8">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-medium">
+                  Resumen del Día
+                </CardTitle>
+                <CalendarCheck className="h-6 w-6 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {/* Placeholder content. Logic to be implemented */}
+                <p className="text-sm text-muted-foreground">
+                  Aquí se mostrará el desglose del turno una vez guardado.
+                </p>
+                <div className="mt-4 space-y-2">
+                   <div className="flex justify-between"><span>Horas diurnas:</span> <strong>-</strong></div>
+                   <div className="flex justify-between"><span>Horas nocturnas:</span> <strong>-</strong></div>
+                   <div className="flex justify-between"><span>Total Turno:</span> <strong className="text-xl">-</strong></div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-medium">
+                  Acumulado Quincenal
+                </CardTitle>
+                <Wallet className="h-6 w-6 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {/* Placeholder content. Logic to be implemented */}
+                <p className="text-sm text-muted-foreground">
+                  Aquí se mostrará el acumulado del periodo de pago actual.
+                </p>
+                <div className="mt-4 space-y-2">
+                   <div className="flex justify-between"><span>Total horas:</span> <strong>-</strong></div>
+                   <div className="flex justify-between"><span>Salario bruto:</span> <strong>-</strong></div>
+                   <div className="flex justify-between"><span>Neto a pagar:</span> <strong className="text-xl">-</strong></div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
       </div>
     </div>
   );
