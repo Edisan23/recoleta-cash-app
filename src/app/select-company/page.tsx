@@ -29,16 +29,20 @@ export default function SelectCompanyPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const companiesRef = useMemoFirebase(
-    () => collection(firestore, 'companies'),
-    [firestore]
+    () => (user ? collection(firestore, 'companies') : null),
+    [firestore, user]
   );
   const { data: companies, isLoading: areCompaniesLoading } =
     useCollection<Company>(companiesRef);
 
-  // Redirect admin away from this page
+  // Redirect admin away from this page or unauthenticated users to login
   useEffect(() => {
-    if (!isUserLoading && user?.uid === '15sJqL2prSVL2adSXRyqsefg26v1') {
-      router.push('/admin');
+    if (!isUserLoading) {
+        if (user?.uid === '15sJqL2prSVL2adSXRyqsefg26v1') {
+            router.push('/admin');
+        } else if (!user) {
+            router.push('/login');
+        }
     }
   },[user, isUserLoading, router]);
 
@@ -79,7 +83,17 @@ export default function SelectCompanyPage() {
     router.push('/login');
   };
 
+  // The primary loading state now depends on both user and company data loading states.
   const isLoading = isUserLoading || areCompaniesLoading;
+
+  // Show a generic loading screen while the user's auth state is being determined.
+  if (isUserLoading || !user) {
+      return (
+           <div className="flex min-h-screen items-center justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+           </div>
+      )
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
