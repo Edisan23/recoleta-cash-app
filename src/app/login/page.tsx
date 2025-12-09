@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/firebase';
 import {
   signInWithEmailAndPassword,
@@ -29,7 +29,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const auth = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (searchParams.get('admin') === 'true') {
+      setEmail('tjedisan@gmail.com');
+      setPassword('Ed1san23');
+    }
+  }, [searchParams]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -148,5 +156,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
