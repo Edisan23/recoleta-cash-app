@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: '**', // Allow any hostname for logos
+      }
     ],
   },
 };

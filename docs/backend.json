@@ -23,33 +23,68 @@
           "type": "string",
           "description": "The user's role within the application (e.g., operator, admin)."
         },
+        "companyId": {
+            "type": "string",
+            "description": "The ID of the company the user belongs to."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the user account was created."
         },
         "paymentStatus": {
-            "type": "string",
-            "description": "The payment status of the user's account.",
-            "enum": ["trial", "paid", "blocked"]
+          "type": "string",
+          "description": "The payment status of the user's account.",
+          "enum": ["trial", "paid", "blocked"]
         }
       },
-      "required": [
-        "id",
-        "name",
-        "email",
-        "role",
-        "createdAt",
-        "paymentStatus"
-      ]
+      "required": ["id", "name", "email", "role", "createdAt", "paymentStatus"]
+    },
+    "Company": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Company",
+      "type": "object",
+      "description": "Represents a company that uses the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the company."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the company."
+        },
+        "logoUrl": {
+          "type": "string",
+          "description": "URL of the company's logo.",
+          "format": "uri"
+        },
+        "isActive": {
+            "type": "boolean",
+            "description": "Whether the company is active or not."
+        },
+        "paymentRuleId": {
+            "type": "string",
+            "description": "Reference to the payment rule for this company."
+        }
+      },
+      "required": ["id", "name", "isActive"]
+    },
+    "PaymentRule": {
+        "title": "PaymentRule",
+        "description": "Defines the payment rules for a company.",
+        "type": "object",
+        "properties": {
+            "id": { "type": "string" },
+            "companyId": { "type": "string" },
+            "hourlyRate": { "type": "number" },
+            "overtimeRate": { "type": "number" }
+        },
+        "required": ["id", "companyId", "hourlyRate", "overtimeRate"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous",
-      "google.com"
-    ]
+    "providers": ["password", "anonymous", "google.com"]
   },
   "firestore": {
     "structure": [
@@ -57,16 +92,24 @@
         "path": "/users/{userId}",
         "definition": {
           "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user information.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
+          "schema": { "$ref": "#/backend/entities/User" },
+          "description": "Stores user information."
+        }
+      },
+      {
+        "path": "/companies/{companyId}",
+        "definition": {
+          "entityName": "Company",
+          "schema": { "$ref": "#/backend/entities/Company" },
+          "description": "Stores company information."
+        }
+      },
+      {
+        "path": "/payment_rules/{ruleId}",
+        "definition": {
+            "entityName": "PaymentRule",
+            "schema": { "$ref": "#/backend/entities/PaymentRule" },
+            "description": "Stores payment rules for companies."
         }
       }
     ]
