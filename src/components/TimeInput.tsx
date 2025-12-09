@@ -17,7 +17,7 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
     if (input.length > 4) {
       input = input.substring(0, 4);
     }
-    
+
     let formattedInput = input;
     if (input.length > 2) {
       formattedInput = `${input.substring(0, 2)}:${input.substring(2)}`;
@@ -25,25 +25,27 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
 
     // Basic validation for 24-hour format
     if (input.length >= 2) {
-        const hours = parseInt(input.substring(0, 2), 10);
-        if (hours > 23) {
-            formattedInput = '23' + (input.length > 2 ? ':' + input.substring(2) : '');
-        }
+      const hours = parseInt(input.substring(0, 2), 10);
+      if (hours > 23) {
+        formattedInput =
+          '23' + (input.length > 2 ? ':' + input.substring(2) : '');
+      }
     }
     if (input.length >= 4) {
-        const minutes = parseInt(input.substring(2, 4), 10);
-        if (minutes > 59) {
-            formattedInput = input.substring(0, 2) + ':59';
-        }
+      const minutes = parseInt(input.substring(2, 4), 10);
+      if (minutes > 59) {
+        formattedInput = input.substring(0, 2) + ':59';
+      }
     }
-
 
     onChange(formattedInput);
   };
 
   return (
     <div className="grid gap-2 text-center">
-      <Label htmlFor={label.toLowerCase().replace(' ', '-')}>{label}</Label>
+      <Label htmlFor={label.toLowerCase().replace(' ', '-')} className="sr-only">
+        {label}
+      </Label>
       <Input
         id={label.toLowerCase().replace(' ', '-')}
         type="text"
@@ -51,7 +53,7 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
         value={value}
         onChange={handleInputChange}
         maxLength={5}
-        className="w-32 text-center text-2xl font-mono"
+        className="w-24 text-center text-lg font-mono"
       />
     </div>
   );
