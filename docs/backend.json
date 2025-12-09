@@ -62,25 +62,77 @@
         "isActive": {
             "type": "boolean",
             "description": "Whether the company is active or not."
-        },
-        "paymentRuleId": {
-            "type": "string",
-            "description": "Reference to the payment rule for this company."
         }
       },
       "required": ["id", "name", "isActive"]
     },
-    "PaymentRule": {
-        "title": "PaymentRule",
-        "description": "Defines the payment rules for a company.",
+    "CompanySettings": {
+      "title": "Company Settings",
+      "description": "Defines the payment rules, deductions, and special conditions for a company.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "dayRate": { "type": "number" },
+        "nightRate": { "type": "number" },
+        "dayOvertimeRate": { "type": "number" },
+        "nightOvertimeRate": { "type": "number" },
+        "holidayRate": { "type": "number" },
+        "holidayOvertimeRate": { "type": "number" },
+        "transportSubsidy": { "type": "number" },
+        "otherSubsidies": { "type": "number" },
+        "healthDeduction": { "type": "number", "description": "Percentage for health deduction." },
+        "pensionDeduction": { "type": "number", "description": "Percentage for pension deduction." },
+        "arlDeduction": { "type": "number", "description": "Percentage for ARL deduction." },
+        "taxWithholding": { "type": "number", "description": "Percentage for tax withholding." },
+        "hasBasicSalary": { "type": "boolean" },
+        "paymentType": { "type": "string", "enum": ["hourly", "salary"] },
+        "incentiveType": { "type": "string", "enum": ["none", "perHour", "perShift"] },
+        "normalHoursType": { "type": "string", "enum": ["daily", "fortnightly"] },
+        "normalHours": { "type": "number", "description": "Number of hours considered normal work." }
+      }
+    },
+    "CompanyItem": {
+      "title": "Company Item",
+      "description": "Represents an item or machine an operator can select for a shift.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "affectsPayment": { "type": "boolean" },
+        "paymentMultiplier": { "type": "number" },
+        "extraPerHour": { "type": "number" },
+        "requiresSupervisor": { "type": "boolean" }
+      },
+      "required": ["id", "name", "affectsPayment"]
+    },
+    "Shift": {
+        "title": "Shift",
+        "description": "Represents a single work shift for a user.",
         "type": "object",
         "properties": {
             "id": { "type": "string" },
+            "userId": { "type": "string" },
             "companyId": { "type": "string" },
-            "hourlyRate": { "type": "number" },
-            "overtimeRate": { "type": "number" }
+            "date": { "type": "string", "format": "date-time" },
+            "startTime": { "type": "string", "format": "time" },
+            "endTime": { "type": "string", "format": "time" },
+            "itemId": { "type": "string" },
+            "supervisor": { "type": "string" }
         },
-        "required": ["id", "companyId", "hourlyRate", "overtimeRate"]
+        "required": ["id", "userId", "companyId", "date", "startTime", "endTime"]
+    },
+    "Payroll": {
+        "title": "Payroll",
+        "description": "Represents a payroll period for a user.",
+        "type": "object",
+        "properties": {
+            "id": { "type": "string" },
+            "userId": { "type": "string" },
+            "companyId": { "type": "string" },
+            "periodStart": { "type": "string", "format": "date-time" },
+            "periodEnd": { "type": "string", "format": "date-time" }
+        }
     }
   },
   "auth": {
@@ -91,27 +143,49 @@
       {
         "path": "/users/{userId}",
         "definition": {
-          "entityName": "User",
-          "schema": { "$ref": "#/backend/entities/User" },
+          "schema": { "$ref": "#/entities/User" },
           "description": "Stores user information."
         }
       },
       {
         "path": "/companies/{companyId}",
         "definition": {
-          "entityName": "Company",
-          "schema": { "$ref": "#/backend/entities/Company" },
+          "schema": { "$ref": "#/entities/Company" },
           "description": "Stores company information."
-        }
-      },
-      {
-        "path": "/payment_rules/{ruleId}",
-        "definition": {
-            "entityName": "PaymentRule",
-            "schema": { "$ref": "#/backend/entities/PaymentRule" },
-            "description": "Stores payment rules for companies."
-        }
+        },
+        "subcollections": [
+            {
+                "path": "settings/{settingsId}",
+                "definition": {
+                    "schema": { "$ref": "#/entities/CompanySettings" },
+                    "description": "Payment rules and settings for the company."
+                }
+            },
+            {
+                "path": "items/{itemId}",
+                "definition": {
+                    "schema": { "$ref": "#/entities/CompanyItem" },
+                    "description": "Items/machines specific to the company."
+                }
+            },
+            {
+                "path": "shifts/{shiftId}",
+                "definition": {
+                    "schema": { "$ref": "#/entities/Shift" },
+                    "description": "All shifts for all users in the company."
+                }
+            },
+            {
+                "path": "payrolls/{payrollId}",
+                "definition": {
+                    "schema": { "$ref": "#/entities/Payroll" },
+                    "description": "All payrolls for all users in the company."
+                }
+            }
+        ]
       }
     ]
   }
 }
+
+    

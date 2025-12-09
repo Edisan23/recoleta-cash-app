@@ -18,9 +18,11 @@ import { Button } from '@/components/ui/button';
 import { Pencil } from 'lucide-react';
 import { useMemoFirebase } from '@/firebase/provider';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 export function CompanyTable() {
   const firestore = useFirestore();
+  const router = useRouter();
 
   const companiesRef = useMemoFirebase(() => collection(firestore, 'companies'), [firestore]);
   const { data: companies, isLoading } = useCollection<Company>(companiesRef);
@@ -33,6 +35,10 @@ export function CompanyTable() {
       console.error("Error updating company status: ", error);
       // Here you might want to show a toast to the user
     }
+  };
+
+  const handleEditClick = (companyId: string) => {
+    router.push(`/admin/company/${companyId}`);
   };
 
   if (isLoading) {
@@ -80,7 +86,7 @@ export function CompanyTable() {
                   onCheckedChange={(checked) => handleStatusChange(company.id, checked)}
                   aria-label="Activar o desactivar empresa"
                 />
-                <Button variant="outline" size="icon" disabled>
+                <Button variant="outline" size="icon" onClick={() => handleEditClick(company.id)}>
                   <Pencil className="h-4 w-4" />
                   <span className="sr-only">Editar</span>
                 </Button>
@@ -98,3 +104,5 @@ export function CompanyTable() {
     </Table>
   );
 }
+
+    

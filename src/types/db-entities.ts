@@ -15,36 +15,56 @@ export type Company = {
   name: string; // The name of the company.
   logoUrl?: string; // URL of the company's logo.
   isActive: boolean; // Whether the company is active or not.
-  paymentRuleId?: string; // Reference to the payment rule for this company.
 };
 
-export type PaymentRule = {
+export type CompanySettings = {
+    id?: string;
+    dayRate?: number;
+    nightRate?: number;
+    dayOvertimeRate?: number;
+    nightOvertimeRate?: number;
+    holidayRate?: number;
+    holidayOvertimeRate?: number;
+    transportSubsidy?: number;
+    otherSubsidies?: number;
+    healthDeduction?: number; // Percentage for health deduction.
+    pensionDeduction?: number; // Percentage for pension deduction.
+    arlDeduction?: number; // Percentage for ARL deduction.
+    taxWithholding?: number; // Percentage for tax withholding.
+    hasBasicSalary?: boolean;
+    paymentType?: 'hourly' | 'salary';
+    incentiveType?: 'none' | 'perHour' | 'perShift';
+    normalHoursType?: 'daily' | 'fortnightly';
+    normalHours?: number; // Number of hours considered normal work.
+};
+
+export type CompanyItem = {
     id: string;
-    companyId: string;
-    hourlyRate: number;
-    overtimeRate: number;
+    name: string;
+    description?: string;
+    affectsPayment: boolean;
+    paymentMultiplier?: number;
+    extraPerHour?: number;
+    requiresSupervisor?: boolean;
 };
 
 export type Shift = {
-  id: string; // Unique identifier for the shift.
-  userId: string; // Reference to User. (Relationship: User 1:N Shift) The ID of the user who worked the shift.
-  companyId: string; // Reference to Company. (Relationship: Company 1:N Shift) The ID of the company the shift belongs to.
-  date: string; // The date of the shift.
-  startTime: string; // The start time of the shift.
-  endTime: string; // The end time of the shift.
-  createdAt?: string; // The timestamp when the shift was created.
-  updatedAt?: string; // The timestamp when the shift was last updated.
-  grossValue?: number; // The gross value of the shift.
+    id: string;
+    userId: string;
+    companyId: string;
+    date: string; // ISO 8601 format
+    startTime: string; // HH:mm format
+    endTime: string; // HH:mm format
+    itemId?: string;
+    supervisor?: string;
 };
 
 export type Payroll = {
-  id: string; // Unique identifier for the payroll.
-  companyId: string; // Reference to Company. (Relationship: Company 1:N Payroll) The ID of the company the payroll belongs to.
-  userId: string; // Reference to User. (Relationship: User 1:N Payroll) The ID of the user the payroll is for.
-  periodStart: string; // The start date of the payroll period.
-  periodEnd: string; // The end date of the payroll period.
-  totalHours: number; // The total hours worked during the payroll period.
-  grossPay: number; // The gross pay for the payroll period.
-  netPay: number; // The net pay for the payroll period.
-  status: string; // The status of the payroll (e.g., draft, approved, paid).
+    id: string;
+    userId: string;
+    companyId: string;
+    periodStart: string; // ISO 8601 format
+    periodEnd: string; // ISO 8601 format
 };
+
+    
