@@ -4,11 +4,14 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TimeInput } from './TimeInput';
-import { useUser } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { DatePicker } from './DatePicker';
+import { signOut } from 'firebase/auth';
+import { LogOut } from 'lucide-react';
 
 export function OperatorDashboard() {
   const { user } = useUser();
+  const auth = useAuth();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -23,17 +26,32 @@ export function OperatorDashboard() {
     });
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      // The user will be redirected automatically by the logic in page.tsx
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
+
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-            Bienvenido, {user?.displayName || 'Operador'}
-          </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">
-            Registra tu turno
-          </p>
-        </div>
+        <header className="flex justify-between items-center mb-8">
+          <div className="text-left">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+              Bienvenido, {user?.displayName || 'Operador'}
+            </h1>
+            <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">
+              Registra tu turno
+            </p>
+          </div>
+          <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
+            <LogOut className="mr-2 h-5 w-5" />
+            Cerrar sesión
+          </Button>
+        </header>
 
         <Card>
           <CardHeader>
