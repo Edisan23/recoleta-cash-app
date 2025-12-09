@@ -69,7 +69,6 @@ export function CreateCompanyDialog() {
 
     setIsSubmitting(true);
     
-    let logoUrl = '';
     const companyData = {
         name: companyName,
         logoUrl: '',
@@ -82,7 +81,7 @@ export function CreateCompanyDialog() {
       if (logoFile && storage) {
         const storageRef = ref(storage, `company-logos/${Date.now()}_${logoFile.name}`);
         const uploadResult = await uploadBytes(storageRef, logoFile);
-        logoUrl = await getDownloadURL(uploadResult.ref);
+        const logoUrl = await getDownloadURL(uploadResult.ref);
         companyData.logoUrl = logoUrl; // Update logoUrl in the data object
       }
 
@@ -99,25 +98,22 @@ export function CreateCompanyDialog() {
       setOpen(false);
 
     } catch (error: any) {
-        // Centralized error handling
         console.error('Error creating company:', error);
 
-        if (error.code === 'permission-denied') {
-             const permissionError = new FirestorePermissionError({
-                path: 'companies',
-                operation: 'create',
-                requestResourceData: companyData,
-              });
-              // This will be caught by the FirebaseErrorListener and shown in dev overlay
-              errorEmitter.emit('permission-error', permissionError); 
-        } else {
-            // For any other errors (e.g., storage upload issues)
-            toast({
-                variant: 'destructive',
-                title: 'Error en la creación',
-                description: error.message || 'No se pudo crear la empresa. Revisa los permisos o la conexión.',
-            });
-        }
+        // This will be caught by the FirebaseErrorListener and shown in dev overlay
+        const permissionError = new FirestorePermissionError({
+          path: 'companies',
+          operation: 'create',
+          requestResourceData: companyData,
+        });
+        errorEmitter.emit('permission-error', permissionError); 
+       
+        // Show a user-friendly toast regardless of the error type
+        toast({
+            variant: 'destructive',
+            title: 'Error en la creación',
+            description: 'No se pudo crear la empresa. Revisa los permisos de la base de datos o la conexión a internet.',
+        });
     } finally {
         // 4. CRITICAL: Always reset submitting state, regardless of outcome
         setIsSubmitting(false);
