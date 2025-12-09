@@ -68,28 +68,28 @@ export function CreateCompanyDialog() {
 
     setIsSubmitting(true);
     
-    let logoUrl = '';
+    // Define company data structure without logoUrl initially
     const companyData = {
         name: companyName,
-        logoUrl: '',
+        logoUrl: '', // Will be updated after upload
         isActive: true,
         createdAt: serverTimestamp(),
     };
 
     try {
-      // 1. Subir el logo si existe
+      // 1. Upload logo if it exists
       if (logoFile && storage) {
         const storageRef = ref(storage, `company-logos/${Date.now()}_${logoFile.name}`);
         const uploadResult = await uploadBytes(storageRef, logoFile);
-        logoUrl = await getDownloadURL(uploadResult.ref);
-        companyData.logoUrl = logoUrl;
+        const logoUrl = await getDownloadURL(uploadResult.ref);
+        companyData.logoUrl = logoUrl; // Update logoUrl in the data object
       }
 
-      // 2. Intentar crear el documento en Firestore
+      // 2. Create the document in Firestore
       const companiesCol = collection(firestore, 'companies');
       await addDoc(companiesCol, companyData);
 
-      // 3. Si todo va bien, mostrar éxito y cerrar
+      // 3. If successful, show toast and close
       toast({
         title: 'Empresa creada',
         description: `La empresa "${companyName}" ha sido creada exitosamente.`,
@@ -98,27 +98,27 @@ export function CreateCompanyDialog() {
       setOpen(false);
 
     } catch (error: any) {
-        // Capturar cualquier error (de Storage o Firestore)
+        // Centralized error handling
         console.error('Error creating company:', error);
 
-        // Si es un error de permisos de Firestore, emitir el error contextual
         if (error.code === 'permission-denied') {
              const permissionError = new FirestorePermissionError({
                 path: 'companies',
                 operation: 'create',
                 requestResourceData: companyData,
               });
-              errorEmitter.emit('permission-error', permissionError);
+              // This will be caught by the FirebaseErrorListener and shown in dev overlay
+              errorEmitter.emit('permission-error', permissionError); 
         } else {
-            // Para otros errores (subida de storage, etc.) mostrar un toast genérico
+            // For any other errors (e.g., storage upload issues)
             toast({
                 variant: 'destructive',
-                title: 'Uh oh! Something went wrong.',
-                description: error.message || 'No se pudo completar el proceso de creación.',
+                title: 'Error en la creación',
+                description: error.message || 'No se pudo crear la empresa. Revisa los permisos o la conexión.',
             });
         }
     } finally {
-        // 4. Asegurarse de desactivar el estado de carga sin importar el resultado
+        // 4. CRITICAL: Always reset submitting state, regardless of outcome
         setIsSubmitting(false);
     }
   };
