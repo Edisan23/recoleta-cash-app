@@ -4,6 +4,7 @@ import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { LandingPage } from '@/components/LandingPage';
+import { OperatorDashboard } from '@/components/OperatorDashboard';
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
@@ -26,19 +27,10 @@ export default function Home() {
     );
   }
 
-  // If user is logged in, you could show a dashboard or something else.
-  // For now we will still show the landing page.
+  // If user is logged in, show the operator dashboard.
   if (user) {
-    return (
-        <div className="flex min-h-screen flex-col items-center justify-center p-24">
-            <h1 className="text-4xl font-bold mb-4">
-                Bienvenido, {user?.displayName || 'Usuario'}
-            </h1>
-            <p className="mb-8">Has iniciado sesión correctamente.</p>
-        </div>
-    );
+    return <OperatorDashboard />;
   }
-
 
   // If no user is logged in, show the landing page
   return <LandingPage />;
