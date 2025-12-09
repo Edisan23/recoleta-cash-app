@@ -18,7 +18,9 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { PlusCircle, Upload, Image as ImageIcon } from 'lucide-react';
 import { useStorage } from '@/firebase/provider';
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { errorEmitter, FirestorePermissionError } from '@/firebase';
+
 
 export function CreateCompanyDialog() {
   const [open, setOpen] = useState(false);
@@ -65,38 +67,55 @@ export function CreateCompanyDialog() {
     }
 
     setIsSubmitting(true);
+
     try {
       let logoUrl = '';
-      if (logoFile) {
+      if (logoFile && storage) {
         const storageRef = ref(storage, `company-logos/${Date.now()}_${logoFile.name}`);
         const uploadResult = await uploadBytes(storageRef, logoFile);
         logoUrl = await getDownloadURL(uploadResult.ref);
       }
 
       const companiesCol = collection(firestore, 'companies');
-      await addDoc(companiesCol, {
+      const companyData = {
         name: companyName,
         logoUrl: logoUrl,
         isActive: true,
         createdAt: serverTimestamp(),
-      });
+      };
+      
+      // Use non-blocking write with structured error handling
+      addDoc(companiesCol, companyData)
+        .then(() => {
+          toast({
+            title: 'Empresa creada',
+            description: `La empresa "${companyName}" ha sido creada exitosamente.`,
+          });
+          resetForm();
+          setOpen(false);
+        })
+        .catch((serverError) => {
+          console.error('Error creating company:', serverError);
+          const permissionError = new FirestorePermissionError({
+            path: companiesCol.path,
+            operation: 'create',
+            requestResourceData: companyData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        })
+        .finally(() => {
+           setIsSubmitting(false);
+        });
 
-      toast({
-        title: 'Empresa creada',
-        description: `La empresa "${companyName}" ha sido creada exitosamente.`,
-      });
-
-      resetForm();
-      setOpen(false);
     } catch (error: any) {
-      console.error('Error creating company:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Uh oh! Something went wrong.',
-        description: error.message || 'No se pudo crear la empresa. Revisa los permisos e inténtalo de nuevo.',
-      });
-    } finally {
-      setIsSubmitting(false);
+        // This will catch errors from storage upload, etc.
+        console.error('Error during company creation process:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Uh oh! Something went wrong.',
+            description: error.message || 'No se pudo completar el proceso de creación.',
+        });
+        setIsSubmitting(false);
     }
   };
 
