@@ -1,28 +1,32 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useAuth, useFirestore } from '@/firebase';
+import { useAuth, useFirestore, useUser } from '@/firebase';
 import {
   signInWithPopup,
   GoogleAuthProvider,
   signInAnonymously,
   AuthError,
   User,
+  signOut,
 } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { LogOut } from 'lucide-react';
 
 export default function LoginPage() {
   const auth = useAuth();
   const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -93,6 +97,11 @@ export default function LoginPage() {
     }
   };
 
+  const handleSignOut = async () => {
+    await signOut(auth);
+    // Stay on login page after sign out
+  };
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <Card className="w-full max-w-sm">
@@ -107,6 +116,7 @@ export default function LoginPage() {
             variant="outline"
             className="w-full"
             onClick={handleGoogleSignIn}
+            disabled={isUserLoading || !!user}
           >
             Continuar con Google
           </Button>
@@ -114,10 +124,22 @@ export default function LoginPage() {
             variant="secondary"
             className="w-full"
             onClick={handleAnonymousSignIn}
+            disabled={isUserLoading || !!user}
           >
             Continuar en Modo Anónimo
           </Button>
         </CardContent>
+        {user && (
+          <CardFooter className="flex flex-col gap-4">
+            <div className="text-center text-sm text-muted-foreground">
+              Ya has iniciado sesión como {user.displayName || user.email || 'Anónimo'}.
+            </div>
+            <Button variant="outline" className="w-full" onClick={handleSignOut}>
+                <LogOut className="mr-2" />
+                Cerrar Sesión
+            </Button>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );
