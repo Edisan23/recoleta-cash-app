@@ -1,12 +1,13 @@
 'use client';
 
-import { useCollection, useFirestore, useUser } from '@/firebase';
+import { useCollection, useFirestore, useUser, useAuth } from '@/firebase';
 import { collection, doc, updateDoc } from 'firebase/firestore';
 import type { Company } from '@/types/db-entities';
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -16,10 +17,12 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, LogOut } from 'lucide-react';
+import { signOut } from 'firebase/auth';
 
 export default function SelectCompanyPage() {
   const firestore = useFirestore();
+  const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -69,6 +72,11 @@ export default function SelectCompanyPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+  
+  const handleSignOut = async () => {
+    await signOut(auth);
+    router.push('/login');
   };
 
   const isLoading = isUserLoading || areCompaniesLoading;
@@ -120,6 +128,12 @@ export default function SelectCompanyPage() {
                <p className="text-center text-muted-foreground col-span-full">No hay empresas activas disponibles. Contacta a un administrador.</p>
            )}
         </CardContent>
+        <CardFooter className="flex justify-end">
+            <Button variant="ghost" onClick={handleSignOut}>
+                <LogOut className="mr-2" />
+                Cerrar Sesión
+            </Button>
+        </CardFooter>
       </Card>
     </div>
   );
