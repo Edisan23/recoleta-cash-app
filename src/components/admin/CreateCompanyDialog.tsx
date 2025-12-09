@@ -67,54 +67,58 @@ export function CreateCompanyDialog() {
     }
 
     setIsSubmitting(true);
+    
+    let logoUrl = '';
+    const companyData = {
+        name: companyName,
+        logoUrl: '',
+        isActive: true,
+        createdAt: serverTimestamp(),
+    };
 
     try {
-      let logoUrl = '';
+      // 1. Subir el logo si existe
       if (logoFile && storage) {
         const storageRef = ref(storage, `company-logos/${Date.now()}_${logoFile.name}`);
         const uploadResult = await uploadBytes(storageRef, logoFile);
         logoUrl = await getDownloadURL(uploadResult.ref);
+        companyData.logoUrl = logoUrl;
       }
 
+      // 2. Intentar crear el documento en Firestore
       const companiesCol = collection(firestore, 'companies');
-      const companyData = {
-        name: companyName,
-        logoUrl: logoUrl,
-        isActive: true,
-        createdAt: serverTimestamp(),
-      };
-      
-      // Use non-blocking write with structured error handling
-      addDoc(companiesCol, companyData)
-        .then(() => {
-          toast({
-            title: 'Empresa creada',
-            description: `La empresa "${companyName}" ha sido creada exitosamente.`,
-          });
-          resetForm();
-          setOpen(false);
-        })
-        .catch((serverError) => {
-          console.error('Error creating company:', serverError);
-          const permissionError = new FirestorePermissionError({
-            path: companiesCol.path,
-            operation: 'create',
-            requestResourceData: companyData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-        })
-        .finally(() => {
-           setIsSubmitting(false);
-        });
+      await addDoc(companiesCol, companyData);
+
+      // 3. Si todo va bien, mostrar éxito y cerrar
+      toast({
+        title: 'Empresa creada',
+        description: `La empresa "${companyName}" ha sido creada exitosamente.`,
+      });
+      resetForm();
+      setOpen(false);
 
     } catch (error: any) {
-        // This will catch errors from storage upload, etc.
-        console.error('Error during company creation process:', error);
-        toast({
-            variant: 'destructive',
-            title: 'Uh oh! Something went wrong.',
-            description: error.message || 'No se pudo completar el proceso de creación.',
-        });
+        // Capturar cualquier error (de Storage o Firestore)
+        console.error('Error creating company:', error);
+
+        // Si es un error de permisos de Firestore, emitir el error contextual
+        if (error.code === 'permission-denied') {
+             const permissionError = new FirestorePermissionError({
+                path: 'companies',
+                operation: 'create',
+                requestResourceData: companyData,
+              });
+              errorEmitter.emit('permission-error', permissionError);
+        } else {
+            // Para otros errores (subida de storage, etc.) mostrar un toast genérico
+            toast({
+                variant: 'destructive',
+                title: 'Uh oh! Something went wrong.',
+                description: error.message || 'No se pudo completar el proceso de creación.',
+            });
+        }
+    } finally {
+        // 4. Asegurarse de desactivar el estado de carga sin importar el resultado
         setIsSubmitting(false);
     }
   };

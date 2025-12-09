@@ -63,6 +63,7 @@ export default function SignUpPage() {
           name: name,
           email: user.email,
           role: 'operator', // Default role for new sign-ups
+          companyId: null, // Initially, user is not associated with any company
           createdAt: serverTimestamp(),
           paymentStatus: 'trial',
         });
