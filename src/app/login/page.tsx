@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth, useFirestore } from '@/firebase';
 import {
   signInWithPopup,
@@ -28,21 +28,39 @@ export default function LoginPage() {
 
   const handleUserDoc = async (user: User) => {
     const userRef = doc(firestore, 'users', user.uid);
+    const isAdmin = user.uid === '15sJqL2prSVL2adSXRyqsefg26v1';
+    
+    if (isAdmin) {
+        // If the user is the admin, redirect directly to the admin panel.
+        // We can ensure their document exists or update it if needed.
+        await setDoc(userRef, {
+            id: user.uid,
+            name: user.displayName || 'Admin',
+            email: user.email,
+            role: 'admin',
+            createdAt: serverTimestamp(),
+            paymentStatus: 'paid',
+        }, { merge: true });
+        router.push('/admin');
+        return;
+    }
+
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      // Create user document in Firestore if it doesn't exist
+      // Create user document for operators if it doesn't exist
       await setDoc(userRef, {
         id: user.uid,
         name: user.displayName || 'Anónimo',
         email: user.email,
-        role: user.uid === '15sJqL2prSVL2adSXRyqsefg26v1' ? 'admin' : 'operator',
+        role: 'operator',
         companyId: null,
         createdAt: serverTimestamp(),
         paymentStatus: 'trial',
       });
     }
-     // Always redirect to home, which will handle routing
+
+     // Redirect operators to the main page, which will handle the company selection flow
      router.push('/');
   };
 
@@ -81,7 +99,7 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
           <CardDescription>
-            Elige un método para acceder a tu cuenta de operador.
+            Elige un método para acceder a tu cuenta.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">

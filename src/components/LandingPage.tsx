@@ -38,12 +38,12 @@ export function LandingPage() {
           <Link href="/login">Iniciar Sesión</Link>
         </Button>
         <Button asChild variant="secondary">
-          <Link href="/signup">Regístrate</Link>
+          <Link href="/login">Regístrate</Link>
         </Button>
       </div>
 
       <div className="absolute bottom-4 right-4">
-        <Link href="/login?admin=true" aria-label="Admin Login">
+        <Link href="/login" aria-label="Admin Login">
           <GarzaIcon className="h-8 w-8 text-muted-foreground transition-colors hover:text-foreground" />
         </Link>
       </div>
