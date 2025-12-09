@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,16 +16,42 @@ import { Label } from '@/components/ui/label';
 import { useFirestore } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Upload, Image as ImageIcon } from 'lucide-react';
+import { useStorage } from '@/firebase/provider';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 export function CreateCompanyDialog() {
   const [open, setOpen] = useState(false);
   const [companyName, setCompanyName] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const firestore = useFirestore();
+  const storage = useStorage();
   const { toast } = useToast();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  const resetForm = () => {
+    setCompanyName('');
+    setLogoFile(null);
+    setLogoPreview(null);
+    if(fileInputRef.current) {
+        fileInputRef.current.value = '';
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +66,13 @@ export function CreateCompanyDialog() {
 
     setIsSubmitting(true);
     try {
+      let logoUrl = '';
+      if (logoFile) {
+        const storageRef = ref(storage, `company-logos/${Date.now()}_${logoFile.name}`);
+        const uploadResult = await uploadBytes(storageRef, logoFile);
+        logoUrl = await getDownloadURL(uploadResult.ref);
+      }
+
       const companiesCol = collection(firestore, 'companies');
       await addDoc(companiesCol, {
         name: companyName,
@@ -53,8 +86,7 @@ export function CreateCompanyDialog() {
         description: `La empresa "${companyName}" ha sido creada exitosamente.`,
       });
 
-      setCompanyName('');
-      setLogoUrl('');
+      resetForm();
       setOpen(false);
     } catch (error) {
       console.error('Error creating company:', error);
@@ -97,17 +129,35 @@ export function CreateCompanyDialog() {
                 placeholder="Ej. Mi Empresa S.A.S"
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="logoUrl" className="text-right">
-                URL del Logo
+            <div className="grid grid-cols-4 items-start gap-4">
+              <Label className="text-right pt-2">
+                Logo
               </Label>
-              <Input
-                id="logoUrl"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                className="col-span-3"
-                placeholder="https://example.com/logo.png"
-              />
+              <div className="col-span-3 flex flex-col gap-4">
+                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Subir Imagen
+                </Button>
+                <Input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept="image/png, image/jpeg"
+                />
+
+                {logoPreview && (
+                    <div className="relative w-24 h-24 border rounded-md p-1">
+                        <img src={logoPreview} alt="Vista previa del logo" className="w-full h-full object-contain rounded-md" />
+                    </div>
+                )}
+                {!logoPreview && (
+                    <div className="relative w-24 h-24 border rounded-md p-1 flex items-center justify-center bg-muted">
+                        <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                    </div>
+                )}
+
+              </div>
             </div>
           </div>
           <DialogFooter>

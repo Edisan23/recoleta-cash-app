@@ -1,0 +1,19 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow read access to all files.
+    // This is useful for public assets like company logos.
+    match /{allPaths=**} {
+      allow read;
+    }
+
+    // Allow write access only for authenticated users.
+    // This is a basic rule. For more fine-grained control, you might want to
+    // check user roles or ownership of the data they are trying to upload.
+    // For example, restrict uploads to a specific path based on the user's ID.
+    match /company-logos/{fileName} {
+        allow write: if request.auth != null;
+    }
+  }
+}
