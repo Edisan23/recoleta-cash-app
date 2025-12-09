@@ -1,40 +1,24 @@
 'use client';
 
-import { useUser, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { doc } from 'firebase/firestore';
-import { useDoc } from '@/firebase/firestore/use-doc';
-import { HomeDashboard } from '@/components/HomeDashboard';
+import { useEffect } from 'react';
 import { LandingPage } from '@/components/LandingPage';
-import { CompanySelection } from '@/components/CompanySelection';
-import type { User } from '@/types/db-entities';
 
 export default function Home() {
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
   const router = useRouter();
 
-  // Memoize the user document reference
-  const userDocRef = useMemoFirebase(() => {
-    if (!user) return null;
-    return doc(firestore, 'users', user.uid);
-  }, [firestore, user]);
-
-  // Use the useDoc hook to get the user's profile data
-  const { data: userData, isLoading: isUserDataLoading } = useDoc<User>(userDocRef);
-
-  const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
-    const loading = isUserLoading || isUserDataLoading;
-    setIsLoading(loading);
-    if (!loading && !user) {
-      // User is not logged in, but we show the LandingPage, so no redirect needed.
+    if (!isUserLoading && user) {
+      // Once the user is loaded and logged in, you might want to redirect them
+      // For now, we'll just log it.
+      console.log('User is logged in:', user.uid);
+      // Example redirect: router.push('/dashboard');
     }
-  }, [user, isUserLoading, isUserDataLoading, router]);
+  }, [user, isUserLoading, router]);
 
-  if (isLoading) {
+  if (isUserLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         Loading...
@@ -42,15 +26,19 @@ export default function Home() {
     );
   }
 
-  // If user is logged in
+  // If user is logged in, you could show a dashboard or something else.
+  // For now we will still show the landing page.
   if (user) {
-    // If user has a companyId, show the main dashboard
-    if (userData?.companyId) {
-      return <HomeDashboard />;
-    }
-    // If user does not have a companyId, show the company selection screen
-    return <CompanySelection />;
+    return (
+        <div className="flex min-h-screen flex-col items-center justify-center p-24">
+            <h1 className="text-4xl font-bold mb-4">
+                Bienvenido, {user?.displayName || 'Usuario'}
+            </h1>
+            <p className="mb-8">Has iniciado sesión correctamente.</p>
+        </div>
+    );
   }
+
 
   // If no user is logged in, show the landing page
   return <LandingPage />;
