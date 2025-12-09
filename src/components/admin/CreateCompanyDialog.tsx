@@ -88,12 +88,12 @@ export function CreateCompanyDialog() {
 
       resetForm();
       setOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating company:', error);
       toast({
         variant: 'destructive',
         title: 'Uh oh! Something went wrong.',
-        description: 'No se pudo crear la empresa. Inténtalo de nuevo.',
+        description: error.message || 'No se pudo crear la empresa. Revisa los permisos e inténtalo de nuevo.',
       });
     } finally {
       setIsSubmitting(false);

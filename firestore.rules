@@ -10,8 +10,9 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
+    // Admin is identified by a specific email address in their auth token.
     function isAdmin() {
-      return request.auth.token.email == 'tjedisan@gmail.com';
+      return request.auth != null && request.auth.token.email == 'tjedisan@gmail.com';
     }
 
     match /users/{userId} {
