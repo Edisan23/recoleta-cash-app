@@ -43,7 +43,7 @@ export function LandingPage() {
       </div>
 
       <div className="absolute bottom-4 right-4">
-        <Link href="/login" aria-label="Admin Login">
+        <Link href="/login?mode=admin" aria-label="Admin Login">
           <GarzaIcon className="h-8 w-8 text-muted-foreground transition-colors hover:text-foreground" />
         </Link>
       </div>

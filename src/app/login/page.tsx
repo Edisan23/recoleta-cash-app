@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import {
   signInWithPopup,
@@ -29,15 +29,16 @@ export default function LoginPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+  
+  const isAdminLogin = searchParams.get('mode') === 'admin';
 
   const handleUserDoc = async (user: User) => {
     const userRef = doc(firestore, 'users', user.uid);
     const isAdmin = user.uid === '15sJqL2prSVL2adSXRyqsefg26v1';
     
     if (isAdmin) {
-        // If the user is the admin, redirect directly to the admin panel.
-        // We can ensure their document exists or update it if needed.
         await setDoc(userRef, {
             id: user.uid,
             name: user.displayName || 'Admin',
@@ -53,7 +54,6 @@ export default function LoginPage() {
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      // Create user document for operators if it doesn't exist
       await setDoc(userRef, {
         id: user.uid,
         name: user.displayName || 'Anónimo',
@@ -65,7 +65,6 @@ export default function LoginPage() {
       });
     }
 
-     // Redirect operators to the main page, which will handle the company selection flow
      router.push('/');
   };
 
@@ -100,16 +99,15 @@ export default function LoginPage() {
 
   const handleSignOut = async () => {
     await signOut(auth);
-    // Stay on login page after sign out
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
+          <CardTitle className="text-2xl">{isAdminLogin ? 'Acceso Administrativo' : 'Iniciar Sesión'}</CardTitle>
           <CardDescription>
-            Elige un método para acceder a tu cuenta.
+            {isAdminLogin ? 'Inicia sesión con tu cuenta de Google de administrador.' : 'Elige un método para acceder a tu cuenta.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -121,14 +119,16 @@ export default function LoginPage() {
           >
             Continuar con Google
           </Button>
-           <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleAnonymousSignIn}
-            disabled={isUserLoading || !!user}
-          >
-            Continuar en Modo Anónimo
-          </Button>
+           {!isAdminLogin && (
+            <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleAnonymousSignIn}
+                disabled={isUserLoading || !!user}
+            >
+                Continuar en Modo Anónimo
+            </Button>
+           )}
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
             {user && (
