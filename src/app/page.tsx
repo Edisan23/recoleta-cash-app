@@ -14,18 +14,18 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // Si la autenticación aún está cargando, no hacemos nada.
+    // If auth state is still loading, do nothing.
     if (isUserLoading) {
       return;
     }
 
-    // Si el usuario es el administrador, redirigir a /admin.
+    // If the user is the admin, redirect to /admin.
     if (user && user.uid === ADMIN_UID) {
       router.replace('/admin');
     }
   }, [user, isUserLoading, router]);
 
-  // Durante la carga inicial, muestra un estado de "Cargando...".
+  // While loading, show a loading state.
   if (isUserLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -34,9 +34,8 @@ export default function Home() {
     );
   }
 
-  // Si el usuario es el administrador, se está redirigiendo.
-  // Mostramos un mensaje mientras ocurre la redirección para evitar renderizar
-  // cualquier otro componente que pueda causar conflictos.
+  // If the user is the admin, we are redirecting.
+  // We show a message to prevent rendering other components that could cause conflicts.
   if (user && user.uid === ADMIN_UID) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -45,11 +44,11 @@ export default function Home() {
     );
   }
 
-  // Si hay un usuario que no es administrador, muestra el panel del operador.
+  // If there's a non-admin user, show the operator dashboard.
   if (user) {
     return <OperatorDashboard />;
   }
   
-  // Si no hay ningún usuario logueado, muestra la página de inicio.
+  // If no user is logged in, show the landing page.
   return <LandingPage />;
 }
