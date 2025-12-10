@@ -21,9 +21,6 @@ import { useToast } from '@/hooks/use-toast';
 import { LogOut, User as UserIcon, Hexagon } from 'lucide-react';
 import Link from 'next/link';
 
-// The specific UID for the admin user
-const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1';
-
 export default function LoginPage() {
   const auth = useAuth();
   const { user } = useUser();
@@ -36,8 +33,8 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      // The redirection logic is now primarily in src/app/page.tsx,
-      // which will route the user correctly after login.
+      // After any sign-in, always go to the root page.
+      // The root page will then decide where to redirect the user.
       router.push('/');
     } catch (error) {
       const authError = error as AuthError;
@@ -65,7 +62,9 @@ export default function LoginPage() {
   };
 
   const handleSignOut = async () => {
-    await auth.signOut();
+    if(auth) {
+      await auth.signOut();
+    }
   };
 
   return (

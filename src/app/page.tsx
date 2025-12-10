@@ -18,22 +18,10 @@ export default function Home() {
       return; // Wait until auth state is determined
     }
 
-    // If a user is logged in, decide where to send them.
-    if (user) {
-      // If the user is the admin, always redirect to the admin panel.
-      if (user.uid === ADMIN_UID) {
-        router.push('/admin');
-        return; // Stop further execution
-      }
-      
-      // For non-admin users, the OperatorDashboard will handle the logic
-      // of checking for a companyId and redirecting if necessary.
-      // So, if we are here, we know it's a regular user.
-    } 
-    // If no user is logged in, they will see the LandingPage.
-    
+    if (user && user.uid === ADMIN_UID) {
+      router.replace('/admin');
+    }
   }, [user, isUserLoading, router]);
-
 
   if (isUserLoading) {
     return (
@@ -43,13 +31,21 @@ export default function Home() {
     );
   }
 
+  // If user is admin, they are being redirected by the useEffect. 
+  // We can show a loading state or null while that happens.
+  if (user && user.uid === ADMIN_UID) {
+     return (
+      <div className="flex min-h-screen items-center justify-center">
+        Redirigiendo al panel de administración...
+      </div>
+    );
+  }
+
   // If a non-admin user is logged in, show their dashboard.
-  // The dashboard component itself will handle the logic for users without a company.
-  if (user && user.uid !== ADMIN_UID) {
-      return <OperatorDashboard />
+  if (user) {
+    return <OperatorDashboard />;
   }
   
-  // For all other cases (logged-out users), show the landing page.
-  // Admins are redirected by the useEffect.
+  // For logged-out users, show the landing page.
   return <LandingPage />;
 }

@@ -30,7 +30,9 @@ export default function AdminPage() {
   }, [user, isUserLoading, router]);
 
   const handleSignOut = async () => {
-    await signOut(auth);
+    if(auth) {
+        await signOut(auth);
+    }
     router.push('/login');
   };
 
