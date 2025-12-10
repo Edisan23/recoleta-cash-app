@@ -1,13 +1,14 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import {
   signInWithPopup,
   GoogleAuthProvider,
   AuthError,
   signInAnonymously,
 } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -21,8 +22,12 @@ import { useToast } from '@/hooks/use-toast';
 import { LogOut, User as UserIcon, Hexagon } from 'lucide-react';
 import Link from 'next/link';
 
+// The specific UID for the admin user
+const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1';
+
 export default function LoginPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
@@ -30,13 +35,29 @@ export default function LoginPage() {
   const isAdminLogin = searchParams.get('mode') === 'admin';
 
   const handleGoogleSignIn = async () => {
-    if (!auth) return;
+    if (!auth || !firestore) return;
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const signedInUser = result.user;
+
+      // If the user is the designated admin, create/update their user document with the admin role.
+      if (signedInUser.uid === ADMIN_UID) {
+        const userDocRef = doc(firestore, 'users', signedInUser.uid);
+        await setDoc(userDocRef, {
+            id: signedInUser.uid,
+            name: signedInUser.displayName || 'Admin',
+            email: signedInUser.email,
+            role: 'admin',
+            createdAt: new Date().toISOString(),
+            paymentStatus: 'paid' // Admins always have paid status
+        }, { merge: true });
+      }
+      
       // After any sign-in, always go to the root page.
       // The root page will then decide where to redirect the user.
       router.push('/');
+
     } catch (error) {
       const authError = error as AuthError;
       toast({
