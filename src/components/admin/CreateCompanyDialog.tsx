@@ -13,9 +13,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useFirestore } from '@/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+// --- La inicialización real de Firebase está suspendida ---
+// import { useFirestore } from '@/firebase';
+// import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+// import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, PlusCircle, Upload } from 'lucide-react';
 import Image from 'next/image';
@@ -29,8 +30,9 @@ export function CreateCompanyDialog() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const firestore = useFirestore();
-  const storage = getStorage();
+  // --- Los hooks de Firebase están desactivados temporalmente ---
+  // const firestore = useFirestore();
+  // const storage = getStorage();
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,39 +66,57 @@ export function CreateCompanyDialog() {
     
     setIsSubmitting(true);
     
-    try {
-      let logoUrl = '';
-      if (logoFile) {
-        const storageRef = ref(storage, `company-logos/${Date.now()}_${logoFile.name}`);
-        const snapshot = await uploadBytes(storageRef, logoFile);
-        logoUrl = await getDownloadURL(snapshot.ref);
-      }
+    // --- LÓGICA DE FIREBASE SUSPENDIDA ---
+    // try {
+    //   let logoUrl = '';
+    //   if (logoFile) {
+    //     const storageRef = ref(storage, `company-logos/${Date.now()}_${logoFile.name}`);
+    //     const snapshot = await uploadBytes(storageRef, logoFile);
+    //     logoUrl = await getDownloadURL(snapshot.ref);
+    //   }
 
-      await addDoc(collection(firestore, 'companies'), {
-        name: companyName,
-        logoUrl: logoUrl || null,
-        isActive: true, // New companies are active by default
-        createdAt: serverTimestamp(),
-      });
+    //   await addDoc(collection(firestore, 'companies'), {
+    //     name: companyName,
+    //     logoUrl: logoUrl || null,
+    //     isActive: true, // New companies are active by default
+    //     createdAt: serverTimestamp(),
+    //   });
       
-      toast({
-        title: '¡Éxito!',
-        description: 'La empresa ha sido creada.',
-      });
+    //   toast({
+    //     title: '¡Éxito!',
+    //     description: 'La empresa ha sido creada.',
+    //   });
 
-      resetForm();
-      setOpen(false);
+    //   resetForm();
+    //   setOpen(false);
 
-    } catch (error) {
-      console.error("Error creating company: ", error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo crear la empresa. Revisa los permisos de Firestore.',
-      });
-    } finally {
-        setIsSubmitting(false);
-    }
+    // } catch (error) {
+    //   console.error("Error creating company: ", error);
+    //   toast({
+    //     variant: 'destructive',
+    //     title: 'Error',
+    //     description: 'No se pudo crear la empresa. Revisa los permisos de Firestore.',
+    //   });
+    // } finally {
+    //     setIsSubmitting(false);
+    // }
+
+    // --- NUEVA LÓGICA DE SIMULACIÓN ---
+    console.log('--- SIMULACIÓN: Creando empresa ---');
+    console.log('Nombre:', companyName);
+    console.log('Logo:', logoFile ? logoFile.name : 'Ninguno');
+
+    // Simular una pequeña demora como si se estuviera guardando en la red
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    toast({
+      title: '¡Éxito! (Simulación)',
+      description: `La empresa "${companyName}" ha sido creada.`,
+    });
+
+    setIsSubmitting(false);
+    resetForm();
+    setOpen(false);
   };
 
   return (
