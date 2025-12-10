@@ -14,15 +14,20 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // If auth state is still loading, do nothing.
+    // If auth state is still loading, do nothing to prevent premature redirects.
     if (isUserLoading) {
       return;
     }
 
-    // If the user is the admin, redirect to /admin.
+    // If the user is the admin, redirect to the admin panel.
+    // This check is the highest priority.
     if (user && user.uid === ADMIN_UID) {
       router.replace('/admin');
     }
+    
+    // The rest of the component's render logic will handle what to show
+    // for operators or unauthenticated users.
+
   }, [user, isUserLoading, router]);
 
   // While loading, show a loading state.
@@ -34,7 +39,7 @@ export default function Home() {
     );
   }
 
-  // If the user is the admin, we are redirecting.
+  // If the user is the admin, we are in the process of redirecting.
   // We show a message to prevent rendering other components that could cause conflicts.
   if (user && user.uid === ADMIN_UID) {
     return (
@@ -44,7 +49,7 @@ export default function Home() {
     );
   }
 
-  // If there's a non-admin user, show the operator dashboard.
+  // If there's a non-admin user (operator), show the operator dashboard.
   if (user) {
     return <OperatorDashboard />;
   }
