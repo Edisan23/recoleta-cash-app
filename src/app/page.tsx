@@ -28,18 +28,19 @@ export default function Home() {
       return; // Wait until all user data is loaded
     }
     
-    // If the user is the administrator, redirect to the admin panel.
+    // If the user is the administrator, redirect to the admin panel immediately.
     if (user?.uid === ADMIN_UID) {
         router.push('/admin');
         return;
     }
 
+    // This logic is for operators.
     if (user && userData) {
       if (!userData.companyId) {
-        // Operator without a company needs to select one
+        // Operator without a company needs to select one.
         router.push('/select-company');
       }
-      // Otherwise, stay on this page to render OperatorDashboard
+      // Otherwise, stay on this page to render OperatorDashboard.
     }
   }, [user, userData, isUserLoading, isUserDataLoading, router]);
 
@@ -53,7 +54,8 @@ export default function Home() {
     );
   }
 
-  // If user is the admin, they will be redirected.
+  // If user is the admin, they will be redirected by the useEffect.
+  // This is a fallback while redirecting.
   if (user?.uid === ADMIN_UID) {
       return <div className="flex min-h-screen items-center justify-center">Redirigiendo a admin...</div>;
   }
@@ -64,7 +66,7 @@ export default function Home() {
   }
 
   // If it's an operator without a company, they will be redirected.
-  // In the meantime, show a loading message.
+  // In the meantime, show a loading/redirecting message.
   if (user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
