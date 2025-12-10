@@ -4,17 +4,42 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TimeInput } from './TimeInput';
-import { useAuth, useUser, useFirestore, useDoc } from '@/firebase';
 import { DatePicker } from './DatePicker';
-import { signOut } from 'firebase/auth';
 import { LogOut, CalendarCheck, Wallet } from 'lucide-react';
 import type { User, Company } from '@/types/db-entities';
-import { doc } from 'firebase/firestore';
-import { useMemoFirebase } from '@/firebase/provider';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+
+// --- Autenticación Suspendida ---
+// Se simula un objeto de usuario operador y la información de su empresa.
+// Los hooks de Firebase han sido desactivados.
+
+const FAKE_OPERATOR_USER = {
+  uid: 'fake-operator-uid-12345',
+  isAnonymous: false,
+  displayName: 'Juan Operador',
+  photoURL: '',
+};
+
+const FAKE_USER_PROFILE: User = {
+    id: 'fake-operator-uid-12345',
+    name: 'Juan Operador',
+    email: 'operator@example.com',
+    role: 'operator',
+    companyId: 'fake-company-id-67890',
+    createdAt: new Date().toISOString(),
+    paymentStatus: 'paid'
+};
+
+const FAKE_COMPANY: Company = {
+    id: 'fake-company-id-67890',
+    name: 'Empresa Constructora',
+    logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo',
+    isActive: true
+};
+
 
 function getInitials(name: string) {
     const names = name.split(' ');
@@ -26,40 +51,16 @@ function getInitials(name: string) {
 
 
 export function OperatorDashboard() {
-  const { user, isUserLoading } = useUser();
-  const auth = useAuth();
-  const firestore = useFirestore();
   const router = useRouter();
+  
+  // Usar los datos ficticios
+  const user = FAKE_OPERATOR_USER;
+  const userProfile = FAKE_USER_PROFILE;
+  const company = FAKE_COMPANY;
 
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-
-  // Get user profile from Firestore
-  const userDocRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
-  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<User>(userDocRef);
-
-  // Get company details from Firestore using companyId from user profile
-  const companyDocRef = useMemoFirebase(() => (userProfile?.companyId ? doc(firestore, 'companies', userProfile.companyId) : null), [firestore, userProfile]);
-  const { data: company } = useDoc<Company>(companyDocRef);
-
-  // Redirect user to select a company if they don't have one assigned
-  useEffect(() => {
-    // Wait for user and profile to load
-    if (isUserLoading || isUserProfileLoading) {
-      return;
-    }
-    // If there is a user, but the profile doesn't exist or doesn't have a companyId, redirect
-    if(user && !user.isAnonymous && !userProfile) {
-        // This case can happen briefly when a user is created but the firestore doc isn't.
-        // Or if the doc creation failed. We can create it here.
-        // For now, we wait. A better implementation might create the doc here.
-    } else if (user && !userProfile?.companyId) {
-       router.push('/select-company');
-    }
-
-  },[user, userProfile, isUserLoading, isUserProfileLoading, router]);
-
 
   const handleSave = () => {
     // TODO: Implement save logic to Firestore
@@ -72,24 +73,10 @@ export function OperatorDashboard() {
   };
 
   const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      // The user will be redirected automatically by the logic in page.tsx
-      router.push('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+    // La funcionalidad de cierre de sesión está desactivada.
+    router.push('/login');
   };
   
-    // Show a loading state until we know if the user needs to be redirected
-  if (isUserLoading || (user && !user.isAnonymous && isUserProfileLoading)) {
-     return (
-       <div className="flex min-h-screen items-center justify-center">
-         Cargando...
-       </div>
-     );
-  }
-
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
