@@ -21,7 +21,8 @@
         },
         "role": {
           "type": "string",
-          "description": "The user's role within the application (e.g., operator, admin)."
+          "description": "The user's role within the application (e.g., operator, admin).",
+          "enum": ["operator", "admin"]
         },
         "companyId": {
             "type": "string",
@@ -187,5 +188,3 @@
     ]
   }
 }
-
-    

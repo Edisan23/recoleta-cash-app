@@ -13,6 +13,8 @@ import { doc } from 'firebase/firestore';
 import { useMemoFirebase } from '@/firebase/provider';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 function getInitials(name: string) {
     const names = name.split(' ');
@@ -24,9 +26,10 @@ function getInitials(name: string) {
 
 
 export function OperatorDashboard() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
+  const router = useRouter();
 
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState('');
@@ -34,11 +37,28 @@ export function OperatorDashboard() {
 
   // Get user profile from Firestore
   const userDocRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
-  const { data: userProfile } = useDoc<User>(userDocRef);
+  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<User>(userDocRef);
 
   // Get company details from Firestore using companyId from user profile
   const companyDocRef = useMemoFirebase(() => (userProfile?.companyId ? doc(firestore, 'companies', userProfile.companyId) : null), [firestore, userProfile]);
   const { data: company } = useDoc<Company>(companyDocRef);
+
+  // Redirect user to select a company if they don't have one assigned
+  useEffect(() => {
+    // Wait for user and profile to load
+    if (isUserLoading || isUserProfileLoading) {
+      return;
+    }
+    // If there is a user, but the profile doesn't exist or doesn't have a companyId, redirect
+    if(user && !user.isAnonymous && !userProfile) {
+        // This case can happen briefly when a user is created but the firestore doc isn't.
+        // Or if the doc creation failed. We can create it here.
+        // For now, we wait. A better implementation might create the doc here.
+    } else if (user && !userProfile?.companyId) {
+       router.push('/select-company');
+    }
+
+  },[user, userProfile, isUserLoading, isUserProfileLoading, router]);
 
 
   const handleSave = () => {
@@ -55,10 +75,20 @@ export function OperatorDashboard() {
     try {
       await signOut(auth);
       // The user will be redirected automatically by the logic in page.tsx
+      router.push('/login');
     } catch (error) {
       console.error('Error signing out:', error);
     }
   };
+  
+    // Show a loading state until we know if the user needs to be redirected
+  if (isUserLoading || (user && !user.isAnonymous && isUserProfileLoading)) {
+     return (
+       <div className="flex min-h-screen items-center justify-center">
+         Cargando...
+       </div>
+     );
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
@@ -68,12 +98,12 @@ export function OperatorDashboard() {
                  <Avatar className="h-16 w-16">
                     <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'User'}/>
                     <AvatarFallback>
-                        {user?.displayName ? getInitials(user.displayName) : 'OP'}
+                        {user?.isAnonymous ? 'OP' : (user?.displayName ? getInitials(user.displayName) : 'U')}
                     </AvatarFallback>
                 </Avatar>
                 <div className="text-left">
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                    Bienvenido, {user?.displayName || 'Operador'}
+                    Bienvenido, {user?.isAnonymous ? 'Operador' : user?.displayName || ''}
                     </h1>
                     <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">
                     Registra tu turno
