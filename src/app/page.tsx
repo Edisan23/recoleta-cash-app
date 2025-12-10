@@ -1,12 +1,11 @@
 'use client';
 
-import { LandingPage } from '@/components/LandingPage';
+import { OperatorDashboard } from '@/components/OperatorDashboard';
 
 // La autenticación está suspendida.
-// Se muestra la LandingPage para permitir el acceso simulado a ambos roles.
-// - El botón "Iniciar Sesión" inicia el flujo del operador.
-// - El icono en la esquina inferior derecha es el acceso directo al panel de administrador.
+// Se muestra directamente el panel del operador con un usuario ficticio.
+// Para acceder al panel de admin, navega directamente a /admin.
 
 export default function Home() {
-  return <LandingPage />;
+  return <OperatorDashboard />;
 }

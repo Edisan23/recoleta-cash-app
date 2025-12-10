@@ -78,7 +78,8 @@ export function OperatorDashboard() {
 
   const handleSignOut = async () => {
     // La funcionalidad de cierre de sesión está desactivada.
-    router.push('/login');
+    // Redirigir a una página que no exista o a la de admin para simular el cierre
+    router.push('/admin'); 
   };
   
   return (
