@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TimeInput } from './TimeInput';
@@ -10,7 +10,6 @@ import type { User, Company } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 
 // --- Autenticación Suspendida ---
 // Se simula un objeto de usuario operador y la información de su empresa.
@@ -58,9 +57,14 @@ export function OperatorDashboard() {
   const userProfile = FAKE_USER_PROFILE;
   const company = FAKE_COMPANY;
 
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+
+  // Set date on client side to avoid hydration errors
+  useEffect(() => {
+    setDate(new Date());
+  }, []);
 
   const handleSave = () => {
     // TODO: Implement save logic to Firestore
