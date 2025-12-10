@@ -1,11 +1,12 @@
 'use client';
 
-import { OperatorDashboard } from '@/components/OperatorDashboard';
+import { LandingPage } from '@/components/LandingPage';
 
-// --- Autenticación Suspendida ---
-// Se muestra directamente el panel del operador para facilitar el desarrollo
-// de la interfaz del operador sin necesidad de iniciar sesión.
+// La autenticación está suspendida.
+// Se muestra la LandingPage para permitir el acceso simulado a ambos roles.
+// - El botón "Iniciar Sesión" inicia el flujo del operador.
+// - El icono en la esquina inferior derecha es el acceso directo al panel de administrador.
 
 export default function Home() {
-  return <OperatorDashboard />;
+  return <LandingPage />;
 }
