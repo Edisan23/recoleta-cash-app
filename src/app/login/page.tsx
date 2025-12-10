@@ -8,7 +8,7 @@ import {
   GoogleAuthProvider,
   signInAnonymously,
   AuthError,
-  type User,
+  type User as FirebaseAuthUser,
   signOut,
 } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -23,24 +23,35 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { LogOut } from 'lucide-react';
+import { Hexagon } from 'lucide-react';
 
+const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1';
 
 export default function LoginPage() {
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   
-  const handleUserDoc = async (user: User) => {
-    const userRef = doc(firestore, 'users', user.uid);
+  const isAdminLogin = searchParams.get('mode') === 'admin';
+
+  const handleUserDoc = async (firebaseUser: FirebaseAuthUser) => {
+    // If the user is the admin, redirect to the admin panel immediately.
+    if (firebaseUser.uid === ADMIN_UID) {
+      router.push('/admin');
+      return;
+    }
+
+    const userRef = doc(firestore, 'users', firebaseUser.uid);
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
       await setDoc(userRef, {
-        id: user.uid,
-        name: user.displayName || 'Anónimo',
-        email: user.email,
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || 'Anónimo',
+        email: firebaseUser.email,
         role: 'operator',
         companyId: null,
         createdAt: serverTimestamp(),
@@ -87,10 +98,11 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100">
       <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
+        <CardHeader className="text-center">
+            {isAdminLogin && <Hexagon className="mx-auto h-12 w-12 text-primary" />}
+          <CardTitle className="text-2xl">{isAdminLogin ? 'Acceso Administrador' : 'Iniciar Sesión'}</CardTitle>
           <CardDescription>
-            Elige un método para acceder a tu cuenta.
+            {isAdminLogin ? 'Inicia sesión con tu cuenta de Google.' : 'Elige un método para acceder a tu cuenta.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
@@ -101,13 +113,15 @@ export default function LoginPage() {
           >
             Continuar con Google
           </Button>
-          <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleAnonymousSignIn}
-          >
-              Continuar en Modo Anónimo
-          </Button>
+          {!isAdminLogin && (
+            <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleAnonymousSignIn}
+            >
+                Continuar en Modo Anónimo
+            </Button>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
             {user && (
@@ -119,6 +133,9 @@ export default function LoginPage() {
                 </Button>
             </div>
             )}
+             <Link href="/" className="text-sm text-center text-muted-foreground hover:underline">
+                Volver al inicio
+            </Link>
         </CardFooter>
       </Card>
     </div>

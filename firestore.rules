@@ -10,6 +10,11 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
+    // Use a specific UID for the admin for better security
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == '15sJqL2prSVL2adSXRyqsefg26v1';
+    }
+
     // A user can be associated with a company
     function isCompanyMember(companyId) {
       return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -21,35 +26,34 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
-    // Companies can be read by any signed-in user.
-    // Writes are disallowed from the client for now to prevent tampering.
+    // Companies can be read by any signed-in user, but only created/updated/deleted by an admin.
     match /companies/{companyId} {
       allow read: if isSignedIn();
-      allow write: if false; // Protect company data
+      allow create, update, delete: if isAdmin();
 
-      // Company subcollections can be read by company members.
-      // Writes are disallowed from the client.
+      // Company subcollections can be managed by admins.
+      // Operators who are members of the company can read settings and items.
       match /settings/{settingsId} {
           allow read: if isSignedIn() && isCompanyMember(companyId);
-          allow write: if false;
+          allow write: if isAdmin();
       }
       match /items/{itemId} {
           allow read: if isSignedIn() && isCompanyMember(companyId);
-          allow write: if false;
+          allow write: if isAdmin();
       }
 
-      // Shifts can be created by company members for themselves.
-      // A user can only read their own shifts.
+      // Shifts can be created by company members (operators) for themselves.
+      // Admins can read all shifts.
       match /shifts/{shiftId} {
-          allow read: if isCompanyMember(companyId) && resource.data.userId == request.auth.uid;
+          allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
           allow create: if isCompanyMember(companyId) && request.resource.data.userId == request.auth.uid;
-          allow update, delete: if false;
+          allow update, delete: if isAdmin();
       }
 
-       // Payrolls can be read by the user they belong to.
+       // Payrolls can be read by the user they belong to, or by an admin.
       match /payrolls/{payrollId} {
-        allow read: if isCompanyMember(companyId) && resource.data.userId == request.auth.uid;
-        allow write: if false;
+        allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
+        allow write: if isAdmin();
       }
     }
   }

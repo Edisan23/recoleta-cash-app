@@ -10,6 +10,8 @@ import { doc } from 'firebase/firestore';
 import type { User } from '@/types/db-entities';
 import { useMemoFirebase } from '@/firebase/provider';
 
+const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1';
+
 export default function Home() {
   const { user, isUserLoading } = useUser();
   const router = useRouter();
@@ -24,6 +26,12 @@ export default function Home() {
   useEffect(() => {
     if (isUserLoading || isUserDataLoading) {
       return; // Wait until all user data is loaded
+    }
+    
+    // If the user is the administrator, redirect to the admin panel.
+    if (user?.uid === ADMIN_UID) {
+        router.push('/admin');
+        return;
     }
 
     if (user && userData) {
@@ -45,6 +53,11 @@ export default function Home() {
     );
   }
 
+  // If user is the admin, they will be redirected.
+  if (user?.uid === ADMIN_UID) {
+      return <div className="flex min-h-screen items-center justify-center">Redirigiendo a admin...</div>;
+  }
+  
   // If user is logged in, is an operator, and has a company, show the dashboard.
   if (user && userData?.role === 'operator' && userData?.companyId) {
     return <OperatorDashboard />;

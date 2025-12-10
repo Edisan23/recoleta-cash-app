@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Button } from './ui/button';
+import { Hexagon } from 'lucide-react';
 
 export function LandingPage() {
   return (
@@ -16,6 +17,13 @@ export function LandingPage() {
           <Link href="/login">Regístrate</Link>
         </Button>
       </div>
+
+       {/* Admin Access Link */}
+       <div className="absolute bottom-4 right-4">
+         <Link href="/login?mode=admin" title="Acceso Administrador">
+           <Hexagon className="h-8 w-8 text-gray-400 hover:text-primary transition-colors" />
+         </Link>
+       </div>
     </div>
   );
 }
