@@ -7,7 +7,7 @@ import { CompanyTable } from '@/components/admin/CompanyTable';
 import { Button } from '@/components/ui/button';
 import { signOut } from 'firebase/auth';
 import { useAuth } from '@/firebase';
-import { LogOut } from 'lucide-react';
+import { LogOut, Loader2 } from 'lucide-react';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 
 export default function AdminPage() {
@@ -16,8 +16,9 @@ export default function AdminPage() {
   const auth = useAuth();
 
   useEffect(() => {
+    // Si la carga del usuario ha terminado y no hay usuario o no es el admin, redirigir.
     if (!isUserLoading && (!user || user.uid !== '15sJqL2prSVL2adSXRyqsefg26v1')) {
-      router.push('/login');
+      router.replace('/login?mode=admin');
     }
   }, [user, isUserLoading, router]);
 
@@ -26,14 +27,16 @@ export default function AdminPage() {
     router.push('/login');
   };
 
+  // Muestra una pantalla de carga mientras se verifica el estado del usuario.
   if (isUserLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        Loading...
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
-
+  
+  // Si el usuario es el administrador, muestra el panel completo.
   return (
     <div className="container mx-auto py-8">
       <header className="flex justify-between items-center mb-8">
