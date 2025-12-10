@@ -1,51 +1,30 @@
 'use client';
 
-import { useUser } from '@/firebase';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
 import { CompanyTable } from '@/components/admin/CompanyTable';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/firebase';
-import { signOut } from 'firebase/auth';
 import { LogOut } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-// The specific UID for the admin user
-const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1';
+// --- Autenticación Suspendida ---
+// La lógica de useUser y useEffect ha sido comentada para permitir el acceso directo
+// a esta página durante el desarrollo. Se simula un objeto de usuario administrador.
+
+const FAKE_ADMIN_USER = {
+  uid: '15sJqL2prSVL2adSXRyqsefg26v1',
+  displayName: 'Admin (Desarrollo)',
+};
 
 export default function AdminPage() {
-  const { user, isUserLoading } = useUser();
-  const auth = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    // If auth state is still loading, do nothing.
-    if (isUserLoading) {
-      return;
-    }
-    // If there's no user or the user is not the admin, redirect to login.
-    if (!user || user.uid !== ADMIN_UID) {
-      router.push('/login');
-    }
-  }, [user, isUserLoading, router]);
+  const user = FAKE_ADMIN_USER;
 
   const handleSignOut = async () => {
-    if(auth) {
-        await signOut(auth);
-    }
-    router.push('/login');
+    // La funcionalidad real de cierre de sesión está desactivada.
+    // Esto te redirige a la página de inicio.
+    router.push('/');
   };
 
-  // While checking user auth, show a loading state.
-  if (isUserLoading || !user || user.uid !== ADMIN_UID) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        Cargando...
-      </div>
-    );
-  }
-
-  // If the user is the admin, show the dashboard.
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <header className="flex items-center justify-between mb-8">
@@ -57,7 +36,7 @@ export default function AdminPage() {
           <CreateCompanyDialog />
           <Button variant="ghost" onClick={handleSignOut}>
             <LogOut className="mr-2" />
-            Cerrar Sesión
+            Volver al Inicio
           </Button>
         </div>
       </header>
