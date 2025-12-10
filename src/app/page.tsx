@@ -26,12 +26,9 @@ export default function Home() {
         return; // Stop further execution
       }
       
-      // For non-admin users, check if they have a companyId.
-      // This check will happen on the OperatorDashboard or a similar component after loading the user's profile.
-      // If the user doesn't have a companyId, they should be redirected from there.
-      // For now, if it's a regular user, we assume they will see their dashboard or be prompted to select a company.
-      // If user profile is not yet loaded, OperatorDashboard will handle it.
-
+      // For non-admin users, the OperatorDashboard will handle the logic
+      // of checking for a companyId and redirecting if necessary.
+      // So, if we are here, we know it's a regular user.
     } 
     // If no user is logged in, they will see the LandingPage.
     
