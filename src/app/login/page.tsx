@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, useFirestore, useUser } from '@/firebase';
 import {
@@ -120,18 +121,31 @@ export default function LoginPage() {
           >
             Continuar con Google
           </Button>
+           <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleAnonymousSignIn}
+            disabled={isUserLoading || !!user}
+          >
+            Continuar en Modo Anónimo
+          </Button>
         </CardContent>
-        {user && (
-          <CardFooter className="flex flex-col gap-4">
-            <div className="text-center text-sm text-muted-foreground">
-              Ya has iniciado sesión como {user.displayName || user.email || 'Anónimo'}.
+        <CardFooter className="flex flex-col gap-4">
+            {user && (
+            <div className="text-center text-sm text-muted-foreground w-full">
+                Ya has iniciado sesión como {user.displayName || user.email || 'Anónimo'}.
+                <Button variant="outline" className="w-full mt-4" onClick={handleSignOut}>
+                    <LogOut className="mr-2" />
+                    Cerrar Sesión
+                </Button>
             </div>
-            <Button variant="outline" className="w-full" onClick={handleSignOut}>
-                <LogOut className="mr-2" />
-                Cerrar Sesión
-            </Button>
-          </CardFooter>
-        )}
+            )}
+            <div className="text-sm">
+                <Link href="/" className="underline text-muted-foreground hover:text-foreground">
+                    Retroceder a la página principal
+                </Link>
+            </div>
+        </CardFooter>
       </Card>
     </div>
   );
