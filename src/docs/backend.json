@@ -1,0 +1,78 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents the administrator user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role, always 'admin'.",
+          "enum": ["admin"]
+        }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "Company": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Company",
+      "type": "object",
+      "description": "Represents a company that uses the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the company."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the company."
+        },
+        "logoUrl": {
+          "type": "string",
+          "description": "URL of the company's logo.",
+          "format": "uri"
+        },
+        "isActive": {
+            "type": "boolean",
+            "description": "Whether the company is active or not."
+        }
+      },
+      "required": ["id", "name", "isActive"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "schema": { "$ref": "#/entities/User" },
+          "description": "Stores admin user information."
+        }
+      },
+      {
+        "path": "/companies/{companyId}",
+        "definition": {
+          "schema": { "$ref": "#/entities/Company" },
+          "description": "Stores company information."
+        }
+      }
+    ]
+  }
+}

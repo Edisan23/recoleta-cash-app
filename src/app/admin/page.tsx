@@ -6,7 +6,8 @@ import { useEffect } from 'react';
 import { CompanyTable } from '@/components/admin/CompanyTable';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { Button } from '@/components/ui/button';
-import { signOut, useAuth } from '@/firebase';
+import { useAuth } from '@/firebase';
+import { signOut } from 'firebase/auth';
 import { LogOut } from 'lucide-react';
 
 // The specific UID for the admin user
