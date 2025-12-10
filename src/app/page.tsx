@@ -30,7 +30,10 @@ export default function Home() {
       // User is logged in and we have their DB record
       if (userData.role === 'admin') {
         router.push('/admin');
-      } else if (!userData.companyId) {
+        return; // Important: Stop further execution
+      } 
+      
+      if (!userData.companyId) {
         // Operator without a company needs to select one
         router.push('/select-company');
       }
