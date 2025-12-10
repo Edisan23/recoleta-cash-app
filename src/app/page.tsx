@@ -1,12 +1,11 @@
 'use client';
 
-import { LandingPage } from '@/components/LandingPage';
+import { OperatorDashboard } from '@/components/OperatorDashboard';
 
 // --- Autenticación Suspendida ---
-// La lógica de autenticación está desactivada. La página de inicio
-// se muestra para permitir el acceso a las diferentes rutas de login
-// (operador y administrador).
+// Se muestra directamente el panel del operador para facilitar el desarrollo
+// de la interfaz del operador sin necesidad de iniciar sesión.
 
 export default function Home() {
-  return <LandingPage />;
+  return <OperatorDashboard />;
 }
