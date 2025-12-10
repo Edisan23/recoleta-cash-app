@@ -8,7 +8,7 @@ import {
   GoogleAuthProvider,
   signInAnonymously,
   AuthError,
-  User,
+  type User,
   signOut,
 } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { LogOut } from 'lucide-react';
 
+const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1'; // UID for tjedisan@gmail.com
+
 export default function LoginPage() {
   const auth = useAuth();
   const firestore = useFirestore();
@@ -36,7 +38,7 @@ export default function LoginPage() {
 
   const handleUserDoc = async (user: User) => {
     const userRef = doc(firestore, 'users', user.uid);
-    const isAdmin = user.uid === '15sJqL2prSVL2adSXRyqsefg26v1';
+    const isAdmin = user.uid === ADMIN_UID;
     
     if (isAdmin) {
         await setDoc(userRef, {
@@ -115,7 +117,6 @@ export default function LoginPage() {
             variant="outline"
             className="w-full"
             onClick={handleGoogleSignIn}
-            disabled={isUserLoading || !!user}
           >
             Continuar con Google
           </Button>
@@ -124,7 +125,6 @@ export default function LoginPage() {
                 variant="outline"
                 className="w-full"
                 onClick={handleAnonymousSignIn}
-                disabled={isUserLoading || !!user}
             >
                 Continuar en Modo Anónimo
             </Button>
@@ -141,8 +141,8 @@ export default function LoginPage() {
             </div>
             )}
             <div className="text-sm">
-                <Link href="/" className="underline text-muted-foreground hover:text-foreground">
-                    Retroceder a la página principal
+                <Link href={isAdminLogin ? "/" : "/login?mode=admin"} className="underline text-muted-foreground hover:text-foreground">
+                    {isAdminLogin ? "Volver a inicio" : "Acceso de administrador"}
                 </Link>
             </div>
         </CardFooter>
