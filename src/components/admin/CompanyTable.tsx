@@ -70,10 +70,8 @@ export function CompanyTable({ companies }: CompanyTableProps) {
                 </TableCell>
                 <TableCell className="text-right">
                    <Link href={`/admin/company/${company.id}`} passHref>
-                        <Button variant="ghost" size="icon" asChild>
-                           <a>
-                                <Pencil className="h-4 w-4" />
-                           </a>
+                        <Button variant="ghost" size="icon">
+                           <Pencil className="h-4 w-4" />
                         </Button>
                     </Link>
                 </TableCell>
