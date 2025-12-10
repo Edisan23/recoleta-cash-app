@@ -30,6 +30,7 @@ export default function LoginPage() {
   const isAdminLogin = searchParams.get('mode') === 'admin';
 
   const handleGoogleSignIn = async () => {
+    if (!auth) return;
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
@@ -47,7 +48,7 @@ export default function LoginPage() {
   };
 
   const handleAnonymousSignIn = async () => {
-    if (isAdminLogin) return;
+    if (isAdminLogin || !auth) return;
     try {
       await signInAnonymously(auth);
       router.push('/');
