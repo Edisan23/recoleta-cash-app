@@ -20,7 +20,7 @@ export function LandingPage() {
 
        {/* Admin Access Link */}
        <div className="absolute bottom-4 right-4">
-         <Link href="/login?mode=admin" title="Acceso Administrador">
+         <Link href="/admin" title="Acceso Administrador">
            <Hexagon className="h-8 w-8 text-gray-400 hover:text-primary transition-colors" />
          </Link>
        </div>
