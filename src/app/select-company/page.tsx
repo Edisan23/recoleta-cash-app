@@ -35,14 +35,10 @@ export default function SelectCompanyPage() {
   const { data: companies, isLoading: areCompaniesLoading } =
     useCollection<Company>(companiesRef);
 
-  // Redirect admin away from this page or unauthenticated users to login
+  // Redirect unauthenticated users to login
   useEffect(() => {
-    if (!isUserLoading) {
-        if (user?.uid === '15sJqL2prSVL2adSXRyqsefg26v1') {
-            router.push('/admin');
-        } else if (!user) {
-            router.push('/login');
-        }
+    if (!isUserLoading && !user) {
+      router.push('/login');
     }
   },[user, isUserLoading, router]);
 

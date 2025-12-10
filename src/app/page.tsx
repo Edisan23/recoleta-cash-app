@@ -27,12 +27,6 @@ export default function Home() {
     }
 
     if (user && userData) {
-      // User is logged in and we have their DB record
-      if (userData.role === 'admin') {
-        router.push('/admin');
-        return; // Important: Stop further execution
-      } 
-      
       if (!userData.companyId) {
         // Operator without a company needs to select one
         router.push('/select-company');
@@ -56,7 +50,7 @@ export default function Home() {
     return <OperatorDashboard />;
   }
 
-  // If it's the admin or an operator without a company, they will be redirected.
+  // If it's an operator without a company, they will be redirected.
   // In the meantime, show a loading message.
   if (user) {
     return (
