@@ -1,8 +1,6 @@
 'use client';
 
 import Image from 'next/image';
-import { useCollection, useFirestore } from '@/firebase';
-import { collection } from 'firebase/firestore';
 import type { Company } from '@/types/db-entities';
 import {
   Table,
@@ -13,33 +11,26 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Pencil, MoreVertical } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { useMemoFirebase } from '@/firebase/provider';
 import Link from 'next/link';
 
+interface CompanyTableProps {
+    companies: Company[];
+}
 
-export function CompanyTable() {
-  const firestore = useFirestore();
-  const companiesRef = useMemoFirebase(() => collection(firestore, 'companies'), [firestore]);
-  const { data: companies, isLoading } = useCollection<Company>(companiesRef);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-2">
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-      </div>
-    )
-  }
+export function CompanyTable({ companies }: CompanyTableProps) {
+  
+  // The loading state is no longer needed here as data is passed via props.
+  // if (isLoading) {
+  //   return (
+  //     <div className="space-y-2">
+  //       <Skeleton className="h-12 w-full" />
+  //       <Skeleton className="h-12 w-full" />
+  //       <Skeleton className="h-12 w-full" />
+  //     </div>
+  //   )
+  // }
 
   return (
     <div className="rounded-lg border">

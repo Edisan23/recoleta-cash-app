@@ -13,15 +13,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-// --- La inicialización real de Firebase está suspendida ---
-// import { useFirestore } from '@/firebase';
-// import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-// import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, PlusCircle, Upload } from 'lucide-react';
 import Image from 'next/image';
+import type { Company } from '@/types/db-entities';
 
-export function CreateCompanyDialog() {
+interface CreateCompanyDialogProps {
+    onCompanyCreated: (companyData: Omit<Company, 'id'>) => void;
+}
+
+export function CreateCompanyDialog({ onCompanyCreated }: CreateCompanyDialogProps) {
   const [open, setOpen] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -29,10 +30,6 @@ export function CreateCompanyDialog() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // --- Los hooks de Firebase están desactivados temporalmente ---
-  // const firestore = useFirestore();
-  // const storage = getStorage();
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,53 +62,21 @@ export function CreateCompanyDialog() {
     }
     
     setIsSubmitting(true);
+
+    // Simulate network delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // --- LÓGICA DE FIREBASE SUSPENDIDA ---
-    // try {
-    //   let logoUrl = '';
-    //   if (logoFile) {
-    //     const storageRef = ref(storage, `company-logos/${Date.now()}_${logoFile.name}`);
-    //     const snapshot = await uploadBytes(storageRef, logoFile);
-    //     logoUrl = await getDownloadURL(snapshot.ref);
-    //   }
+    const newCompanyData: Omit<Company, 'id'> = {
+        name: companyName,
+        logoUrl: logoPreview || 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', // Use preview or a placeholder
+        isActive: true,
+    };
 
-    //   await addDoc(collection(firestore, 'companies'), {
-    //     name: companyName,
-    //     logoUrl: logoUrl || null,
-    //     isActive: true, // New companies are active by default
-    //     createdAt: serverTimestamp(),
-    //   });
-      
-    //   toast({
-    //     title: '¡Éxito!',
-    //     description: 'La empresa ha sido creada.',
-    //   });
-
-    //   resetForm();
-    //   setOpen(false);
-
-    // } catch (error) {
-    //   console.error("Error creating company: ", error);
-    //   toast({
-    //     variant: 'destructive',
-    //     title: 'Error',
-    //     description: 'No se pudo crear la empresa. Revisa los permisos de Firestore.',
-    //   });
-    // } finally {
-    //     setIsSubmitting(false);
-    // }
-
-    // --- NUEVA LÓGICA DE SIMULACIÓN ---
-    console.log('--- SIMULACIÓN: Creando empresa ---');
-    console.log('Nombre:', companyName);
-    console.log('Logo:', logoFile ? logoFile.name : 'Ninguno');
-
-    // Simular una pequeña demora como si se estuviera guardando en la red
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    onCompanyCreated(newCompanyData);
 
     toast({
-      title: '¡Éxito! (Simulación)',
-      description: `La empresa "${companyName}" ha sido creada.`,
+      title: '¡Éxito!',
+      description: `La empresa "${companyName}" ha sido añadida a la tabla.`,
     });
 
     setIsSubmitting(false);
@@ -127,7 +92,11 @@ export function CreateCompanyDialog() {
           Nueva Empresa
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => {
+          if (isSubmitting) {
+            e.preventDefault();
+          }
+      }}>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Crear Nueva Empresa</DialogTitle>
