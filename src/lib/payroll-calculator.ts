@@ -1,5 +1,5 @@
 import { CompanySettings } from "@/types/db-entities";
-import { parse, set, addDays, getDay, isSameDay } from 'date-fns';
+import { parse, set, addDays, getDay, isSameDay, lastDayOfMonth } from 'date-fns';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
@@ -38,10 +38,10 @@ export interface ShiftCalculationResult {
     holidayDayHours: number;
     holidayNightHours: number;
     holidayDayOvertimeHours: number;
-    holidayNightOvertimeRate: number;
     holidayNightOvertimeHours: number;
     isHoliday: boolean;
     totalPayment: number;
+    transportSubsidyApplied: number;
 }
 
 
@@ -66,8 +66,8 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     
     const result: ShiftCalculationResult = {
         totalHours: 0, dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
-        holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeRate: 0, holidayNightOvertimeHours: 0,
-        isHoliday: false, totalPayment: 0
+        holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
+        isHoliday: false, totalPayment: 0, transportSubsidyApplied: 0
     };
 
     let workedHoursToday = 0;
@@ -105,15 +105,24 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     result.totalHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
 
     // 3. Calculate Payment
-    result.totalPayment += result.dayHours * (rates.dayRate || 0);
-    result.totalPayment += result.nightHours * (rates.nightRate || 0);
-    result.totalPayment += result.dayOvertimeHours * (rates.dayOvertimeRate || 0);
-    result.totalPayment += result.nightOvertimeHours * (rates.nightOvertimeRate || 0);
-    result.totalPayment += result.holidayDayHours * (rates.holidayDayRate || 0);
-    result.totalPayment += result.holidayNightHours * (rates.holidayNightRate || 0);
-    result.totalPayment += result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
-    result.totalPayment += result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
+    let paymentForHours = 0;
+    paymentForHours += result.dayHours * (rates.dayRate || 0);
+    paymentForHours += result.nightHours * (rates.nightRate || 0);
+    paymentForHours += result.dayOvertimeHours * (rates.dayOvertimeRate || 0);
+    paymentForHours += result.nightOvertimeHours * (rates.nightOvertimeRate || 0);
+    paymentForHours += result.holidayDayHours * (rates.holidayDayRate || 0);
+    paymentForHours += result.holidayNightHours * (rates.holidayNightRate || 0);
+    paymentForHours += result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
+    paymentForHours += result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
     
+    // Add transport subsidy for the shift if applicable
+    const dailyTransportSubsidy = (rates.transportSubsidy || 0) / (rates.payrollCycle === 'monthly' ? lastDayOfMonth(date).getDate() : 15);
+    if(rates.transportSubsidy && rates.transportSubsidy > 0) {
+        result.transportSubsidyApplied = dailyTransportSubsidy;
+    }
+
+    result.totalPayment = paymentForHours + result.transportSubsidyApplied;
+
     return result;
 };
 

@@ -63,6 +63,28 @@ type EnabledDeductionFields = {
     [K in keyof Omit<OperatorDeductions, 'userId'>]?: boolean;
 };
 
+interface PayrollSummary {
+    grossPay: number;
+    netPay: number;
+    totalHours: number;
+    legalDeductions: {
+        health: number;
+        pension: number;
+        arl: number;
+        familyCompensation: number;
+        solidarityFund: number;
+        taxWithholding: number;
+    },
+    voluntaryDeductions: {
+        union: number;
+        cooperative: number;
+        loan: number;
+    },
+    subsidies: {
+        transport: number;
+    }
+}
+
 const deductionLabels: { [key in keyof EnabledDeductionFields]: string } = {
     unionFeeDeduction: 'Cuota Sindical',
     cooperativeDeduction: 'Aporte a Cooperativa',
@@ -103,7 +125,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [shiftForSelectedDay, setShiftForSelectedDay] = useState<Shift | null>(null);
   const [dailySummary, setDailySummary] = useState<ShiftCalculationResult | null>(null);
   
-  const [payrollSummary, setPayrollSummary] = useState({ totalHours: 0, grossPay: 0, netPay: 0 });
+  const [payrollSummary, setPayrollSummary] = useState<PayrollSummary>({
+    grossPay: 0, netPay: 0, totalHours: 0,
+    legalDeductions: { health: 0, pension: 0, arl: 0, familyCompensation: 0, solidarityFund: 0, taxWithholding: 0 },
+    voluntaryDeductions: { union: 0, cooperative: 0, loan: 0 },
+    subsidies: { transport: 0 }
+  });
+
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -116,7 +144,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentDeductions: Partial<OperatorDeductions>) => {
       if (!currentSettings.payrollCycle || !currentDate) {
-          setPayrollSummary({ totalHours: 0, grossPay: 0, netPay: 0 });
           return;
       };
       
@@ -124,7 +151,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
       
       const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
-      
       const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
       
       const summary = periodShifts.reduce((acc, shift) => {
@@ -135,22 +161,50 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               rates: currentSettings
           });
           acc.totalHours += details.totalHours;
-          acc.grossPay += details.totalPayment;
+          acc.totalPayment += details.totalPayment;
+          acc.transportSubsidy += details.transportSubsidyApplied;
           return acc;
-      }, { totalHours: 0, grossPay: 0, netPay: 0 });
+      }, { totalHours: 0, totalPayment: 0, transportSubsidy: 0 });
 
-      const { healthDeduction = 0, pensionDeduction = 0, arlDeduction = 0, familyCompensationDeduction = 0 } = currentSettings;
-      const totalCompanyDeductionPercent = (healthDeduction + pensionDeduction + arlDeduction + familyCompensationDeduction) / 100;
-      const companyDeductionsAmount = summary.grossPay * totalCompanyDeductionPercent;
+      const grossPay = summary.totalPayment;
 
+      const healthDeductionAmount = grossPay * ((currentSettings.healthDeduction || 0) / 100);
+      const pensionDeductionAmount = grossPay * ((currentSettings.pensionDeduction || 0) / 100);
+      const arlDeductionAmount = grossPay * ((currentSettings.arlDeduction || 0) / 100);
+      const familyCompensationAmount = grossPay * ((currentSettings.familyCompensationDeduction || 0) / 100);
+      const solidarityFundAmount = grossPay * ((currentSettings.solidarityFundDeduction || 0) / 100);
+      const taxWithholdingAmount = grossPay * ((currentSettings.taxWithholding || 0) / 100);
+      
+      const totalLegalDeductions = healthDeductionAmount + pensionDeductionAmount + arlDeductionAmount + familyCompensationAmount + solidarityFundAmount + taxWithholdingAmount;
+      
       const voluntaryDeductionsAmount = 
           (currentDeductions.unionFeeDeduction || 0) +
           (currentDeductions.cooperativeDeduction || 0) +
           (currentDeductions.loanDeduction || 0);
 
-      summary.netPay = summary.grossPay - companyDeductionsAmount - voluntaryDeductionsAmount;
+      const netPay = grossPay - totalLegalDeductions - voluntaryDeductionsAmount;
 
-      setPayrollSummary(summary);
+      setPayrollSummary({
+        grossPay: grossPay,
+        netPay: netPay,
+        totalHours: summary.totalHours,
+        legalDeductions: {
+            health: healthDeductionAmount,
+            pension: pensionDeductionAmount,
+            arl: arlDeductionAmount,
+            familyCompensation: familyCompensationAmount,
+            solidarityFund: solidarityFundAmount,
+            taxWithholding: taxWithholdingAmount,
+        },
+        voluntaryDeductions: {
+            union: currentDeductions.unionFeeDeduction || 0,
+            cooperative: currentDeductions.cooperativeDeduction || 0,
+            loan: currentDeductions.loanDeduction || 0,
+        },
+        subsidies: {
+            transport: summary.transportSubsidy,
+        }
+      });
     }, [SHIFTS_DB_KEY]);
   
   // Effect to load initial company/settings data on mount
@@ -221,7 +275,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const currentDeductions = storedDeductions ? JSON.parse(storedDeductions) : {};
     updatePayrollSummary(date, settings, currentDeductions);
 
-  }, [date, settings, isLoading, SHIFTS_DB_KEY, updatePayrollSummary]);
+  }, [date, settings, isLoading, SHIFTS_DB_KEY, updatePayrollSummary, DEDUCTIONS_DB_KEY]);
 
 
   const handleSave = () => {
@@ -287,6 +341,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const handleDelete = () => {
     if (!date) return;
 
+    setIsSaving(true);
     const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
     let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
     const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
@@ -307,6 +362,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         title: 'Turno Eliminado',
         description: `El turno para el ${format(date, 'PPP', { locale: es })} ha sido eliminado.`,
     });
+    setIsSaving(false);
   };
 
   const handleSignOut = () => {
@@ -350,7 +406,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
         localStorage.setItem(DEDUCTIONS_DB_KEY, JSON.stringify(activeDeductions));
         
-        if(date && settings.payrollCycle) {
+        if(date && settings) {
             updatePayrollSummary(date, settings, activeDeductions);
         }
         
@@ -419,6 +475,18 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         </div>
     );
   };
+  
+    const renderSummaryRow = (label: string, value: number, isPositive: boolean = true) => {
+        if (value === 0) return null;
+        return (
+            <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">{label}</span>
+                <span className={`font-mono ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                    {isPositive ? '+' : '-'} {formatCurrency(value)}
+                </span>
+            </div>
+        );
+    };
 
 
   return (
@@ -585,16 +653,44 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 <Wallet className="h-6 w-6 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                 <p className="text-sm text-muted-foreground">
-                  Resumen del periodo de pago actual.
-                </p>
-                <div className="mt-4 space-y-2 text-sm">
-                   <div className="flex justify-between"><span>Total horas acumuladas:</span> <strong>{payrollSummary.totalHours.toFixed(2)}</strong></div>
-                   <div className="flex justify-between"><span>Salario bruto:</span> <strong>{formatCurrency(payrollSummary.grossPay)}</strong></div>
-                   <div className="flex justify-between mt-2 pt-2 border-t">
-                       <span className="font-bold">Neto a pagar:</span> 
-                       <strong className="text-xl">{formatCurrency(payrollSummary.netPay)}</strong>
+                <div className="space-y-2 mt-4">
+                    <div className="flex justify-between items-baseline">
+                        <span className="text-sm text-muted-foreground">Salario bruto:</span>
+                        <strong className="text-lg">{formatCurrency(payrollSummary.grossPay)}</strong>
                     </div>
+                    <div className="flex justify-between items-baseline">
+                        <span className="text-lg font-semibold">Neto a pagar:</span>
+                        <strong className="text-2xl font-bold">{formatCurrency(payrollSummary.netPay)}</strong>
+                    </div>
+                    <p className="text-xs text-muted-foreground pt-1">
+                        Acumulado del periodo de pago actual ({payrollSummary.totalHours.toFixed(2)} horas).
+                    </p>
+
+                    <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="details">
+                            <AccordionTrigger className="text-sm py-2">Ver Detalles</AccordionTrigger>
+                            <AccordionContent className="space-y-2 pt-2">
+                                <h4 className="font-semibold text-sm mb-1">Ingresos</h4>
+                                {renderSummaryRow("Salario por horas trabajadas", payrollSummary.grossPay - payrollSummary.subsidies.transport)}
+                                {renderSummaryRow("Subsidio de transporte", payrollSummary.subsidies.transport)}
+                                <Separator className="my-2" />
+
+                                <h4 className="font-semibold text-sm mb-1">Deducciones Legales</h4>
+                                {renderSummaryRow("Salud", payrollSummary.legalDeductions.health, false)}
+                                {renderSummaryRow("Pensión", payrollSummary.legalDeductions.pension, false)}
+                                {renderSummaryRow("ARL", payrollSummary.legalDeductions.arl, false)}
+                                {renderSummaryRow("Caja de Compensación", payrollSummary.legalDeductions.familyCompensation, false)}
+                                {renderSummaryRow("Fondo de Solidaridad", payrollSummary.legalDeductions.solidarityFund, false)}
+                                {renderSummaryRow("Retención en la Fuente", payrollSummary.legalDeductions.taxWithholding, false)}
+                                <Separator className="my-2" />
+
+                                <h4 className="font-semibold text-sm mb-1">Deducciones Voluntarias</h4>
+                                {renderSummaryRow("Cuota Sindical", payrollSummary.voluntaryDeductions.union, false)}
+                                {renderSummaryRow("Aporte Cooperativa", payrollSummary.voluntaryDeductions.cooperative, false)}
+                                {renderSummaryRow("Créditos", payrollSummary.voluntaryDeductions.loan, false)}
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
                 </div>
               </CardContent>
             </Card>
