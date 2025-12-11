@@ -15,6 +15,7 @@ export type User = {
     name: string; // The name of the company.
     logoUrl?: string; // URL of the company's logo.
     isActive: boolean; // Whether the company is active or not.
+    themeColor?: string; // A hex color code for the company's theme.
   };
   
   export type CompanySettings = {
@@ -23,8 +24,10 @@ export type User = {
     nightRate?: number;
     dayOvertimeRate?: number;
     nightOvertimeRate?: number;
-    holidayRate?: number;
-    holidayOvertimeRate?: number;
+    holidayDayRate?: number;
+    holidayNightRate?: number;
+    holidayDayOvertimeRate?: number;
+    holidayNightOvertimeRate?: number;
     transportSubsidy?: number;
     otherSubsidies?: number;
     healthDeduction?: number; // Percentage for health deduction.

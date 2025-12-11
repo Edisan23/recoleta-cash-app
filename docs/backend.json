@@ -63,6 +63,10 @@
         "isActive": {
             "type": "boolean",
             "description": "Whether the company is active or not."
+        },
+        "themeColor": {
+            "type": "string",
+            "description": "A hex color code for the company's theme."
         }
       },
       "required": ["id", "name", "isActive"]
@@ -77,8 +81,10 @@
         "nightRate": { "type": "number" },
         "dayOvertimeRate": { "type": "number" },
         "nightOvertimeRate": { "type": "number" },
-        "holidayRate": { "type": "number" },
-        "holidayOvertimeRate": { "type": "number" },
+        "holidayDayRate": { "type": "number" },
+        "holidayNightRate": { "type": "number" },
+        "holidayDayOvertimeRate": { "type": "number" },
+        "holidayNightOvertimeRate": { "type": "number" },
         "transportSubsidy": { "type": "number" },
         "otherSubsidies": { "type": "number" },
         "healthDeduction": { "type": "number", "description": "Percentage for health deduction." },
