@@ -15,9 +15,9 @@ const FAKE_ADMIN_USER = {
 };
 
 const INITIAL_COMPANIES: Company[] = [
-    { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo' },
-    { id: '2', name: 'Transportes Rápidos', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo' },
-    { id: '3', name: 'Servicios Generales S.A.', isActive: false, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo' },
+    { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },
+    { id: '2', name: 'Transportes Rápidos', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#10b981' },
+    { id: '3', name: 'Servicios Generales S.A.', isActive: false, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#8b5cf6' },
 ];
 
 const LOCAL_STORAGE_KEY = 'fake_companies_db';
@@ -62,7 +62,7 @@ export default function AdminPage() {
     });
   };
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
     router.push('/');
   };
 
