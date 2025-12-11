@@ -18,6 +18,7 @@ import { ArrowLeft, Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import type { Company, CompanySettings } from '@/types/db-entities';
+import { TimeInput } from '@/components/TimeInput';
 
 const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
 const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
@@ -78,6 +79,10 @@ export default function CompanySettingsPage() {
   const handleSettingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setSettings(prev => ({ ...prev, [name]: value ? parseFloat(value) : undefined }));
+  }
+
+  const handleStringSettingChange = (name: keyof CompanySettings, value: string) => {
+    setSettings(prev => ({ ...prev, [name]: value }));
   }
   
   const handlePayrollCycleChange = (value: 'monthly' | 'fortnightly') => {
@@ -216,7 +221,7 @@ export default function CompanySettingsPage() {
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="holidayNightOvertimeRate">Hora Extra Festiva Nocturna</Label>
-                            <Input id="holidayNightOvertimeRate" name="holidayNightOvertimeRate" type="number" placeholder="0.00" value={settings.holidayNightOvertimeRate || ''} onChange={handleSettingChange} />
+                            <Input id="holidayNightOvertimeRate" name="holidayNightOvertimeRate" type="number" placeholder="0.00" value={settings.holidayNightOvertimeHours || ''} onChange={handleSettingChange} />
                         </div>
                     </fieldset>
                 </CardContent>
@@ -225,10 +230,10 @@ export default function CompanySettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Configuración de Nómina</CardTitle>
-                    <CardDescription>Establece cómo se procesarán los pagos de los operadores.</CardDescription>
+                    <CardDescription>Establece las reglas generales de la nómina.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <RadioGroup 
+                <CardContent className="space-y-6">
+                     <RadioGroup 
                         value={settings.payrollCycle || 'fortnightly'} 
                         onValueChange={handlePayrollCycleChange}
                     >
@@ -248,6 +253,21 @@ export default function CompanySettingsPage() {
                             El ciclo va desde el primer hasta el último día del mes.
                         </p>
                     </RadioGroup>
+                    <Separator />
+                    <div className='grid gap-2'>
+                        <Label>Inicio de Horario Nocturno</Label>
+                        <div className='flex items-center gap-4'>
+                         <TimeInput 
+                           label="Inicio de Horario Nocturno"
+                           value={settings.nightShiftStart || '21:00'}
+                           onChange={(value) => handleStringSettingChange('nightShiftStart', value)}
+                         />
+                         <p className="text-xs text-muted-foreground">
+                            Hora a partir de la cual se considera turno nocturno (formato 24h). Por defecto 21:00.
+                        </p>
+                        </div>
+
+                    </div>
                 </CardContent>
             </Card>
         </div>
@@ -298,5 +318,3 @@ export default function CompanySettingsPage() {
     </div>
   );
 }
-
-    

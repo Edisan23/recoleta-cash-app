@@ -2,7 +2,6 @@ import { CompanySettings } from "@/types/db-entities";
 import { parse, set, addDays, getDay, isSameDay } from 'date-fns';
 
 // --- CONFIGURATIONS ---
-const NIGHT_START_HOUR = 21; // 9 PM
 const NIGHT_END_HOUR = 6;   // 6 AM
 const NORMAL_WORK_HOURS_PER_DAY = 8;
 
@@ -48,6 +47,8 @@ export interface ShiftCalculationResult {
 // --- MAIN CALCULATION FUNCTION ---
 export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult => {
     const { date, startTime, endTime, rates } = input;
+    const nightStartHour = rates.nightShiftStart ? parseInt(rates.nightShiftStart.split(':')[0], 10) : 21;
+
 
     // 1. Parse Times and Handle Invalid Input
     const startDateTime = parseTime(date, startTime);
@@ -78,7 +79,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
         if(minuteIsHoliday) result.isHoliday = true;
 
         const hour = currentMinute.getHours();
-        const isNightHour = hour >= NIGHT_START_HOUR || hour < NIGHT_END_HOUR;
+        const isNightHour = hour >= nightStartHour || hour < NIGHT_END_HOUR;
 
         const hourTypeKey = `${minuteIsHoliday ? 'holiday' : 'normal'}_${isNightHour ? 'night' : 'day'}`;
 
@@ -110,7 +111,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     result.totalPayment += result.holidayDayHours * (rates.holidayDayRate || 0);
     result.totalPayment += result.holidayNightHours * (rates.holidayNightRate || 0);
     result.totalPayment += result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
-    result.totalPayment += result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
+    result.totalPayment += result.holidayNightOvertimeHours * (rates.holidayNightOvertimeHours || 0);
     
     return result;
 };

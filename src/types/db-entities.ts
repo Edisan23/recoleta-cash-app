@@ -27,7 +27,7 @@ export type User = {
     holidayDayRate?: number;
     holidayNightRate?: number;
     holidayDayOvertimeRate?: number;
-    holidayNightOvertimeRate?: number;
+    holidayNightOvertimeHours?: number;
     transportSubsidy?: number;
     otherSubsidies?: number;
     healthDeduction?: number; // Percentage for health deduction.
@@ -40,6 +40,7 @@ export type User = {
     incentiveType?: "none" | "perHour" | "perShift";
     normalHoursType?: "daily" | "fortnightly";
     normalHours?: number; // Number of hours considered normal work.
+    nightShiftStart?: string;
   };
   
   export type CompanyItem = {

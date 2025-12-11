@@ -100,7 +100,11 @@
         },
         "incentiveType": { "type": "string", "enum": ["none", "perHour", "perShift"] },
         "normalHoursType": { "type": "string", "enum": ["daily", "fortnightly"] },
-        "normalHours": { "type": "number", "description": "Number of hours considered normal work." }
+        "normalHours": { "type": "number", "description": "Number of hours considered normal work." },
+        "nightShiftStart": {
+          "type": "string",
+          "description": "The time when the night shift begins (e.g., '21:00')."
+        }
       }
     },
     "CompanyItem": {
@@ -199,4 +203,3 @@
     ]
   }
 }
-    
