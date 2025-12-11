@@ -6,23 +6,68 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // The admin UID is hardcoded for security.
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // A user can be associated with a company
+    function isCompanyMember(companyId) {
+      // This rule is a placeholder for a real implementation
+      // In a real app, you would check a user's claims or a document
+      // that links the user to a company. For this fake data app, we'll
+      // assume any signed-in user is a member of any company.
+      return isSignedIn();
+    }
+
+    // The admin UID is hardcoded for security in this example.
     function isAdmin() {
       return request.auth != null && request.auth.uid == '15sJqL2prSVL2adSXRyqsefg26v1';
     }
 
-    // Only the admin user document can be created or accessed by the admin.
     match /users/{userId} {
-      allow read, write: if isAdmin() && request.auth.uid == userId;
+      allow read, update, delete: if isSignedIn() && isOwner(userId);
+      allow create: if isSignedIn();
     }
 
-    // All company data can only be accessed and modified by the admin.
     match /companies/{companyId} {
-      allow read, write: if isAdmin();
+      // Any signed-in user can read company data for selection purposes
+      allow read: if isSignedIn();
+      // Only admins can create, update, or delete companies
+      allow create, update, delete: if isAdmin();
 
-      // All subcollections are also admin-only.
-      match /{allChildren=**} {
-        allow read, write: if isAdmin();
+      // Company subcollections for settings and items
+      match /settings/{settingsId} {
+          allow read: if isCompanyMember(companyId);
+          allow write: if isAdmin();
+      }
+      match /items/{itemId} {
+          allow read: if isCompanyMember(companyId);
+          allow write: if isAdmin();
+      }
+
+      // Shifts can be created by a company member for themselves.
+      // They can only read their own shifts. Admins can read all shifts.
+      match /shifts/{shiftId} {
+          allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
+          allow create: if isCompanyMember(companyId) && request.resource.data.userId == request.auth.uid;
+          // For simplicity, updates/deletes are admin-only.
+          // A more complex rule could allow owners to update/delete their own shifts.
+          allow update, delete: if isAdmin();
+      }
+
+      // Operator-specific deductions
+      match /operatorDeductions/{userId} {
+        // A user can read and write their own deduction settings.
+        allow read, write: if isCompanyMember(companyId) && isOwner(userId);
+        // Admins can read deductions for payroll purposes.
+        allow read: if isAdmin();
+      }
+
+       // Payrolls can be read by the user they belong to, or by an admin.
+      match /payrolls/{payrollId} {
+        allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
+        // Only admins can create/update payroll documents.
+        allow write: if isAdmin();
       }
     }
   }

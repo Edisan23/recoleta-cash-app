@@ -90,11 +90,9 @@
         "healthDeduction": { "type": "number", "description": "Percentage for health deduction (e.g., 4 for 4%)." },
         "pensionDeduction": { "type": "number", "description": "Percentage for pension deduction (e.g., 4 for 4%)." },
         "arlDeduction": { "type": "number", "description": "Percentage for ARL deduction." },
+        "familyCompensationDeduction": { "type": "number", "description": "Percentage for Family Compensation Fund deduction (e.g., 4 for 4%)."},
         "taxWithholding": { "type": "number", "description": "Percentage for tax withholding." },
         "solidarityFundDeduction": { "type": "number", "description": "Percentage for solidarity pension fund." },
-        "unionFeeDeduction": { "type": "number", "description": "Fixed amount for union fees, managed by operator." },
-        "cooperativeDeduction": { "type": "number", "description": "Fixed amount for cooperative contributions, managed by operator." },
-        "loanDeduction": { "type": "number", "description": "Fixed amount for loan payments, managed by operator." },
         "payrollCycle": {
           "type": "string",
           "enum": ["monthly", "fortnightly"],
@@ -105,6 +103,18 @@
           "description": "The time when the night shift begins (e.g., '21:00')."
         }
       }
+    },
+    "OperatorDeductions": {
+        "title": "Operator Deductions",
+        "description": "Defines voluntary deductions for a specific operator.",
+        "type": "object",
+        "properties": {
+            "userId": { "type": "string" },
+            "unionFeeDeduction": { "type": "number", "description": "Fixed amount for union fees." },
+            "cooperativeDeduction": { "type": "number", "description": "Fixed amount for cooperative contributions." },
+            "loanDeduction": { "type": "number", "description": "Fixed amount for loan payments." }
+        },
+        "required": ["userId"]
     },
     "CompanyItem": {
       "title": "Company Item",
@@ -195,6 +205,13 @@
                 "definition": {
                     "schema": { "$ref": "#/entities/Payroll" },
                     "description": "All payrolls for all users in the company."
+                }
+            },
+            {
+                "path": "operatorDeductions/{userId}",
+                "definition": {
+                    "schema": { "$ref": "#/entities/OperatorDeductions" },
+                    "description": "Voluntary deductions for a specific operator."
                 }
             }
         ]

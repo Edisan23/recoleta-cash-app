@@ -33,14 +33,19 @@ export type User = {
     healthDeduction?: number; // Percentage for health deduction (e.g., 4 for 4%).
     pensionDeduction?: number; // Percentage for pension deduction (e.g., 4 for 4%).
     arlDeduction?: number; // Percentage for ARL deduction.
+    familyCompensationDeduction?: number; // Percentage for Family Compensation Fund deduction (e.g., 4 for 4%).
     taxWithholding?: number; // Percentage for tax withholding.
     solidarityFundDeduction?: number; // Percentage for solidarity pension fund.
-    unionFeeDeduction?: number; // Fixed amount for union fees, managed by operator.
-    cooperativeDeduction?: number; // Fixed amount for cooperative contributions, managed by operator.
-    loanDeduction?: number; // Fixed amount for loan payments, managed by operator.
     payrollCycle?: "monthly" | "fortnightly"; // Defines the company's payroll payment cycle.
     nightShiftStart?: string; // The time when the night shift begins (e.g., '21:00').
   };
+
+  export type OperatorDeductions = {
+    userId: string;
+    unionFeeDeduction?: number | null; // Fixed amount for union fees.
+    cooperativeDeduction?: number | null; // Fixed amount for cooperative contributions.
+    loanDeduction?: number | null; // Fixed amount for loan payments.
+  }
   
   export type CompanyItem = {
     id: string;

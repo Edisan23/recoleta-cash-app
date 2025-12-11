@@ -50,11 +50,9 @@ const settingLabels: { [key in keyof EnabledFields]: string } = {
     healthDeduction: 'Salud (%)',
     pensionDeduction: 'Pensión (%)',
     arlDeduction: 'ARL (%)',
+    familyCompensationDeduction: 'Caja Compensación (%)',
     taxWithholding: 'Retención en la Fuente (%)',
     solidarityFundDeduction: 'Fondo de Solidaridad (%)',
-    unionFeeDeduction: 'Cuota Sindical',
-    cooperativeDeduction: 'Cooperativa',
-    loanDeduction: 'Préstamos',
 };
 
 
@@ -92,7 +90,7 @@ export default function CompanySettingsPage() {
         for (const key in settingLabels) {
             if (Object.prototype.hasOwnProperty.call(settingLabels, key)) {
                 const settingKey = key as keyof EnabledFields;
-                // A field is enabled if no settings are saved yet (all enabled by default for new company)
+                 // A field is enabled if no settings are saved yet (all enabled by default for new company)
                 // OR if the saved setting for this key is not explicitly null.
                 initialEnabled[settingKey] = !companySettings || companySettings[settingKey] != null;
             }
@@ -314,10 +312,11 @@ export default function CompanySettingsPage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      <fieldset className="space-y-6 p-4 border rounded-lg">
-                        <legend className="text-lg font-medium px-1 mb-4">Deducciones (%)</legend>
+                        <legend className="text-lg font-medium px-1 mb-4">Deducciones Legales (%)</legend>
                         {renderSettingInput('healthDeduction')}
                         {renderSettingInput('pensionDeduction')}
                         {renderSettingInput('arlDeduction')}
+                        {renderSettingInput('familyCompensationDeduction')}
                         {renderSettingInput('taxWithholding')}
                         {renderSettingInput('solidarityFundDeduction', 'Se aplica a salarios de 4 SMMLV o más.')}
                     </fieldset>
@@ -421,5 +420,3 @@ export default function CompanySettingsPage() {
     </TooltipProvider>
   );
 }
-
-    

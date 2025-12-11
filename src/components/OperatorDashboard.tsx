@@ -3,10 +3,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { TimeInput } from './TimeInput';
 import { DatePicker } from './DatePicker';
-import { LogOut, CalendarCheck, Wallet, Loader2, PlusCircle, Trash2 } from 'lucide-react';
-import type { User, Company, CompanySettings, Shift } from '@/types/db-entities';
+import { LogOut, CalendarCheck, Wallet, Loader2, PlusCircle, Trash2, Settings } from 'lucide-react';
+import type { User, Company, CompanySettings, Shift, OperatorDeductions } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -44,6 +47,17 @@ const COMPANIES_DB_KEY = 'fake_companies_db';
 const SETTINGS_DB_KEY = 'fake_company_settings_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 const SHIFTS_DB_KEY_PREFIX = 'fake_shifts_db_';
+const DEDUCTIONS_DB_KEY_PREFIX = 'fake_deductions_db_';
+
+type EnabledDeductionFields = {
+    [K in keyof Omit<OperatorDeductions, 'userId'>]?: boolean;
+};
+
+const deductionLabels: { [key in keyof EnabledDeductionFields]: string } = {
+    unionFeeDeduction: 'Cuota Sindical',
+    cooperativeDeduction: 'Aporte a Cooperativa',
+    loanDeduction: 'Cuota de Préstamo',
+};
 
 
 // --- HELPER FUNCTIONS ---
@@ -68,6 +82,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<Partial<CompanySettings>>({});
+  const [operatorDeductions, setOperatorDeductions] = useState<Partial<OperatorDeductions>>({});
+  const [enabledDeductions, setEnabledDeductions] = useState<EnabledDeductionFields>({});
   
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState('');
@@ -80,32 +96,67 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingDeductions, setIsSavingDeductions] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const SHIFTS_DB_KEY = useMemo(() => `${SHIFTS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
+  const DEDUCTIONS_DB_KEY = useMemo(() => `${DEDUCTIONS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
 
-  const loadAllShifts = useCallback((): Shift[] => {
+
+  const loadAllData = useCallback(() => {
+    setIsLoading(true);
     try {
-      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-      return storedShifts ? JSON.parse(storedShifts) : [];
-    } catch (e) {
-      console.error("Failed to load shifts from localStorage", e);
-      return [];
+        // Load Company
+        const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
+        const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
+        const foundCompany = allCompanies.find(c => c.id === companyId);
+        
+        if (!foundCompany) {
+          console.error("Selected company not found in DB");
+          localStorage.removeItem(OPERATOR_COMPANY_KEY);
+          router.replace('/select-company');
+          return;
+        }
+        setCompany(foundCompany);
+        
+        // Load Company Settings
+        const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
+        const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
+        const companySettings = allSettings[companyId] || {};
+        setSettings(companySettings);
+
+        // Load Operator Deductions
+        const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
+        const operatorDeductionsData : OperatorDeductions = storedDeductions ? JSON.parse(storedDeductions) : { userId: user.uid };
+        setOperatorDeductions(operatorDeductionsData);
+
+        const initialEnabled: EnabledDeductionFields = {};
+        for (const key in deductionLabels) {
+            const deductionKey = key as keyof EnabledDeductionFields;
+            initialEnabled[deductionKey] = operatorDeductionsData[deductionKey] != null;
+        }
+        setEnabledDeductions(initialEnabled);
+
+        
+    } catch(e) {
+        console.error("Failed to load data from localStorage", e);
+    } finally {
+        setIsLoading(false);
     }
-  }, [SHIFTS_DB_KEY]);
+  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY]);
   
-  const saveAllShifts = useCallback((shifts: Shift[]) => {
-    try {
-      localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(shifts));
-    } catch (e) {
-      console.error("Failed to save shifts to localStorage", e);
-    }
-  }, [SHIFTS_DB_KEY]);
+  // Initial data loading
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
 
-  const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
+
+  const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentDeductions: Partial<OperatorDeductions>) => {
     if (!currentSettings.payrollCycle || !currentDate) return;
     
-    const allShifts = loadAllShifts();
+    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+    const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+    
     const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
     
     const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
@@ -122,50 +173,27 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         return acc;
     }, { totalHours: 0, grossPay: 0, netPay: 0 });
 
-    const { healthDeduction = 0, pensionDeduction = 0, arlDeduction = 0 } = currentSettings;
-    const totalDeductionPercent = (healthDeduction + pensionDeduction + arlDeduction) / 100;
-    const deductions = summary.grossPay * totalDeductionPercent;
-    
-    summary.netPay = summary.grossPay - deductions;
+    const { healthDeduction = 0, pensionDeduction = 0, arlDeduction = 0, familyCompensationDeduction = 0 } = currentSettings;
+    const totalCompanyDeductionPercent = (healthDeduction + pensionDeduction + arlDeduction + familyCompensationDeduction) / 100;
+    const companyDeductionsAmount = summary.grossPay * totalCompanyDeductionPercent;
+
+    const voluntaryDeductionsAmount = 
+        (currentDeductions.unionFeeDeduction || 0) +
+        (currentDeductions.cooperativeDeduction || 0) +
+        (currentDeductions.loanDeduction || 0);
+
+    summary.netPay = summary.grossPay - companyDeductionsAmount - voluntaryDeductionsAmount;
 
     setPayrollSummary(summary);
-  }, [loadAllShifts]);
-
-
-  // Initial data loading effect
-  useEffect(() => {
-    setIsLoading(true);
-    try {
-        const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
-        const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
-        const foundCompany = allCompanies.find(c => c.id === companyId);
-        
-        if (!foundCompany) {
-          console.error("Selected company not found in DB");
-          localStorage.removeItem(OPERATOR_COMPANY_KEY);
-          router.replace('/select-company');
-          return;
-        }
-        setCompany(foundCompany);
-        
-        const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
-        const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
-        const companySettings = allSettings[companyId] || {};
-        setSettings(companySettings);
-        
-    } catch(e) {
-        console.error("Failed to load data from localStorage", e);
-    } finally {
-        setIsLoading(false);
-    }
-  }, [companyId, router]);
+  }, [SHIFTS_DB_KEY]);
 
 
   // Effect to update UI based on date or settings changes
   useEffect(() => {
     if (!date || isLoading) return;
 
-    const allShifts = loadAllShifts();
+    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+    const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
     const dayShift = allShifts.find(shift => isSameDay(new Date(shift.date), date)) || null;
     
     setShiftForSelectedDay(dayShift);
@@ -187,10 +215,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
     
     if (settings.payrollCycle) {
-      updatePayrollSummary(date, settings);
+      updatePayrollSummary(date, settings, operatorDeductions);
     }
 
-  }, [date, settings, isLoading, loadAllShifts, updatePayrollSummary]);
+  }, [date, settings, operatorDeductions, isLoading, SHIFTS_DB_KEY, updatePayrollSummary]);
 
 
   const handleSave = () => {
@@ -207,7 +235,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     
     try {
         const result = calculateShiftDetails({ date, startTime, endTime, rates: settings });
-        let allShifts = loadAllShifts();
+
+        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+        let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
         
         const existingShiftIndex = allShifts.findIndex(s => isSameDay(new Date(s.date), date));
 
@@ -226,11 +256,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             allShifts.push(shiftData);
         }
         
-        saveAllShifts(allShifts);
+        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
         
         setShiftForSelectedDay(shiftData);
         setDailySummary(result);
-        updatePayrollSummary(date, settings);
+        updatePayrollSummary(date, settings, operatorDeductions);
 
         toast({
             title: existingShiftIndex > -1 ? 'Turno Actualizado' : 'Turno Guardado',
@@ -251,15 +281,16 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const handleDelete = () => {
     if (!date) return;
 
-    let allShifts = loadAllShifts();
+    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+    let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
     const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
-    saveAllShifts(updatedShifts);
+    localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
 
     setShiftForSelectedDay(null);
     setDailySummary(null);
     setStartTime('');
     setEndTime('');
-    updatePayrollSummary(date, settings);
+    updatePayrollSummary(date, settings, operatorDeductions);
     setShowDeleteConfirm(false);
 
     toast({
@@ -276,6 +307,86 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
     router.push('/'); 
   };
+
+  const handleDeductionSwitchChange = (field: keyof EnabledDeductionFields, checked: boolean) => {
+    setEnabledDeductions(prev => ({ ...prev, [field]: checked }));
+    if (!checked) {
+      setOperatorDeductions(prev => {
+        const newDeductions = { ...prev };
+        newDeductions[field] = null; 
+        return newDeductions;
+      });
+    }
+  };
+
+  const handleDeductionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setOperatorDeductions(prev => ({ ...prev, [name]: value === '' ? undefined : parseFloat(value) }));
+  }
+
+  const handleSaveDeductions = () => {
+    setIsSavingDeductions(true);
+    try {
+        const activeDeductions: Partial<OperatorDeductions> = { userId: user.uid };
+        for (const key in enabledDeductions) {
+            const deductionKey = key as keyof EnabledDeductionFields;
+            if (enabledDeductions[deductionKey]) {
+                 if (operatorDeductions[deductionKey] !== undefined) {
+                    (activeDeductions as any)[deductionKey] = operatorDeductions[deductionKey];
+                }
+            } else {
+                 (activeDeductions as any)[deductionKey] = null;
+            }
+        }
+        localStorage.setItem(DEDUCTIONS_DB_KEY, JSON.stringify(activeDeductions));
+        // We need to trigger a payroll update after saving deductions
+        if(date && settings.payrollCycle) {
+            updatePayrollSummary(date, settings, activeDeductions);
+        }
+        toast({
+            title: 'Deducciones Guardadas',
+            description: 'Tus deducciones voluntarias han sido actualizadas.',
+        });
+    } catch (e) {
+        console.error("Failed to save deductions", e);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No se pudieron guardar tus deducciones.',
+        });
+    } finally {
+        setIsSavingDeductions(false);
+    }
+  }
+
+    const renderDeductionInput = (key: keyof EnabledDeductionFields) => {
+        const label = deductionLabels[key];
+        return (
+        <div key={key} className="space-y-2">
+            <div className="flex items-center justify-between">
+                <Label htmlFor={key} className={!enabledDeductions[key] ? 'text-muted-foreground' : ''}>
+                    {label}
+                </Label>
+                <Switch
+                    id={`switch-${key}`}
+                    checked={enabledDeductions[key] || false}
+                    onCheckedChange={(checked) => handleDeductionSwitchChange(key, checked)}
+                />
+            </div>
+            <Input
+            id={key}
+            name={key}
+            type="number"
+            placeholder="0.00"
+            value={operatorDeductions[key] || ''}
+            onChange={handleDeductionChange}
+            disabled={!enabledDeductions[key]}
+            className="transition-opacity"
+            />
+        </div>
+        );
+    };
+
   
   if (isLoading || !company) {
     return (
@@ -446,6 +557,23 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               </CardContent>
             </Card>
           </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Mis Deducciones Voluntarias</CardTitle>
+                    <CardDescription>Activa y define los montos fijos para tus aportes y pagos personales. Se descontarán en cada periodo de pago.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {renderDeductionInput('unionFeeDeduction')}
+                    {renderDeductionInput('cooperativeDeduction')}
+                    {renderDeductionInput('loanDeduction')}
+                </CardContent>
+                <CardFooter>
+                    <Button onClick={handleSaveDeductions} disabled={isSavingDeductions}>
+                        {isSavingDeductions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Settings className="mr-2 h-4 w-4" />}
+                        Guardar Mis Deducciones
+                    </Button>
+                </CardFooter>
+            </Card>
         </main>
       </div>
 
