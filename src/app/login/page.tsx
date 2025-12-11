@@ -19,7 +19,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { LogOut, User as UserIcon, Hexagon } from 'lucide-react';
+import { LogOut, User as UserIcon, Hexagon, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 // The specific UID for the admin user
@@ -41,40 +41,37 @@ export default function LoginPage() {
       const result = await signInWithPopup(auth, provider);
       const signedInUser = result.user;
 
-      // If the user is the designated admin, create/update their user document with the admin role.
-      if (signedInUser.uid === ADMIN_UID) {
-        const userDocRef = doc(firestore, 'users', signedInUser.uid);
-        await setDoc(userDocRef, {
-            id: signedInUser.uid,
-            name: signedInUser.displayName || 'Admin',
-            email: signedInUser.email,
-            role: 'admin',
-            createdAt: new Date().toISOString(),
-            paymentStatus: 'paid' // Admins always have paid status
-        }, { merge: true });
+      // Ensure that only the designated admin can proceed.
+      if (signedInUser.uid !== ADMIN_UID) {
+        await auth.signOut(); // Sign out the unauthorized user.
+        toast({
+            variant: 'destructive',
+            title: 'Acceso Denegado',
+            description: 'Esta cuenta no tiene permisos de administrador.',
+        });
+        return;
       }
       
-      // After any sign-in, always go to the root page.
-      // The root page will then decide where to redirect the user.
-      router.push('/');
+      // Create/update the admin user document in Firestore.
+      const userDocRef = doc(firestore, 'users', signedInUser.uid);
+      await setDoc(userDocRef, {
+          id: signedInUser.uid,
+          name: signedInUser.displayName || 'Admin',
+          email: signedInUser.email,
+          role: 'admin',
+          createdAt: new Date().toISOString(),
+          paymentStatus: 'paid' 
+      }, { merge: true });
+      
+      // Redirect to the admin panel upon successful admin login.
+      router.push('/admin');
 
     } catch (error) {
       const authError = error as AuthError;
-      toast({
-        variant: 'destructive',
-        title: 'Error con Google',
-        description: authError.message,
-      });
-    }
-  };
-
-  const handleAnonymousSignIn = async () => {
-    if (isAdminLogin || !auth) return;
-    try {
-      await signInAnonymously(auth);
-      router.push('/');
-    } catch (error) {
-      const authError = error as AuthError;
+      // Handle specific cancellation error gracefully
+      if (authError.code === 'auth/popup-closed-by-user') {
+        return;
+      }
       toast({
         variant: 'destructive',
         title: 'Error de Autenticación',
@@ -86,73 +83,52 @@ export default function LoginPage() {
   const handleSignOut = async () => {
     if(auth) {
       await auth.signOut();
+      // After signing out, redirect to the main landing page.
+      router.push('/');
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100">
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-background">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-            <div className="mx-auto my-4">
-            {isAdminLogin ? (
+            <div className="mx-auto mb-4">
                 <Hexagon className="h-12 w-12 text-primary" />
-            ) : (
-                <UserIcon className="h-12 w-12 text-primary" />
-            )}
             </div>
           <CardTitle className="text-2xl">
-            {isAdminLogin ? 'Acceso Administrador' : 'Iniciar Sesión'}
+            Acceso Administrador
           </CardTitle>
           <CardDescription>
-            {isAdminLogin
-              ? 'Inicia sesión con tu cuenta de Google autorizada.'
-              : 'Elige un método para continuar.'}
+            Inicia sesión con tu cuenta de Google autorizada para continuar.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
           <Button
-            variant="outline"
             className="w-full"
             onClick={handleGoogleSignIn}
           >
             Continuar con Google
           </Button>
 
-          {!isAdminLogin && (
-            <>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    O continúa como
-                  </span>
-                </div>
-              </div>
-              <Button
-                variant="secondary"
-                className="w-full"
-                onClick={handleAnonymousSignIn}
-              >
-                Operador Anónimo
-              </Button>
-            </>
-          )}
         </CardContent>
         <CardFooter className="flex flex-col gap-4 text-center">
           {user && (
             <div className="text-center text-sm text-muted-foreground w-full">
-              Has iniciado sesión como {user.isAnonymous ? 'Anónimo' : user.displayName || user.email}.
+              Has iniciado sesión como {user.displayName || user.email}.
               <Button variant="outline" className="w-full mt-4" onClick={handleSignOut}>
                 <LogOut className="mr-2" />
                 Cerrar Sesión
               </Button>
             </div>
           )}
-          <Link href="/" className="text-sm text-center text-muted-foreground hover:underline">
-            Volver al inicio
-          </Link>
+           {!user && (
+             <Button variant="link" size="sm" className="text-muted-foreground" asChild>
+                <Link href="/">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Volver al inicio
+                </Link>
+             </Button>
+           )}
         </CardFooter>
       </Card>
     </div>
