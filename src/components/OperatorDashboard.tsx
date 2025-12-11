@@ -199,7 +199,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // Effect to update UI based on date or settings changes
   useEffect(() => {
-    if (!date || isLoading || !settings.payrollCycle) return;
+    if (!date || isLoading) return;
 
     const allShifts: Shift[] = loadAllShifts();
     const dayShift = allShifts.find(shift => isSameDay(new Date(shift.date), date)) || null;
@@ -222,12 +222,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setEndTime('');
     }
     
-    // Always recalculate payroll for the selected date's period
     const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
     const currentDeductions = storedDeductions ? JSON.parse(storedDeductions) : {};
     updatePayrollSummary(date, settings, currentDeductions);
 
-  }, [date, settings, isLoading, loadAllShifts, updatePayrollSummary, DEDUCTIONS_DB_KEY]);
+  }, [date, settings, isLoading, loadAllShifts, DEDUCTIONS_DB_KEY, updatePayrollSummary]);
 
 
   const handleSave = () => {
