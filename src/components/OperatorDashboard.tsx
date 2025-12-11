@@ -130,6 +130,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // Effect to load company data and initial info
   useEffect(() => {
+    setIsLoading(true);
     try {
         const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
         const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
@@ -149,8 +150,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
         if (companySettings) {
           setSettings(companySettings);
+        } else {
+          setSettings({}); // No settings found for this company
         }
-
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
@@ -161,7 +163,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // Effect to update everything when the date or settings change
   useEffect(() => {
-    if (!date || !settings.payrollCycle) return;
+    if (!date || isLoading) return;
 
     const allShifts = loadAllShifts();
     const dayShift = allShifts.find(shift => isSameDay(new Date(shift.date), date)) || null;
@@ -186,7 +188,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     
     calculateAndSetPayrollSummary(date);
 
-  }, [date, settings, loadAllShifts, calculateAndSetPayrollSummary]);
+  }, [date, settings, isLoading, loadAllShifts, calculateAndSetPayrollSummary]);
 
 
   const handleSave = () => {
@@ -272,7 +274,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } catch (e) {
         console.error("Failed to clear localStorage", e);
     }
-    router.push('/select-company'); 
+    router.push('/'); 
   };
   
   if (isLoading || !company) {
@@ -334,7 +336,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 )}
                 <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
                     <LogOut className="mr-2 h-5 w-5" />
-                    Cerrar sesión
+                    Salir
                 </Button>
             </div>
         </header>
@@ -467,5 +469,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    

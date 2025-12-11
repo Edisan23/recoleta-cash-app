@@ -14,7 +14,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 
 const COMPANIES_DB_KEY = 'fake_companies_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
@@ -54,7 +54,7 @@ export default function SelectCompanyPage() {
             title: '¡Listo!',
             description: 'Has seleccionado la empresa.',
         });
-        router.push('/'); // Redirect to dashboard
+        router.push('/operator/dashboard'); // Redirect to dashboard
     } catch(e) {
         console.error('Error saving company selection:', e);
         toast({
@@ -70,6 +70,10 @@ export default function SelectCompanyPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader>
+          <Button variant="ghost" onClick={() => router.push('/')} className="mb-4 justify-start p-0 h-auto">
+            <ArrowLeft className="mr-2" />
+            Volver al inicio
+          </Button>
           <CardTitle className="text-2xl">Selecciona tu Empresa</CardTitle>
           <CardDescription>
             Elige la empresa para la que trabajas para continuar.
