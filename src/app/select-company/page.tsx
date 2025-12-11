@@ -1,7 +1,5 @@
 'use client';
 
-import { useCollection, useFirestore, useUser, useAuth } from '@/firebase';
-import { collection, doc, updateDoc } from 'firebase/firestore';
 import type { Company } from '@/types/db-entities';
 import {
   Card,
@@ -12,85 +10,62 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useMemoFirebase } from '@/firebase/provider';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, LogOut } from 'lucide-react';
-import { signOut } from 'firebase/auth';
+import { Loader2 } from 'lucide-react';
+
+const COMPANIES_DB_KEY = 'fake_companies_db';
+const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
 export default function SelectCompanyPage() {
-  const firestore = useFirestore();
-  const auth = useAuth();
-  const { user, isUserLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const companiesRef = useMemoFirebase(
-    () => (user ? collection(firestore, 'companies') : null),
-    [firestore, user]
-  );
-  const { data: companies, isLoading: areCompaniesLoading } =
-    useCollection<Company>(companiesRef);
-
-  // Redirect unauthenticated users to login
   useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.push('/login');
-    }
-  },[user, isUserLoading, router]);
-
-  const handleSelectCompany = async (companyId: string) => {
-    if (!user) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Debes iniciar sesión para seleccionar una empresa.',
-      });
-      return;
-    }
-
-    setIsSubmitting(true);
-    const userDocRef = doc(firestore, 'users', user.uid);
-
     try {
-      await updateDoc(userDocRef, { companyId: companyId });
-      toast({
-        title: '¡Listo!',
-        description: 'Te has unido a la empresa.',
-      });
-      router.push('/'); // Redirect to dashboard
-    } catch (error) {
-      console.error('Error updating user company:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo seleccionar la empresa. Inténtalo de nuevo.',
-      });
+        const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
+        if (storedCompanies) {
+            setCompanies(JSON.parse(storedCompanies));
+        }
+    } catch(e) {
+        console.error("Failed to load companies from localStorage", e);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No se pudieron cargar las empresas.',
+        });
     } finally {
-      setIsSubmitting(false);
+        setIsLoading(false);
+    }
+  }, [toast]);
+
+
+  const handleSelectCompany = (companyId: string) => {
+    setIsSubmitting(true);
+    try {
+        localStorage.setItem(OPERATOR_COMPANY_KEY, companyId);
+        toast({
+            title: '¡Listo!',
+            description: 'Has seleccionado la empresa.',
+        });
+        router.push('/'); // Redirect to dashboard
+    } catch(e) {
+        console.error('Error saving company selection:', e);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No se pudo seleccionar la empresa. Inténtalo de nuevo.',
+        });
+        setIsSubmitting(false);
     }
   };
   
-  const handleSignOut = async () => {
-    await signOut(auth);
-    router.push('/login');
-  };
-
-  // The primary loading state now depends on both user and company data loading states.
-  const isLoading = isUserLoading || areCompaniesLoading;
-
-  // Show a generic loading screen while the user's auth state is being determined.
-  if (isUserLoading || !user) {
-      return (
-           <div className="flex min-h-screen items-center justify-center">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-           </div>
-      )
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
       <Card className="w-full max-w-2xl">
@@ -138,12 +113,9 @@ export default function SelectCompanyPage() {
                <p className="text-center text-muted-foreground col-span-full">No hay empresas activas disponibles. Contacta a un administrador.</p>
            )}
         </CardContent>
-        <CardFooter className="flex justify-end">
-            <Button variant="ghost" onClick={handleSignOut}>
-                <LogOut className="mr-2" />
-                Cerrar Sesión
-            </Button>
-        </CardFooter>
+         <CardFooter>
+            {/* Optional: Add a sign-out or back button here if needed */}
+         </CardFooter>
       </Card>
     </div>
   );

@@ -5,16 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TimeInput } from './TimeInput';
 import { DatePicker } from './DatePicker';
-import { LogOut, CalendarCheck, Wallet } from 'lucide-react';
+import { LogOut, CalendarCheck, Wallet, Loader2 } from 'lucide-react';
 import type { User, Company } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 
-// --- Autenticación Suspendida ---
-// Se simula un objeto de usuario operador y la información de su empresa.
-// Los hooks de Firebase han sido desactivados.
-
+// --- FAKE DATA ---
 const FAKE_OPERATOR_USER = {
   uid: 'fake-operator-uid-12345',
   isAnonymous: false,
@@ -27,17 +24,12 @@ const FAKE_USER_PROFILE: User = {
     name: 'Juan Operador',
     email: 'operator@example.com',
     role: 'operator',
-    companyId: 'fake-company-id-67890',
     createdAt: new Date().toISOString(),
     paymentStatus: 'paid'
 };
 
-const FAKE_COMPANY: Company = {
-    id: 'fake-company-id-67890',
-    name: 'Empresa Constructora',
-    logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo',
-    isActive: true
-};
+const COMPANIES_DB_KEY = 'fake_companies_db';
+const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
 
 function getInitials(name: string) {
@@ -49,39 +41,69 @@ function getInitials(name: string) {
 }
 
 
-export function OperatorDashboard() {
+export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
   
-  // Usar los datos ficticios
   const user = FAKE_OPERATOR_USER;
   const userProfile = FAKE_USER_PROFILE;
-  const company = FAKE_COMPANY;
 
+  const [company, setCompany] = useState<Company | null>(null);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Set date on client side to avoid hydration errors
   useEffect(() => {
     setDate(new Date());
-  }, []);
+    try {
+        const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
+        if (storedCompanies) {
+            const allCompanies: Company[] = JSON.parse(storedCompanies);
+            const foundCompany = allCompanies.find(c => c.id === companyId);
+            if (foundCompany) {
+                setCompany(foundCompany);
+            } else {
+                // Company not found, maybe redirect
+                console.error("Selected company not found in DB");
+                localStorage.removeItem(OPERATOR_COMPANY_KEY);
+                router.replace('/select-company');
+            }
+        }
+    } catch(e) {
+        console.error("Failed to load company from localStorage", e);
+    } finally {
+        setIsLoading(false);
+    }
+  }, [companyId, router]);
 
   const handleSave = () => {
-    // TODO: Implement save logic to Firestore
+    // TODO: Implement save logic
     console.log('Saving shift:', {
       userId: user?.uid,
+      companyId: company?.id,
       date,
       startTime,
       endTime,
     });
   };
 
-  const handleSignOut = async () => {
-    // La funcionalidad de cierre de sesión está desactivada.
-    // Redirigir a una página que no exista o a la de admin para simular el cierre
+  const handleSignOut = () => {
+    try {
+        localStorage.removeItem(OPERATOR_COMPANY_KEY);
+    } catch (e) {
+        console.error("Failed to clear localStorage", e);
+    }
     router.push('/admin'); 
   };
   
+  if (isLoading || !company) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
