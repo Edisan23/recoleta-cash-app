@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
@@ -16,39 +16,15 @@ import { Label } from '@/components/ui/label';
 import { ArrowLeft, Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import type { Company } from '@/types/db-entities';
 
-// FAKE DATA FOR SIMULATION - This now includes a wider range to simulate newly created companies
-const FAKE_COMPANIES_DB : { [key: string]: any } = {
-    '1': { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#2563eb' },
-    '2': { id: '2', name: 'Transportes Rápidos', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#e11d48' },
-    '3': { id: '3', name: 'Servicios Generales S.A.', isActive: false, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#059669' },
-};
+const LOCAL_STORAGE_KEY = 'fake_companies_db';
 
-// This function simulates finding a company. If it's not in the initial DB, it creates a mock entry for it.
-const findCompanyById = (id: string) => {
-    if (FAKE_COMPANIES_DB[id]) {
-        return FAKE_COMPANIES_DB[id];
-    }
-    // If we're trying to edit a company that was just created, it won't be in the DB.
-    // So, we create a temporary mock version of it to allow the page to render.
-    if (id.startsWith('comp_')) {
-        return {
-            id,
-            name: `Nueva Empresa (ID: ${id.substring(5, 10)}...)`,
-            isActive: true,
-            logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo',
-            themeColor: '#000000',
-        };
-    }
-    return null;
-}
-
-
+// This is just a fallback, the real data will come from localStorage
 const FAKE_SETTINGS_DB: { [key: string]: any } = {
     '1': { dayRate: 10, nightRate: 12, dayOvertimeRate: 15, nightOvertimeRate: 18, holidayDayRate: 20, holidayNightRate: 22, holidayDayOvertimeRate: 25, holidayNightOvertimeRate: 28 },
     '2': { dayRate: 11, nightRate: 13, dayOvertimeRate: 16, nightOvertimeRate: 19, holidayDayRate: 21, holidayNightRate: 23, holidayDayOvertimeRate: 26, holidayNightOvertimeRate: 29 },
 };
-
 
 export default function CompanySettingsPage() {
   const router = useRouter();
@@ -56,15 +32,32 @@ export default function CompanySettingsPage() {
   const companyId = params.companyId as string;
   const { toast } = useToast();
 
-  // Simulate fetching data using our new find function
-  const company = findCompanyById(companyId);
-  const initialSettings = FAKE_SETTINGS_DB[companyId as keyof typeof FAKE_SETTINGS_DB] || {};
-  
+  const [company, setCompany] = useState<Company | null>(null);
+  const [rates, setRates] = useState(FAKE_SETTINGS_DB[companyId as keyof typeof FAKE_SETTINGS_DB] || {});
   const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(company?.logoUrl || null);
-  const [themeColor, setThemeColor] = useState<string>(company?.themeColor || '#000000');
-  const [rates, setRates] = useState(initialSettings);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [themeColor, setThemeColor] = useState<string>('#000000');
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    try {
+        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (storedCompanies) {
+            const allCompanies: Company[] = JSON.parse(storedCompanies);
+            const foundCompany = allCompanies.find(c => c.id === companyId);
+            if (foundCompany) {
+                setCompany(foundCompany);
+                setLogoPreview(foundCompany.logoUrl || null);
+                setThemeColor(foundCompany.themeColor || '#000000');
+            }
+        }
+    } catch (error) {
+        console.error("Could not access localStorage:", error);
+    } finally {
+        setIsLoading(false);
+    }
+  }, [companyId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -84,23 +77,58 @@ export default function CompanySettingsPage() {
   }
 
   const handleSave = async () => {
-    setIsSaving(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    console.log("Saving data:", {
-        companyId,
-        logoFile,
-        themeColor,
-        rates,
-    });
+    if (!company) return;
 
-    toast({
-        title: '¡Guardado!',
-        description: `La configuración de ${company?.name} ha sido actualizada.`,
-    });
-    setIsSaving(false);
+    setIsSaving(true);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    try {
+        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY);
+        let allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
+
+        const updatedCompany: Company = {
+            ...company,
+            themeColor,
+            logoUrl: logoPreview || company.logoUrl,
+        };
+
+        // Update the company in the array
+        const companyIndex = allCompanies.findIndex(c => c.id === companyId);
+        if (companyIndex > -1) {
+            allCompanies[companyIndex] = updatedCompany;
+        } else {
+            allCompanies.push(updatedCompany); // Should not happen in edit mode, but as a fallback
+        }
+
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allCompanies));
+
+        // TODO: Save rates separately if they have their own "table" in localStorage
+        console.log("Saving rates (simulation):", rates);
+        
+        toast({
+            title: '¡Guardado!',
+            description: `La configuración de ${company?.name} ha sido actualizada.`,
+        });
+    } catch (error) {
+        console.error("Error saving to localStorage:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No se pudieron guardar los cambios.',
+        });
+    } finally {
+        setIsSaving(false);
+        router.push('/admin'); // Navigate back to the list after saving
+    }
   };
+
+  if (isLoading) {
+    return (
+        <div className="flex flex-col items-center justify-center h-screen">
+            <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+    )
+  }
 
   if (!company) {
     return (

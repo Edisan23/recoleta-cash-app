@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CompanyTable } from '@/components/admin/CompanyTable';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { Button } from '@/components/ui/button';
@@ -20,18 +20,46 @@ const INITIAL_COMPANIES: Company[] = [
     { id: '3', name: 'Servicios Generales S.A.', isActive: false, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo' },
 ];
 
+const LOCAL_STORAGE_KEY = 'fake_companies_db';
+
 
 export default function AdminPage() {
   const router = useRouter();
   const user = FAKE_ADMIN_USER;
-  const [companies, setCompanies] = useState<Company[]>(INITIAL_COMPANIES);
+  const [companies, setCompanies] = useState<Company[]>([]);
+
+  // Load companies from localStorage on initial render
+  useEffect(() => {
+    try {
+        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (storedCompanies) {
+            setCompanies(JSON.parse(storedCompanies));
+        } else {
+            // If nothing in localStorage, initialize with default data
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_COMPANIES));
+            setCompanies(INITIAL_COMPANIES);
+        }
+    } catch (error) {
+        console.error("Could not access localStorage:", error);
+        setCompanies(INITIAL_COMPANIES); // Fallback to initial data
+    }
+  }, []);
 
   const addCompany = (newCompanyData: Omit<Company, 'id'>) => {
     const newCompany: Company = {
         ...newCompanyData,
-        id: `comp_${Date.now()}` // Generate a unique-ish ID for the simulation
+        id: `comp_${Date.now()}`
     };
-    setCompanies(prevCompanies => [...prevCompanies, newCompany]);
+    
+    setCompanies(prevCompanies => {
+        const updatedCompanies = [...prevCompanies, newCompany];
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedCompanies));
+        } catch (error) {
+            console.error("Could not save to localStorage:", error);
+        }
+        return updatedCompanies;
+    });
   };
 
   const handleSignOut = async () => {

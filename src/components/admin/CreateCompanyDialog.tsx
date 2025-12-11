@@ -48,6 +48,9 @@ export function CreateCompanyDialog({ onCompanyCreated }: CreateCompanyDialogPro
       setCompanyName('');
       setLogoFile(null);
       setLogoPreview(null);
+      if(fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,19 +67,24 @@ export function CreateCompanyDialog({ onCompanyCreated }: CreateCompanyDialogPro
     setIsSubmitting(true);
 
     // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 500));
     
+    // The logoUrl is now the base64 preview or a placeholder.
+    // In a real app, this would be an URL from a storage service.
     const newCompanyData: Omit<Company, 'id'> = {
         name: companyName,
-        logoUrl: logoPreview || 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', // Use preview or a placeholder
+        logoUrl: logoPreview || 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo',
         isActive: true,
+        themeColor: '#2563eb' // Default theme color
     };
 
+    // This function now updates the state in the parent (AdminPage)
+    // which in turn will update localStorage.
     onCompanyCreated(newCompanyData);
 
     toast({
       title: '¡Éxito!',
-      description: `La empresa "${companyName}" ha sido añadida a la tabla.`,
+      description: `La empresa "${companyName}" ha sido creada.`,
     });
 
     setIsSubmitting(false);
@@ -85,7 +93,12 @@ export function CreateCompanyDialog({ onCompanyCreated }: CreateCompanyDialogPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isSubmitting) {
+        setOpen(isOpen);
+        if(!isOpen) resetForm();
+      }
+    }}>
       <DialogTrigger asChild>
         <Button>
           <PlusCircle className="mr-2" />
