@@ -114,17 +114,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const SHIFTS_DB_KEY = useMemo(() => `${SHIFTS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
   const DEDUCTIONS_DB_KEY = useMemo(() => `${DEDUCTIONS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
 
-
-  const loadAllShifts = useCallback(() => {
-    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-    return storedShifts ? JSON.parse(storedShifts) : [];
-  }, [SHIFTS_DB_KEY]);
-
-
   const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentDeductions: Partial<OperatorDeductions>) => {
-    if (!currentSettings.payrollCycle || !currentDate) return;
+    if (!currentSettings.payrollCycle || !currentDate) {
+        setPayrollSummary({ totalHours: 0, grossPay: 0, netPay: 0 });
+        return;
+    };
     
-    const allShifts: Shift[] = loadAllShifts();
+    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+    const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
     
     const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
     
@@ -154,10 +151,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     summary.netPay = summary.grossPay - companyDeductionsAmount - voluntaryDeductionsAmount;
 
     setPayrollSummary(summary);
-  }, [loadAllShifts]);
+  }, [SHIFTS_DB_KEY]);
 
-
-  // Effect to load initial company/settings data
+  // Effect to load initial company/settings data on mount
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -189,19 +185,24 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
         setEnabledDeductions(initialEnabled);
         
+        // Initial calculation on load
+        if(date) {
+            updatePayrollSummary(date, companySettings, operatorDeductionsData);
+        }
+
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY]);
+  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, date, updatePayrollSummary]);
   
-
-  // Effect to update UI based on date or settings changes
+  // Effect to update UI based on selected date
   useEffect(() => {
     if (!date || isLoading) return;
 
-    const allShifts: Shift[] = loadAllShifts();
+    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+    const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
     const dayShift = allShifts.find(shift => isSameDay(new Date(shift.date), date)) || null;
     
     setShiftForSelectedDay(dayShift);
@@ -226,7 +227,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const currentDeductions = storedDeductions ? JSON.parse(storedDeductions) : {};
     updatePayrollSummary(date, settings, currentDeductions);
 
-  }, [date, settings, isLoading, loadAllShifts, DEDUCTIONS_DB_KEY, updatePayrollSummary]);
+  }, [date, settings, isLoading, SHIFTS_DB_KEY, updatePayrollSummary]);
 
 
   const handleSave = () => {
@@ -244,7 +245,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     try {
         const result = calculateShiftDetails({ date, startTime, endTime, rates: settings });
 
-        const allShifts: Shift[] = loadAllShifts();
+        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+        const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
         
         const existingShiftIndex = allShifts.findIndex(s => isSameDay(new Date(s.date), date));
 
@@ -291,8 +293,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const handleDelete = () => {
     if (!date) return;
 
-    const allShifts: Shift[] = loadAllShifts();
-    const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
+    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+    const allShifsts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+    const updatedShifts = allShifsts.filter(s => !isSameDay(new Date(s.date), date));
     localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
 
     setShiftForSelectedDay(null);
