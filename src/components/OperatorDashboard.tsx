@@ -106,16 +106,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const calculateAndSetPayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
     if (!currentSettings.payrollCycle) return;
     
-    // This function now reads from localStorage directly to avoid stale closures.
-    let allShifts: Shift[];
-    try {
-      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-      allShifts = storedShifts ? JSON.parse(storedShifts) : [];
-    } catch (e) {
-      console.error("Failed to load shifts from localStorage for calculation", e);
-      allShifts = [];
-    }
-    
+    const allShifts = loadAllShifts();
     const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
     
     const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
@@ -134,13 +125,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }, { totalHours: 0, grossPay: 0, netPay: 0 });
 
     setPayrollSummary(summary);
-  }, [SHIFTS_DB_KEY]);
+  }, [SHIFTS_DB_KEY, loadAllShifts]);
 
 
   // Effect to load company data
   useEffect(() => {
     setIsLoading(true);
-    let loadedSettings: Partial<CompanySettings> = {};
     try {
         const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
         const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
@@ -156,9 +146,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         
         const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
         const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
-        loadedSettings = allSettings[companyId] || {};
-        setSettings(loadedSettings);
-        setDate(new Date());
+        setSettings(allSettings[companyId] || {});
+        
+        setDate(new Date()); // Set initial date
 
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
@@ -169,7 +159,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // Effect to update everything when the date or settings change
   useEffect(() => {
-    if (!date || isLoading || !settings.payrollCycle) return;
+    // Wait for initial data load to complete
+    if (isLoading || !date || !settings.payrollCycle) return;
 
     const allShifts = loadAllShifts();
     const dayShift = allShifts.find(shift => isSameDay(new Date(shift.date), date)) || null;
@@ -192,6 +183,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setEndTime('');
     }
     
+    // Always recalculate payroll summary when date changes
     calculateAndSetPayrollSummary(date, settings);
 
   }, [date, settings, isLoading, loadAllShifts, calculateAndSetPayrollSummary]);
@@ -475,5 +467,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    
