@@ -1,19 +1,20 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TimeInput } from './TimeInput';
 import { DatePicker } from './DatePicker';
-import { LogOut, CalendarCheck, Wallet, Loader2 } from 'lucide-react';
+import { LogOut, CalendarCheck, Wallet, Loader2, PlusCircle } from 'lucide-react';
 import type { User, Company, CompanySettings, Shift } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { calculateShiftDetails, ShiftCalculationResult } from '@/lib/payroll-calculator';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Separator } from '@/components/ui/separator';
 
 // --- FAKE DATA & KEYS ---
 const FAKE_OPERATOR_USER = {
@@ -21,15 +22,6 @@ const FAKE_OPERATOR_USER = {
   isAnonymous: false,
   displayName: 'Juan Operador',
   photoURL: '',
-};
-
-const FAKE_USER_PROFILE: User = {
-    id: 'fake-operator-uid-12345',
-    name: 'Juan Operador',
-    email: 'operator@example.com',
-    role: 'operator',
-    createdAt: new Date().toISOString(),
-    paymentStatus: 'paid'
 };
 
 const COMPANIES_DB_KEY = 'fake_companies_db';
@@ -64,11 +56,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<Partial<CompanySettings>>({});
   
-  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-
-  const [shiftSummary, setShiftSummary] = useState<ShiftCalculationResult | null>(null);
+  
+  const [shiftsForSelectedDay, setShiftsForSelectedDay] = useState<Shift[]>([]);
+  const [dailySummary, setDailySummary] = useState({ totalHours: 0, totalPayment: 0 });
+  
   const [payrollSummary, setPayrollSummary] = useState({ totalHours: 0, grossPay: 0, netPay: 0 });
 
   const [isLoading, setIsLoading] = useState(true);
@@ -80,54 +74,82 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     if (cycle === 'monthly') {
       return `${year}-${month}`;
     }
-    const day = date.getDate();
-    const fortnight = day <= 15 ? 1 : 2;
+    const dayOfMonth = date.getDate();
+    const fortnight = dayOfMonth <= 15 ? 1 : 2;
     return `${year}-${month}-${fortnight}`;
   }, []);
 
+  const SHIFTS_DB_KEY = useMemo(() => `${SHIFTS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
+  const PAYROLL_DB_KEY = useMemo(() => `${PAYROLL_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
+
+  // Effect to load company data and initial payroll info
   useEffect(() => {
     try {
         const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
-        if (storedCompanies) {
-            const allCompanies: Company[] = JSON.parse(storedCompanies);
-            const foundCompany = allCompanies.find(c => c.id === companyId);
-            setCompany(foundCompany || null);
-            if (!foundCompany) {
-              console.error("Selected company not found in DB");
-              localStorage.removeItem(OPERATOR_COMPANY_KEY);
-              router.replace('/select-company');
-              return;
-            }
+        const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
+        const foundCompany = allCompanies.find(c => c.id === companyId);
+        
+        if (!foundCompany) {
+          console.error("Selected company not found in DB");
+          localStorage.removeItem(OPERATOR_COMPANY_KEY);
+          router.replace('/select-company');
+          return;
         }
+        setCompany(foundCompany);
         
         const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
-        if (storedSettings) {
-            const allSettings: {[key: string]: CompanySettings} = JSON.parse(storedSettings);
-            const companySettings = allSettings[companyId];
-            if (companySettings) {
-              setSettings(companySettings);
-              
-              const today = new Date();
-              setDate(today);
+        const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
+        const companySettings = allSettings[companyId];
 
-              // Load payroll for the current period
-              const periodKey = getPeriodKey(today, companySettings.payrollCycle);
-              const PAYROLL_DB_KEY = `${PAYROLL_DB_KEY_PREFIX}${companyId}_${user.uid}`;
-              const storedPayroll = localStorage.getItem(PAYROLL_DB_KEY);
-              if (storedPayroll) {
-                  const allPayroll = JSON.parse(storedPayroll);
-                  if (allPayroll[periodKey]) {
-                      setPayrollSummary(allPayroll[periodKey]);
-                  }
+        if (companySettings) {
+          setSettings(companySettings);
+          // Load payroll for the current period
+          const today = new Date();
+          const periodKey = getPeriodKey(today, companySettings.payrollCycle);
+          const storedPayroll = localStorage.getItem(PAYROLL_DB_KEY);
+          if (storedPayroll) {
+              const allPayroll = JSON.parse(storedPayroll);
+              if (allPayroll[periodKey]) {
+                  setPayrollSummary(allPayroll[periodKey]);
               }
-            }
+          }
         }
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, getPeriodKey]);
+  }, [companyId, router, user.uid, getPeriodKey, PAYROLL_DB_KEY]);
+
+  // Effect to load shifts and summary whenever the date changes
+  useEffect(() => {
+    if (!date) return;
+
+    try {
+        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+        const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+        
+        const dayShifts = allShifts.filter(shift => isSameDay(new Date(shift.date), date));
+        setShiftsForSelectedDay(dayShifts);
+
+        const summary = dayShifts.reduce((acc, shift) => {
+            const shiftDetails = calculateShiftDetails({ 
+                date: new Date(shift.date),
+                startTime: shift.startTime,
+                endTime: shift.endTime,
+                rates: settings
+            });
+            acc.totalHours += shiftDetails.totalHours;
+            acc.totalPayment += shiftDetails.totalPayment;
+            return acc;
+        }, { totalHours: 0, totalPayment: 0 });
+
+        setDailySummary(summary);
+
+    } catch (e) {
+        console.error("Failed to load shifts for the selected date", e);
+    }
+  }, [date, SHIFTS_DB_KEY, settings]);
 
 
   const handleSave = () => {
@@ -141,37 +163,27 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
 
     setIsSaving(true);
-    setShiftSummary(null); // Clear previous summary
-
+    
     try {
         const result = calculateShiftDetails({ date, startTime, endTime, rates: settings });
-        setShiftSummary(result);
 
         // --- Update Payroll ---
         const periodKey = getPeriodKey(date, settings.payrollCycle);
-        const PAYROLL_DB_KEY = `${PAYROLL_DB_KEY_PREFIX}${companyId}_${user.uid}`;
-        
         const storedPayroll = localStorage.getItem(PAYROLL_DB_KEY);
         const allPayroll = storedPayroll ? JSON.parse(storedPayroll) : {};
-        
         const currentPeriod = allPayroll[periodKey] || { totalHours: 0, grossPay: 0, netPay: 0 };
-
         const updatedPeriod = {
             totalHours: currentPeriod.totalHours + result.totalHours,
             grossPay: currentPeriod.grossPay + result.totalPayment,
-            // TODO: Implement net pay calculation with deductions
-            netPay: currentPeriod.netPay + result.totalPayment 
+            netPay: currentPeriod.netPay + result.totalPayment // TODO: Implement net pay
         };
-        
         allPayroll[periodKey] = updatedPeriod;
         localStorage.setItem(PAYROLL_DB_KEY, JSON.stringify(allPayroll));
         setPayrollSummary(updatedPeriod);
         
         // --- Save Shift ---
-        const SHIFTS_DB_KEY = `${SHIFTS_DB_KEY_PREFIX}${companyId}_${user.uid}`;
         const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
         const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-
         const newShift: Shift = {
             id: `shift_${Date.now()}`,
             userId: user.uid,
@@ -184,9 +196,18 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         allShifts.push(newShift);
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
         
+        // --- Update UI State ---
+        setShiftsForSelectedDay(prev => [...prev, newShift]);
+        setDailySummary(prev => ({
+            totalHours: prev.totalHours + result.totalHours,
+            totalPayment: prev.totalPayment + result.totalPayment
+        }));
+        setStartTime('');
+        setEndTime('');
+
         toast({
             title: 'Turno Guardado',
-            description: `Turno del ${format(date, 'PPP', { locale: es })} guardado con éxito.`,
+            description: `Turno del ${format(date, 'PPP', { locale: es })} guardado.`,
         });
 
     } catch (error: any) {
@@ -235,7 +256,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     Bienvenido, {user?.isAnonymous ? 'Operador' : user?.displayName || ''}
                     </h1>
                     <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">
-                    Registra tu turno
+                    Panel de Turnos
                     </p>
                 </div>
             </div>
@@ -266,7 +287,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         <main className="grid gap-8">
           <Card>
             <CardHeader>
-              <CardTitle>Registrar Turno(s)</CardTitle>
+              <CardTitle>Registrar Nuevo Turno</CardTitle>
+              <CardDescription>Selecciona la fecha y las horas para añadir un nuevo turno al resumen del día.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
               <DatePicker date={date} setDate={setDate} />
@@ -283,43 +305,46 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                   onChange={setEndTime}
                 />
               </div>
-              <div className="mt-4 flex justify-center">
-                <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Calcular y Guardar Turno
-                </Button>
-              </div>
             </CardContent>
+            <CardFooter className="flex justify-center">
+                <Button onClick={handleSave} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                    Añadir y Guardar Turno
+                </Button>
+            </CardFooter>
           </Card>
 
           <div className="grid md:grid-cols-2 gap-8">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-lg font-medium">
-                  Resumen del Día
+                  Resumen del Día ({date ? format(date, 'PPP', { locale: es }) : 'N/A'})
                 </CardTitle>
                 <CalendarCheck className="h-6 w-6 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                { !shiftSummary ? (
-                    <p className="text-sm text-muted-foreground">
-                        Aquí se mostrará el desglose del turno una vez guardado.
+                {shiftsForSelectedDay.length === 0 ? (
+                    <p className="text-sm text-muted-foreground pt-4">
+                        No hay turnos registrados para este día.
                     </p>
                 ) : (
-                    <div className="mt-4 space-y-2 text-sm">
-                       <div className="flex justify-between"><span>Total Horas:</span> <strong>{shiftSummary.totalHours.toFixed(2)}</strong></div>
-                       <div className="flex justify-between text-muted-foreground"><span>Horas Diurnas:</span> <strong>{shiftSummary.dayHours.toFixed(2)}</strong></div>
-                       <div className="flex justify-between text-muted-foreground"><span>Horas Nocturnas:</span> <strong>{shiftSummary.nightHours.toFixed(2)}</strong></div>
-                       <div className="flex justify-between text-muted-foreground"><span>Horas Ext. Diurnas:</span> <strong>{shiftSummary.dayOvertimeHours.toFixed(2)}</strong></div>
-                       <div className="flex justify-between text-muted-foreground"><span>Horas Ext. Nocturnas:</span> <strong>{shiftSummary.nightOvertimeHours.toFixed(2)}</strong></div>
-                       {shiftSummary.isHoliday && <div className="font-semibold text-primary pt-2">Detalle Festivo:</div>}
-                       {shiftSummary.isHoliday && <div className="flex justify-between text-muted-foreground"><span>Horas Diurnas Festivas:</span> <strong>{shiftSummary.holidayDayHours.toFixed(2)}</strong></div>}
-                       {shiftSummary.isHoliday && <div className="flex justify-between text-muted-foreground"><span>Horas Nocturnas Festivas:</span> <strong>{shiftSummary.holidayNightHours.toFixed(2)}</strong></div>}
-                       {shiftSummary.isHoliday && <div className="flex justify-between text-muted-foreground"><span>Ext. Diurnas Festivas:</span> <strong>{shiftSummary.holidayDayOvertimeHours.toFixed(2)}</strong></div>}
-                       {shiftSummary.isHoliday && <div className="flex justify-between text-muted-foreground"><span>Ext. Nocturnas Festivas:</span> <strong>{shiftSummary.holidayNightOvertimeHours.toFixed(2)}</strong></div>}
-                       <div className="flex justify-between pt-2 border-t mt-2">
-                           <span className="font-bold">Total Turno:</span> 
-                           <strong className="text-xl">{formatCurrency(shiftSummary.totalPayment)}</strong>
+                    <div className="mt-4 space-y-4 text-sm">
+                       {shiftsForSelectedDay.map(shift => (
+                           <div key={shift.id} className="flex justify-between items-center p-2 rounded-md bg-muted/50">
+                               <div>
+                                   <span className="font-mono">{shift.startTime} - {shift.endTime}</span>
+                               </div>
+                               <span className="font-semibold">{formatCurrency(shift.totalPaid)}</span>
+                           </div>
+                       ))}
+                       <Separator />
+                       <div className="flex justify-between pt-2">
+                           <span className="font-bold">Total del día:</span> 
+                           <strong className="text-xl">{formatCurrency(dailySummary.totalPayment)}</strong>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                            <span>Horas totales del día:</span>
+                            <strong>{dailySummary.totalHours.toFixed(2)}</strong>
                         </div>
                     </div>
                 )}
@@ -335,10 +360,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               </CardHeader>
               <CardContent>
                  <p className="text-sm text-muted-foreground">
-                  Acumulado del periodo de pago actual.
+                  Resumen del periodo de pago actual.
                 </p>
                 <div className="mt-4 space-y-2 text-sm">
-                   <div className="flex justify-between"><span>Total horas:</span> <strong>{payrollSummary.totalHours.toFixed(2)}</strong></div>
+                   <div className="flex justify-between"><span>Total horas acumuladas:</span> <strong>{payrollSummary.totalHours.toFixed(2)}</strong></div>
                    <div className="flex justify-between"><span>Salario bruto:</span> <strong>{formatCurrency(payrollSummary.grossPay)}</strong></div>
                    <div className="flex justify-between mt-2 pt-2 border-t">
                        <span className="font-bold">Neto a pagar (aprox):</span> 
@@ -353,3 +378,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
