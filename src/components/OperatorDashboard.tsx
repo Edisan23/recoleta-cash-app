@@ -151,34 +151,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           setSettings(companySettings);
         }
 
-        // We also need to calculate initial payroll summary here
-        if (companySettings.payrollCycle) {
-            const today = new Date();
-            const allShifts = loadAllShifts();
-            const currentPeriodKey = getPeriodKey(today, companySettings.payrollCycle);
-            const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), companySettings.payrollCycle) === currentPeriodKey);
-            const summary = periodShifts.reduce((acc, shift) => {
-                const details = calculateShiftDetails({
-                    date: new Date(shift.date),
-                    startTime: shift.startTime,
-                    endTime: shift.endTime,
-                    rates: companySettings
-                });
-                acc.totalHours += details.totalHours;
-                acc.grossPay += details.totalPayment;
-                acc.netPay += details.totalPayment; // TODO: Implement net pay
-                return acc;
-            }, { totalHours: 0, grossPay: 0, netPay: 0 });
-            setPayrollSummary(summary);
-        }
-
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
         setDate(new Date()); // Set date only on client-side
         setIsLoading(false);
     }
-  }, [companyId, router, loadAllShifts]);
+  }, [companyId, router]);
 
   // Effect to update everything when the date or settings change
   useEffect(() => {
@@ -488,3 +467,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
