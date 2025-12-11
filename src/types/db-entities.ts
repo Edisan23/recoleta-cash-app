@@ -27,20 +27,19 @@ export type User = {
     holidayDayRate?: number;
     holidayNightRate?: number;
     holidayDayOvertimeRate?: number;
-    holidayNightOvertimeHours?: number;
-    transportSubsidy?: number;
+    holidayNightOvertimeRate?: number;
+    transportSubsidy?: number; // Fixed amount for transport subsidy.
     otherSubsidies?: number;
-    healthDeduction?: number; // Percentage for health deduction.
-    pensionDeduction?: number; // Percentage for pension deduction.
+    healthDeduction?: number; // Percentage for health deduction (e.g., 4 for 4%).
+    pensionDeduction?: number; // Percentage for pension deduction (e.g., 4 for 4%).
     arlDeduction?: number; // Percentage for ARL deduction.
     taxWithholding?: number; // Percentage for tax withholding.
-    hasBasicSalary?: boolean;
-    paymentType?: "hourly" | "salary";
+    solidarityFundDeduction?: number; // Percentage for solidarity pension fund.
+    unionFeeDeduction?: number; // Fixed amount for union fees, managed by operator.
+    cooperativeDeduction?: number; // Fixed amount for cooperative contributions, managed by operator.
+    loanDeduction?: number; // Fixed amount for loan payments, managed by operator.
     payrollCycle?: "monthly" | "fortnightly"; // Defines the company's payroll payment cycle.
-    incentiveType?: "none" | "perHour" | "perShift";
-    normalHoursType?: "daily" | "fortnightly";
-    normalHours?: number; // Number of hours considered normal work.
-    nightShiftStart?: string;
+    nightShiftStart?: string; // The time when the night shift begins (e.g., '21:00').
   };
   
   export type CompanyItem = {

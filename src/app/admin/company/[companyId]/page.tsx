@@ -14,11 +14,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowLeft, Loader2, Upload } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import type { Company, CompanySettings } from '@/types/db-entities';
 import { TimeInput } from '@/components/TimeInput';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 
 const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
 const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
@@ -78,7 +85,7 @@ export default function CompanySettingsPage() {
 
   const handleSettingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setSettings(prev => ({ ...prev, [name]: value ? parseFloat(value) : undefined }));
+    setSettings(prev => ({ ...prev, [name]: value === '' ? undefined : parseFloat(value) }));
   }
 
   const handleStringSettingChange = (name: keyof CompanySettings, value: string) => {
@@ -166,6 +173,7 @@ export default function CompanySettingsPage() {
   }
 
   return (
+    <TooltipProvider>
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <header className="flex items-center justify-between mb-8">
         <div>
@@ -221,11 +229,59 @@ export default function CompanySettingsPage() {
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="holidayNightOvertimeRate">Hora Extra Festiva Nocturna</Label>
-                            <Input id="holidayNightOvertimeRate" name="holidayNightOvertimeRate" type="number" placeholder="0.00" value={settings.holidayNightOvertimeHours || ''} onChange={handleSettingChange} />
+                            <Input id="holidayNightOvertimeRate" name="holidayNightOvertimeRate" type="number" placeholder="0.00" value={settings.holidayNightOvertimeRate || ''} onChange={handleSettingChange} />
                         </div>
                     </fieldset>
                 </CardContent>
             </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Deducciones y Subsidios</CardTitle>
+                    <CardDescription>Configura los porcentajes de deducción y los montos fijos de subsidios.</CardDescription>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <fieldset className="space-y-4 p-4 border rounded-lg">
+                        <legend className="text-lg font-medium px-1">Deducciones (%)</legend>
+                         <div className="grid gap-2">
+                            <Label htmlFor="healthDeduction">Salud (%)</Label>
+                            <Input id="healthDeduction" name="healthDeduction" type="number" placeholder="4" value={settings.healthDeduction || ''} onChange={handleSettingChange} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="pensionDeduction">Pensión (%)</Label>
+                            <Input id="pensionDeduction" name="pensionDeduction" type="number" placeholder="4" value={settings.pensionDeduction || ''} onChange={handleSettingChange} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="arlDeduction">ARL (%)</Label>
+                            <Input id="arlDeduction" name="arlDeduction" type="number" placeholder="0.522" value={settings.arlDeduction || ''} onChange={handleSettingChange} />
+                        </div>
+                         <div className="grid gap-2">
+                            <Label htmlFor="taxWithholding">Retención en la Fuente (%)</Label>
+                            <Input id="taxWithholding" name="taxWithholding" type="number" placeholder="0" value={settings.taxWithholding || ''} onChange={handleSettingChange} />
+                        </div>
+                         <div className="grid gap-2">
+                            <div className="flex items-center gap-2">
+                                <Label htmlFor="solidarityFundDeduction">Fondo de Solidaridad (%)</Label>
+                                <Tooltip>
+                                    <TooltipTrigger><Info className="w-4 h-4 text-muted-foreground"/></TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Se aplica a salarios de 4 SMMLV o más.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
+                            <Input id="solidarityFundDeduction" name="solidarityFundDeduction" type="number" placeholder="1" value={settings.solidarityFundDeduction || ''} onChange={handleSettingChange} />
+                        </div>
+                    </fieldset>
+                     <fieldset className="space-y-4 p-4 border rounded-lg">
+                        <legend className="text-lg font-medium px-1">Subsidios (Monto Fijo)</legend>
+                        <div className="grid gap-2">
+                            <Label htmlFor="transportSubsidy">Subsidio de Transporte</Label>
+                            <Input id="transportSubsidy" name="transportSubsidy" type="number" placeholder="0" value={settings.transportSubsidy || ''} onChange={handleSettingChange} />
+                        </div>
+                    </fieldset>
+                </CardContent>
+            </Card>
+
 
             <Card>
                 <CardHeader>
@@ -316,5 +372,6 @@ export default function CompanySettingsPage() {
         </div>
       </main>
     </div>
+    </TooltipProvider>
   );
 }

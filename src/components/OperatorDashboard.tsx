@@ -119,15 +119,20 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         });
         acc.totalHours += details.totalHours;
         acc.grossPay += details.totalPayment;
-        acc.netPay += details.totalPayment; // TODO: Implement net pay
         return acc;
     }, { totalHours: 0, grossPay: 0, netPay: 0 });
+
+    const { healthDeduction = 0, pensionDeduction = 0, arlDeduction = 0 } = currentSettings;
+    const totalDeductionPercent = (healthDeduction + pensionDeduction + arlDeduction) / 100;
+    const deductions = summary.grossPay * totalDeductionPercent;
+    
+    summary.netPay = summary.grossPay - deductions;
 
     setPayrollSummary(summary);
   }, [loadAllShifts]);
 
 
-  // Effect to load company data on mount
+  // Initial data loading effect
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -145,7 +150,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         
         const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
         const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
-        setSettings(allSettings[companyId] || {});
+        const companySettings = allSettings[companyId] || {};
+        setSettings(companySettings);
         
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
@@ -154,9 +160,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [companyId, router]);
 
-  // Effect to update UI when date or settings change
+
+  // Effect to update UI based on date or settings changes
   useEffect(() => {
-    if (isLoading || !date || !settings.payrollCycle) return;
+    if (!date || isLoading) return;
 
     const allShifts = loadAllShifts();
     const dayShift = allShifts.find(shift => isSameDay(new Date(shift.date), date)) || null;
@@ -179,7 +186,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setEndTime('');
     }
     
-    updatePayrollSummary(date, settings);
+    if (settings.payrollCycle) {
+      updatePayrollSummary(date, settings);
+    }
 
   }, [date, settings, isLoading, loadAllShifts, updatePayrollSummary]);
 
@@ -219,7 +228,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         
         saveAllShifts(allShifts);
         
-        // --- Update UI State ---
         setShiftForSelectedDay(shiftData);
         setDailySummary(result);
         updatePayrollSummary(date, settings);
@@ -247,7 +255,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
     saveAllShifts(updatedShifts);
 
-    // --- Update UI State ---
     setShiftForSelectedDay(null);
     setDailySummary(null);
     setStartTime('');

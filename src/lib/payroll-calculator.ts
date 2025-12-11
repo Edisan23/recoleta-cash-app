@@ -38,6 +38,7 @@ export interface ShiftCalculationResult {
     holidayDayHours: number;
     holidayNightHours: number;
     holidayDayOvertimeHours: number;
+    holidayNightOvertimeRate: number;
     holidayNightOvertimeHours: number;
     isHoliday: boolean;
     totalPayment: number;
@@ -65,7 +66,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     
     const result: ShiftCalculationResult = {
         totalHours: 0, dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
-        holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
+        holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeRate: 0, holidayNightOvertimeHours: 0,
         isHoliday: false, totalPayment: 0
     };
 
@@ -111,7 +112,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     result.totalPayment += result.holidayDayHours * (rates.holidayDayRate || 0);
     result.totalPayment += result.holidayNightHours * (rates.holidayNightRate || 0);
     result.totalPayment += result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
-    result.totalPayment += result.holidayNightOvertimeHours * (rates.holidayNightOvertimeHours || 0);
+    result.totalPayment += result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
     
     return result;
 };
