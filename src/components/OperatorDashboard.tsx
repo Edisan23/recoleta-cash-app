@@ -103,20 +103,28 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }, [SHIFTS_DB_KEY]);
 
 
-  const calculateAndSetPayrollSummary = useCallback((currentDate: Date) => {
-    if (!settings.payrollCycle) return;
+  const calculateAndSetPayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
+    if (!currentSettings.payrollCycle) return;
     
-    const allShifts = loadAllShifts();
-    const currentPeriodKey = getPeriodKey(currentDate, settings.payrollCycle);
+    // This function now loads shifts directly to avoid stale closures
+    let allShifts: Shift[] = [];
+    try {
+      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+      allShifts = storedShifts ? JSON.parse(storedShifts) : [];
+    } catch (e) {
+      console.error("Failed to load shifts from localStorage for payroll calc", e);
+    }
+
+    const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
     
-    const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), settings.payrollCycle) === currentPeriodKey);
+    const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
     
     const summary = periodShifts.reduce((acc, shift) => {
         const details = calculateShiftDetails({
             date: new Date(shift.date),
             startTime: shift.startTime,
             endTime: shift.endTime,
-            rates: settings
+            rates: currentSettings
         });
         acc.totalHours += details.totalHours;
         acc.grossPay += details.totalPayment;
@@ -125,12 +133,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }, { totalHours: 0, grossPay: 0, netPay: 0 });
 
     setPayrollSummary(summary);
-  }, [settings, loadAllShifts]);
+  }, [SHIFTS_DB_KEY]);
 
 
   // Effect to load company data and initial info
   useEffect(() => {
     setIsLoading(true);
+    let loadedSettings: Partial<CompanySettings> = {};
     try {
         const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
         const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
@@ -146,22 +155,20 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         
         const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
         const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
-        const companySettings = allSettings[companyId];
+        loadedSettings = allSettings[companyId] || {};
+        setSettings(loadedSettings);
 
-        if (companySettings) {
-          setSettings(companySettings);
-        } else {
-          setSettings({}); // No settings found for this company
-        }
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
-        setDate(new Date()); // Set date only on client-side
+        const initialDate = new Date();
+        setDate(initialDate);
+        calculateAndSetPayrollSummary(initialDate, loadedSettings);
         setIsLoading(false);
     }
-  }, [companyId, router]);
+  }, [companyId, router, calculateAndSetPayrollSummary]);
 
-  // Effect to update everything when the date or settings change
+  // Effect to update everything when the date changes
   useEffect(() => {
     if (!date || isLoading) return;
 
@@ -186,7 +193,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setEndTime('');
     }
     
-    calculateAndSetPayrollSummary(date);
+    calculateAndSetPayrollSummary(date, settings);
 
   }, [date, settings, isLoading, loadAllShifts, calculateAndSetPayrollSummary]);
 
@@ -229,7 +236,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         // --- Update UI State ---
         setShiftForSelectedDay(shiftData);
         setDailySummary(result);
-        calculateAndSetPayrollSummary(date);
+        calculateAndSetPayrollSummary(date, settings);
 
         toast({
             title: existingShiftIndex > -1 ? 'Turno Actualizado' : 'Turno Guardado',
@@ -259,7 +266,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     setDailySummary(null);
     setStartTime('');
     setEndTime('');
-    calculateAndSetPayrollSummary(date);
+    calculateAndSetPayrollSummary(date, settings);
     setShowDeleteConfirm(false);
 
     toast({
@@ -439,7 +446,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                    <div className="flex justify-between"><span>Total horas acumuladas:</span> <strong>{payrollSummary.totalHours.toFixed(2)}</strong></div>
                    <div className="flex justify-between"><span>Salario bruto:</span> <strong>{formatCurrency(payrollSummary.grossPay)}</strong></div>
                    <div className="flex justify-between mt-2 pt-2 border-t">
-                       <span className="font-bold">Neto a pagar (aprox):</span> 
+                       <span className="font-bold">Neto a pagar:</span> 
                        <strong className="text-xl">{formatCurrency(payrollSummary.netPay)}</strong>
                     </div>
                 </div>
