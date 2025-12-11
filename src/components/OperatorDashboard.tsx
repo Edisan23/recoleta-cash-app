@@ -161,10 +161,21 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               rates: currentSettings
           });
           acc.totalHours += details.totalHours;
-          acc.totalPayment += details.totalPayment;
-          acc.transportSubsidy += details.transportSubsidyApplied;
+          acc.totalPayment += details.totalPayment; // This now includes transport subsidy per shift
           return acc;
-      }, { totalHours: 0, totalPayment: 0, transportSubsidy: 0 });
+      }, { totalHours: 0, totalPayment: 0 });
+      
+      // We need to calculate transport subsidy separately for the summary view
+      const totalTransportSubsidy = periodShifts.reduce((acc, shift) => {
+           const details = calculateShiftDetails({
+              date: new Date(shift.date),
+              startTime: shift.startTime,
+              endTime: shift.endTime,
+              rates: currentSettings
+          });
+          return acc + details.transportSubsidyApplied;
+      }, 0);
+
 
       const grossPay = summary.totalPayment;
 
@@ -177,12 +188,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       
       const totalLegalDeductions = healthDeductionAmount + pensionDeductionAmount + arlDeductionAmount + familyCompensationAmount + solidarityFundAmount + taxWithholdingAmount;
       
-      const voluntaryDeductionsAmount = 
-          (currentDeductions.unionFeeDeduction || 0) +
-          (currentDeductions.cooperativeDeduction || 0) +
-          (currentDeductions.loanDeduction || 0);
+      const unionFee = currentDeductions.unionFeeDeduction || 0;
+      const cooperativeFee = currentDeductions.cooperativeDeduction || 0;
+      const loanFee = currentDeductions.loanDeduction || 0;
+      const totalVoluntaryDeductions = unionFee + cooperativeFee + loanFee;
 
-      const netPay = grossPay - totalLegalDeductions - voluntaryDeductionsAmount;
+      const netPay = grossPay - totalLegalDeductions - totalVoluntaryDeductions;
 
       setPayrollSummary({
         grossPay: grossPay,
@@ -197,12 +208,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             taxWithholding: taxWithholdingAmount,
         },
         voluntaryDeductions: {
-            union: currentDeductions.unionFeeDeduction || 0,
-            cooperative: currentDeductions.cooperativeDeduction || 0,
-            loan: currentDeductions.loanDeduction || 0,
+            union: unionFee,
+            cooperative: cooperativeFee,
+            loan: loanFee,
         },
         subsidies: {
-            transport: summary.transportSubsidy,
+            transport: totalTransportSubsidy,
         }
       });
     }, [SHIFTS_DB_KEY]);
