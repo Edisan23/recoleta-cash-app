@@ -63,7 +63,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<Partial<CompanySettings>>({});
   
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   
@@ -147,6 +147,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
+        setDate(new Date()); // Set date only on client-side
         setIsLoading(false);
     }
   }, [companyId, router]);
@@ -347,12 +348,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <CardFooter className="flex justify-center gap-4">
                 <Button onClick={handleSave} disabled={isSaving}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                    {shiftForSelectedDay ? 'Actualizar Turno' : 'Guardar Turno'}
+                    Guardar Turno
                 </Button>
                 {shiftForSelectedDay && (
-                    <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving}>
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Eliminar
+                    <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar turno">
+                        <Trash2 className="h-4 w-4" />
                     </Button>
                 )}
             </CardFooter>
