@@ -92,8 +92,8 @@ export default function CompanySettingsPage() {
         for (const key in settingLabels) {
             if (Object.prototype.hasOwnProperty.call(settingLabels, key)) {
                 const settingKey = key as keyof EnabledFields;
-                // A field is considered "enabled" if it has a value (even 0) or if there are no settings saved for it yet.
-                // It's only disabled if it's explicitly null/undefined in a saved setting object.
+                // A field is enabled if no settings are saved yet (all enabled by default for new company)
+                // OR if the saved setting for this key is not explicitly null.
                 initialEnabled[settingKey] = !companySettings || companySettings[settingKey] != null;
             }
         }
@@ -124,11 +124,9 @@ export default function CompanySettingsPage() {
   
   const handleSwitchChange = (field: keyof EnabledFields, checked: boolean) => {
     setEnabledFields(prev => ({ ...prev, [field]: checked }));
-    // If the field is disabled, clear its value in the settings
     if (!checked) {
       setSettings(prev => {
         const newSettings = { ...prev };
-        // Set to undefined to mark it as "not set"
         newSettings[field] = undefined; 
         return newSettings;
       });
@@ -178,12 +176,10 @@ export default function CompanySettingsPage() {
         for (const key in enabledFields) {
             const settingKey = key as keyof EnabledFields;
             if (enabledFields[settingKey]) {
-                // Only save the value if it's enabled and not undefined
                 if (settings[settingKey] !== undefined) {
                     (activeSettings as any)[settingKey] = settings[settingKey];
                 }
             } else {
-                 // Explicitly set to null when disabled to indicate "not active"
                 (activeSettings as any)[settingKey] = null;
             }
         }
@@ -425,6 +421,5 @@ export default function CompanySettingsPage() {
     </TooltipProvider>
   );
 }
-
 
     
