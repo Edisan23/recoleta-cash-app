@@ -36,6 +36,7 @@ export type User = {
     taxWithholding?: number; // Percentage for tax withholding.
     hasBasicSalary?: boolean;
     paymentType?: "hourly" | "salary";
+    payrollCycle?: "monthly" | "fortnightly"; // Defines the company's payroll payment cycle.
     incentiveType?: "none" | "perHour" | "perShift";
     normalHoursType?: "daily" | "fortnightly";
     normalHours?: number; // Number of hours considered normal work.
@@ -70,3 +71,4 @@ export type User = {
     periodEnd: string;
   };
   
+    

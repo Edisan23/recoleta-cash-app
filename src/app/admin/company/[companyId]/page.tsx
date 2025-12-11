@@ -13,18 +13,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ArrowLeft, Loader2, Upload } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import type { Company } from '@/types/db-entities';
+import type { Company, CompanySettings } from '@/types/db-entities';
 
-const LOCAL_STORAGE_KEY = 'fake_companies_db';
+const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
+const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
 
-// This is just a fallback, the real data will come from localStorage
-const FAKE_SETTINGS_DB: { [key: string]: any } = {
-    '1': { dayRate: 10, nightRate: 12, dayOvertimeRate: 15, nightOvertimeRate: 18, holidayDayRate: 20, holidayNightRate: 22, holidayDayOvertimeRate: 25, holidayNightOvertimeRate: 28 },
-    '2': { dayRate: 11, nightRate: 13, dayOvertimeRate: 16, nightOvertimeRate: 19, holidayDayRate: 21, holidayNightRate: 23, holidayDayOvertimeRate: 26, holidayNightOvertimeRate: 29 },
-};
 
 export default function CompanySettingsPage() {
   const router = useRouter();
@@ -33,25 +30,32 @@ export default function CompanySettingsPage() {
   const { toast } = useToast();
 
   const [company, setCompany] = useState<Company | null>(null);
-  const [rates, setRates] = useState(FAKE_SETTINGS_DB[companyId as keyof typeof FAKE_SETTINGS_DB] || {});
+  const [settings, setSettings] = useState<Partial<CompanySettings>>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [themeColor, setThemeColor] = useState<string>('#000000');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     try {
-        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY);
+        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY_COMPANIES);
         if (storedCompanies) {
             const allCompanies: Company[] = JSON.parse(storedCompanies);
             const foundCompany = allCompanies.find(c => c.id === companyId);
             if (foundCompany) {
                 setCompany(foundCompany);
                 setLogoPreview(foundCompany.logoUrl || null);
-                setThemeColor(foundCompany.themeColor || '#000000');
             }
         }
+
+        const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
+        if (storedSettings) {
+            const allSettings: {[key: string]: CompanySettings} = JSON.parse(storedSettings);
+            if (allSettings[companyId]) {
+                setSettings(allSettings[companyId]);
+            }
+        }
+
     } catch (error) {
         console.error("Could not access localStorage:", error);
     } finally {
@@ -71,40 +75,48 @@ export default function CompanySettingsPage() {
     }
   };
 
-  const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSettingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setRates(prev => ({ ...prev, [name]: value ? parseFloat(value) : 0 }));
+    setSettings(prev => ({ ...prev, [name]: value ? parseFloat(value) : undefined }));
   }
+  
+  const handlePayrollCycleChange = (value: 'monthly' | 'fortnightly') => {
+      setSettings(prev => ({ ...prev, payrollCycle: value }));
+  }
+
 
   const handleSave = async () => {
     if (!company) return;
 
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate save
 
     try {
-        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY);
+        // --- Save Company Details (Name, Logo, Theme) ---
+        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY_COMPANIES);
         let allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
-
-        const updatedCompany: Company = {
-            ...company,
-            themeColor,
-            logoUrl: logoPreview || company.logoUrl,
-        };
-
-        // Update the company in the array
         const companyIndex = allCompanies.findIndex(c => c.id === companyId);
+
         if (companyIndex > -1) {
-            allCompanies[companyIndex] = updatedCompany;
-        } else {
-            allCompanies.push(updatedCompany); // Should not happen in edit mode, but as a fallback
+            allCompanies[companyIndex] = {
+                ...allCompanies[companyIndex],
+                themeColor: company.themeColor,
+                logoUrl: logoPreview || company.logoUrl,
+            };
+            localStorage.setItem(LOCAL_STORAGE_KEY_COMPANIES, JSON.stringify(allCompanies));
         }
-
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allCompanies));
-
-        // TODO: Save rates separately if they have their own "table" in localStorage
-        console.log("Saving rates (simulation):", rates);
         
+        // --- Save Company Settings (Rates, Payroll Cycle) ---
+        const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
+        let allSettings: { [key: string]: Partial<CompanySettings> } = storedSettings ? JSON.parse(storedSettings) : {};
+        
+        allSettings[companyId] = {
+            ...allSettings[companyId],
+            ...settings,
+            id: companyId
+        };
+        localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(allSettings));
+
         toast({
             title: '¡Guardado!',
             description: `La configuración de ${company?.name} ha sido actualizada.`,
@@ -121,6 +133,12 @@ export default function CompanySettingsPage() {
         router.push('/admin'); // Navigate back to the list after saving
     }
   };
+
+  const handleThemeColorChange = (value: string) => {
+    if (company) {
+        setCompany({...company, themeColor: value});
+    }
+  }
 
   if (isLoading) {
     return (
@@ -167,40 +185,69 @@ export default function CompanySettingsPage() {
                         <legend className="text-lg font-medium px-1">Horario Normal</legend>
                         <div className="grid gap-2">
                             <Label htmlFor="dayRate">Hora Diurna</Label>
-                            <Input id="dayRate" name="dayRate" type="number" placeholder="0.00" value={rates.dayRate || ''} onChange={handleRateChange} />
+                            <Input id="dayRate" name="dayRate" type="number" placeholder="0.00" value={settings.dayRate || ''} onChange={handleSettingChange} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="nightRate">Hora Nocturna</Label>
-                            <Input id="nightRate" name="nightRate" type="number" placeholder="0.00" value={rates.nightRate || ''} onChange={handleRateChange} />
+                            <Input id="nightRate" name="nightRate" type="number" placeholder="0.00" value={settings.nightRate || ''} onChange={handleSettingChange} />
                         </div>
                          <div className="grid gap-2">
                             <Label htmlFor="dayOvertimeRate">Hora Extra Diurna</Label>
-                            <Input id="dayOvertimeRate" name="dayOvertimeRate" type="number" placeholder="0.00" value={rates.dayOvertimeRate || ''} onChange={handleRateChange} />
+                            <Input id="dayOvertimeRate" name="dayOvertimeRate" type="number" placeholder="0.00" value={settings.dayOvertimeRate || ''} onChange={handleSettingChange} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="nightOvertimeRate">Hora Extra Nocturna</Label>
-                            <Input id="nightOvertimeRate" name="nightOvertimeRate" type="number" placeholder="0.00" value={rates.nightOvertimeRate || ''} onChange={handleRateChange} />
+                            <Input id="nightOvertimeRate" name="nightOvertimeRate" type="number" placeholder="0.00" value={settings.nightOvertimeRate || ''} onChange={handleSettingChange} />
                         </div>
                     </fieldset>
                     <fieldset className="space-y-4 p-4 border rounded-lg">
                         <legend className="text-lg font-medium px-1">Horario Festivo</legend>
                         <div className="grid gap-2">
                             <Label htmlFor="holidayDayRate">Hora Festiva Diurna</Label>
-                            <Input id="holidayDayRate" name="holidayDayRate" type="number" placeholder="0.00" value={rates.holidayDayRate || ''} onChange={handleRateChange} />
+                            <Input id="holidayDayRate" name="holidayDayRate" type="number" placeholder="0.00" value={settings.holidayDayRate || ''} onChange={handleSettingChange} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="holidayNightRate">Hora Festiva Nocturna</Label>
-                            <Input id="holidayNightRate" name="holidayNightRate" type="number" placeholder="0.00" value={rates.holidayNightRate || ''} onChange={handleRateChange} />
+                            <Input id="holidayNightRate" name="holidayNightRate" type="number" placeholder="0.00" value={settings.holidayNightRate || ''} onChange={handleSettingChange} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="holidayDayOvertimeRate">Hora Extra Festiva Diurna</Label>
-                            <Input id="holidayDayOvertimeRate" name="holidayDayOvertimeRate" type="number" placeholder="0.00" value={rates.holidayDayOvertimeRate || ''} onChange={handleRateChange} />
+                            <Input id="holidayDayOvertimeRate" name="holidayDayOvertimeRate" type="number" placeholder="0.00" value={settings.holidayDayOvertimeRate || ''} onChange={handleSettingChange} />
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="holidayNightOvertimeRate">Hora Extra Festiva Nocturna</Label>
-                            <Input id="holidayNightOvertimeRate" name="holidayNightOvertimeRate" type="number" placeholder="0.00" value={rates.holidayNightOvertimeRate || ''} onChange={handleRateChange} />
+                            <Input id="holidayNightOvertimeRate" name="holidayNightOvertimeRate" type="number" placeholder="0.00" value={settings.holidayNightOvertimeRate || ''} onChange={handleSettingChange} />
                         </div>
                     </fieldset>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Configuración de Nómina</CardTitle>
+                    <CardDescription>Establece cómo se procesarán los pagos de los operadores.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <RadioGroup 
+                        value={settings.payrollCycle || 'fortnightly'} 
+                        onValueChange={handlePayrollCycleChange}
+                    >
+                        <Label>Frecuencia de Pago</Label>
+                        <div className="flex items-center space-x-2 mt-2">
+                            <RadioGroupItem value="fortnightly" id="fortnightly" />
+                            <Label htmlFor="fortnightly">Quincenal</Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground ml-6">
+                            La primera quincena va del día 1 al 15. La segunda, del 16 a fin de mes.
+                        </p>
+                        <div className="flex items-center space-x-2 mt-4">
+                            <RadioGroupItem value="monthly" id="monthly" />
+                            <Label htmlFor="monthly">Mensual</Label>
+                        </div>
+                         <p className="text-xs text-muted-foreground ml-6">
+                            El ciclo va desde el primer hasta el último día del mes.
+                        </p>
+                    </RadioGroup>
                 </CardContent>
             </Card>
         </div>
@@ -231,8 +278,8 @@ export default function CompanySettingsPage() {
                     <div className="grid gap-2">
                         <Label htmlFor="theme-color">Color del Tema</Label>
                          <div className="flex items-center gap-2">
-                            <Input id="theme-color" type="color" value={themeColor} onChange={(e) => setThemeColor(e.target.value)} className="w-12 h-10 p-1"/>
-                            <Input type="text" value={themeColor} onChange={(e) => setThemeColor(e.target.value)} placeholder="#RRGGBB" />
+                            <Input id="theme-color" type="color" value={company.themeColor || ''} onChange={(e) => handleThemeColorChange(e.target.value)} className="w-12 h-10 p-1"/>
+                            <Input type="text" value={company.themeColor || ''} onChange={(e) => handleThemeColorChange(e.target.value)} placeholder="#RRGGBB" />
                         </div>
                     </div>
                 </CardContent>
@@ -251,3 +298,5 @@ export default function CompanySettingsPage() {
     </div>
   );
 }
+
+    

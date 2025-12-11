@@ -93,6 +93,11 @@
         "taxWithholding": { "type": "number", "description": "Percentage for tax withholding." },
         "hasBasicSalary": { "type": "boolean" },
         "paymentType": { "type": "string", "enum": ["hourly", "salary"] },
+        "payrollCycle": {
+          "type": "string",
+          "enum": ["monthly", "fortnightly"],
+          "description": "Defines the company's payroll payment cycle."
+        },
         "incentiveType": { "type": "string", "enum": ["none", "perHour", "perShift"] },
         "normalHoursType": { "type": "string", "enum": ["daily", "fortnightly"] },
         "normalHours": { "type": "number", "description": "Number of hours considered normal work." }
@@ -194,3 +199,4 @@
     ]
   }
 }
+    

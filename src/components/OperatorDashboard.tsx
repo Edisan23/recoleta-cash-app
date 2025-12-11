@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { TimeInput } from './TimeInput';
 import { DatePicker } from './DatePicker';
 import { LogOut, CalendarCheck, Wallet, Loader2 } from 'lucide-react';
-import type { User, Company } from '@/types/db-entities';
+import type { User, Company, CompanySettings } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -29,6 +29,7 @@ const FAKE_USER_PROFILE: User = {
 };
 
 const COMPANIES_DB_KEY = 'fake_companies_db';
+const SETTINGS_DB_KEY = 'fake_company_settings_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
 
@@ -48,6 +49,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const userProfile = FAKE_USER_PROFILE;
 
   const [company, setCompany] = useState<Company | null>(null);
+  const [settings, setSettings] = useState<Partial<CompanySettings>>({});
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -56,6 +58,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   useEffect(() => {
     setDate(new Date());
     try {
+        // Load company details
         const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
         if (storedCompanies) {
             const allCompanies: Company[] = JSON.parse(storedCompanies);
@@ -63,14 +66,24 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             if (foundCompany) {
                 setCompany(foundCompany);
             } else {
-                // Company not found, maybe redirect
                 console.error("Selected company not found in DB");
                 localStorage.removeItem(OPERATOR_COMPANY_KEY);
                 router.replace('/select-company');
+                return;
             }
         }
+        
+        // Load company settings
+        const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
+        if (storedSettings) {
+            const allSettings: {[key: string]: CompanySettings} = JSON.parse(storedSettings);
+            if (allSettings[companyId]) {
+                setSettings(allSettings[companyId]);
+            }
+        }
+
     } catch(e) {
-        console.error("Failed to load company from localStorage", e);
+        console.error("Failed to load company data from localStorage", e);
     } finally {
         setIsLoading(false);
     }
@@ -93,7 +106,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } catch (e) {
         console.error("Failed to clear localStorage", e);
     }
-    router.push('/admin'); 
+    router.push('/'); 
   };
   
   if (isLoading || !company) {
@@ -103,6 +116,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         </div>
     );
   }
+
+  const payrollCycleText = settings.payrollCycle === 'monthly' ? 'Mensual' : 'Quincenal';
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
@@ -198,7 +213,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-lg font-medium">
-                  Acumulado Quincenal
+                  Acumulado {payrollCycleText}
                 </CardTitle>
                 <Wallet className="h-6 w-6 text-muted-foreground" />
               </CardHeader>
@@ -220,3 +235,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
