@@ -16,6 +16,12 @@ import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Separator } from '@/components/ui/separator';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -68,7 +74,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [endTime, setEndTime] = useState('');
   
   const [shiftForSelectedDay, setShiftForSelectedDay] = useState<Shift | null>(null);
-  const [dailySummary, setDailySummary] = useState({ totalHours: 0, totalPayment: 0 });
+  const [dailySummary, setDailySummary] = useState<ShiftCalculationResult | null>(null);
   
   const [payrollSummary, setPayrollSummary] = useState({ totalHours: 0, grossPay: 0, netPay: 0 });
 
@@ -168,11 +174,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             endTime: dayShift.endTime,
             rates: settings
         });
-        setDailySummary({ totalHours: summary.totalHours, totalPayment: summary.totalPayment });
+        setDailySummary(summary);
         setStartTime(dayShift.startTime);
         setEndTime(dayShift.endTime);
     } else {
-        setDailySummary({ totalHours: 0, totalPayment: 0 });
+        setDailySummary(null);
         setStartTime('');
         setEndTime('');
     }
@@ -207,7 +213,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             date: date.toISOString(),
             startTime: startTime,
             endTime: endTime,
-            totalPaid: result.totalPayment,
         };
 
         if (existingShiftIndex > -1) {
@@ -220,7 +225,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         
         // --- Update UI State ---
         setShiftForSelectedDay(shiftData);
-        setDailySummary({ totalHours: result.totalHours, totalPayment: result.totalPayment });
+        setDailySummary(result);
         calculateAndSetPayrollSummary(date);
 
         toast({
@@ -248,7 +253,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
     // --- Update UI State ---
     setShiftForSelectedDay(null);
-    setDailySummary({ totalHours: 0, totalPayment: 0 });
+    setDailySummary(null);
     setStartTime('');
     setEndTime('');
     calculateAndSetPayrollSummary(date);
@@ -278,6 +283,17 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }
 
   const payrollCycleText = settings.payrollCycle === 'monthly' ? 'Mensual' : 'Quincenal';
+
+  const renderBreakdownRow = (label: string, hours: number, rate: number = 0, payment: number) => {
+    if (hours === 0 && payment === 0) return null;
+    return (
+        <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">{label} ({hours.toFixed(2)}h)</span>
+            <span className="font-mono">{formatCurrency(payment)}</span>
+        </div>
+    );
+  };
+
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
@@ -372,22 +388,34 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         No hay turnos registrados para este día.
                     </p>
                 ) : (
-                    <div className="mt-4 space-y-4 text-sm">
-                       <div className="flex justify-between items-center p-2 rounded-md bg-muted/50">
-                           <div>
-                               <span className="font-mono">{shiftForSelectedDay.startTime} - {shiftForSelectedDay.endTime}</span>
-                           </div>
-                           <span className="font-semibold">{formatCurrency(shiftForSelectedDay.totalPaid)}</span>
-                       </div>
-                       <Separator />
+                    <div className="mt-4 space-y-4">
                        <div className="flex justify-between pt-2">
                            <span className="font-bold">Total del día:</span> 
-                           <strong className="text-xl">{formatCurrency(dailySummary.totalPayment)}</strong>
+                           <strong className="text-xl">{formatCurrency(dailySummary?.totalPayment)}</strong>
                         </div>
-                        <div className="flex justify-between text-muted-foreground">
+                        <div className="flex justify-between text-muted-foreground text-sm">
                             <span>Horas totales del día:</span>
-                            <strong>{dailySummary.totalHours.toFixed(2)}</strong>
+                            <strong>{dailySummary?.totalHours.toFixed(2)}</strong>
                         </div>
+
+                        <Accordion type="single" collapsible className="w-full">
+                          <AccordionItem value="item-1">
+                            <AccordionTrigger className="text-sm py-2">Ver desglose</AccordionTrigger>
+                            <AccordionContent className="space-y-2 pt-2">
+                              {renderBreakdownRow("Horas Diurnas", dailySummary?.dayHours || 0, settings.dayRate, (dailySummary?.dayHours || 0) * (settings.dayRate || 0))}
+                              {renderBreakdownRow("Horas Nocturnas", dailySummary?.nightHours || 0, settings.nightRate, (dailySummary?.nightHours || 0) * (settings.nightRate || 0))}
+                              {renderBreakdownRow("Extras Diurnas", dailySummary?.dayOvertimeHours || 0, settings.dayOvertimeRate, (dailySummary?.dayOvertimeHours || 0) * (settings.dayOvertimeRate || 0))}
+                              {renderBreakdownRow("Extras Nocturnas", dailySummary?.nightOvertimeHours || 0, settings.nightOvertimeRate, (dailySummary?.nightOvertimeHours || 0) * (settings.nightOvertimeRate || 0))}
+                              
+                              {(dailySummary?.isHoliday) && <Separator className="my-2" />}
+
+                              {renderBreakdownRow("Festivas Diurnas", dailySummary?.holidayDayHours || 0, settings.holidayDayRate, (dailySummary?.holidayDayHours || 0) * (settings.holidayDayRate || 0))}
+                              {renderBreakdownRow("Festivas Nocturnas", dailySummary?.holidayNightHours || 0, settings.holidayNightRate, (dailySummary?.holidayNightHours || 0) * (settings.holidayNightRate || 0))}
+                              {renderBreakdownRow("Extras Festivas Diurnas", dailySummary?.holidayDayOvertimeHours || 0, settings.holidayDayOvertimeRate, (dailySummary?.holidayDayOvertimeHours || 0) * (settings.holidayDayOvertimeRate || 0))}
+                              {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary?.holidayNightOvertimeHours || 0, settings.holidayNightOvertimeRate, (dailySummary?.holidayNightOvertimeHours || 0) * (settings.holidayNightOvertimeRate || 0))}
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
                     </div>
                 )}
               </CardContent>
