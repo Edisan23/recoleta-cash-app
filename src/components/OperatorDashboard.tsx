@@ -102,7 +102,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [SHIFTS_DB_KEY]);
 
-
   const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
     if (!currentSettings.payrollCycle || !currentDate) return;
     
