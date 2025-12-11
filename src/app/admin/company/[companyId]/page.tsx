@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import type { Company, CompanySettings } from '@/types/db-entities';
 import { TimeInput } from '@/components/TimeInput';
+import { Switch } from '@/components/ui/switch';
 import {
     Tooltip,
     TooltipContent,
@@ -30,6 +32,31 @@ import {
 const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
 const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
 
+type EnabledFields = {
+    [K in keyof Omit<CompanySettings, 'id' | 'payrollCycle' | 'nightShiftStart'>]?: boolean;
+};
+
+const settingLabels: { [key in keyof EnabledFields]: string } = {
+    dayRate: 'Hora Diurna',
+    nightRate: 'Hora Nocturna',
+    dayOvertimeRate: 'Hora Extra Diurna',
+    nightOvertimeRate: 'Hora Extra Nocturna',
+    holidayDayRate: 'Hora Festiva Diurna',
+    holidayNightRate: 'Hora Festiva Nocturna',
+    holidayDayOvertimeRate: 'Hora Extra Festiva Diurna',
+    holidayNightOvertimeRate: 'Hora Extra Festiva Nocturna',
+    transportSubsidy: 'Subsidio de Transporte',
+    otherSubsidies: 'Otros Subsidios',
+    healthDeduction: 'Salud (%)',
+    pensionDeduction: 'Pensión (%)',
+    arlDeduction: 'ARL (%)',
+    taxWithholding: 'Retención en la Fuente (%)',
+    solidarityFundDeduction: 'Fondo de Solidaridad (%)',
+    unionFeeDeduction: 'Cuota Sindical',
+    cooperativeDeduction: 'Cooperativa',
+    loanDeduction: 'Préstamos',
+};
+
 
 export default function CompanySettingsPage() {
   const router = useRouter();
@@ -39,6 +66,7 @@ export default function CompanySettingsPage() {
 
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<Partial<CompanySettings>>({});
+  const [enabledFields, setEnabledFields] = useState<EnabledFields>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -59,8 +87,22 @@ export default function CompanySettingsPage() {
         const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
         if (storedSettings) {
             const allSettings: {[key: string]: CompanySettings} = JSON.parse(storedSettings);
-            if (allSettings[companyId]) {
-                setSettings(allSettings[companyId]);
+            const companySettings = allSettings[companyId];
+            if (companySettings) {
+                setSettings(companySettings);
+                // Initialize enabled fields based on existing values
+                const initialEnabled: EnabledFields = {};
+                for (const key in settingLabels) {
+                    if (Object.prototype.hasOwnProperty.call(settingLabels, key)) {
+                        const settingKey = key as keyof EnabledFields;
+                        if (companySettings[settingKey] != null && companySettings[settingKey] !== 0) {
+                            initialEnabled[settingKey] = true;
+                        } else {
+                            initialEnabled[settingKey] = false;
+                        }
+                    }
+                }
+                setEnabledFields(initialEnabled);
             }
         }
 
@@ -82,6 +124,19 @@ export default function CompanySettingsPage() {
       reader.readAsDataURL(file);
     }
   };
+  
+  const handleSwitchChange = (field: keyof EnabledFields, checked: boolean) => {
+    setEnabledFields(prev => ({ ...prev, [field]: checked }));
+    // If the field is disabled, clear its value in the settings
+    if (!checked) {
+      setSettings(prev => {
+        const newSettings = { ...prev };
+        delete newSettings[field];
+        return newSettings;
+      });
+    }
+  };
+
 
   const handleSettingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -104,7 +159,6 @@ export default function CompanySettingsPage() {
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate save
 
     try {
-        // --- Save Company Details (Name, Logo, Theme) ---
         const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY_COMPANIES);
         let allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
         const companyIndex = allCompanies.findIndex(c => c.id === companyId);
@@ -112,21 +166,25 @@ export default function CompanySettingsPage() {
         if (companyIndex > -1) {
             allCompanies[companyIndex] = {
                 ...allCompanies[companyIndex],
+                name: company.name,
                 themeColor: company.themeColor,
                 logoUrl: logoPreview || company.logoUrl,
             };
             localStorage.setItem(LOCAL_STORAGE_KEY_COMPANIES, JSON.stringify(allCompanies));
         }
         
-        // --- Save Company Settings (Rates, Payroll Cycle) ---
         const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
         let allSettings: { [key: string]: Partial<CompanySettings> } = storedSettings ? JSON.parse(storedSettings) : {};
         
-        allSettings[companyId] = {
-            ...allSettings[companyId],
-            ...settings,
-            id: companyId
-        };
+        const activeSettings: Partial<CompanySettings> = { id: companyId, payrollCycle: settings.payrollCycle, nightShiftStart: settings.nightShiftStart };
+        for (const key in enabledFields) {
+            const settingKey = key as keyof EnabledFields;
+            if (enabledFields[settingKey]) {
+                (activeSettings as any)[settingKey] = settings[settingKey];
+            }
+        }
+        
+        allSettings[companyId] = activeSettings;
         localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(allSettings));
 
         toast({
@@ -142,7 +200,7 @@ export default function CompanySettingsPage() {
         });
     } finally {
         setIsSaving(false);
-        router.push('/admin'); // Navigate back to the list after saving
+        router.push('/admin');
     }
   };
 
@@ -151,6 +209,40 @@ export default function CompanySettingsPage() {
         setCompany({...company, themeColor: value});
     }
   }
+
+  const renderSettingInput = (key: keyof EnabledFields, tooltip?: string) => {
+    const label = settingLabels[key];
+    return (
+      <div key={key} className="grid gap-3">
+        <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+                 <Label htmlFor={key} className={!enabledFields[key] ? 'text-muted-foreground' : ''}>{label}</Label>
+                 {tooltip && (
+                    <Tooltip>
+                        <TooltipTrigger><Info className="w-4 h-4 text-muted-foreground"/></TooltipTrigger>
+                        <TooltipContent><p>{tooltip}</p></TooltipContent>
+                    </Tooltip>
+                 )}
+            </div>
+            <Switch
+                id={`switch-${key}`}
+                checked={enabledFields[key] || false}
+                onCheckedChange={(checked) => handleSwitchChange(key, checked)}
+            />
+        </div>
+        <Input
+          id={key}
+          name={key}
+          type="number"
+          placeholder="0.00"
+          value={settings[key] || ''}
+          onChange={handleSettingChange}
+          disabled={!enabledFields[key]}
+          className="transition-opacity"
+        />
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -182,7 +274,11 @@ export default function CompanySettingsPage() {
             Volver al listado
           </Button>
           <h1 className="text-3xl font-bold">Configuración de la Empresa</h1>
-          <p className="text-muted-foreground">Editando: {company.name}</p>
+          <Input 
+             className="text-2xl font-semibold leading-none tracking-tight border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
+             value={company.name}
+             onChange={(e) => setCompany({...company, name: e.target.value})}
+          />
         </div>
       </header>
 
@@ -191,46 +287,22 @@ export default function CompanySettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Tarifas de Pago</CardTitle>
-                    <CardDescription>Define los valores por hora para los diferentes tipos de turno.</CardDescription>
+                    <CardDescription>Activa y define los valores por hora para los diferentes tipos de turno.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <fieldset className="space-y-4 p-4 border rounded-lg">
-                        <legend className="text-lg font-medium px-1">Horario Normal</legend>
-                        <div className="grid gap-2">
-                            <Label htmlFor="dayRate">Hora Diurna</Label>
-                            <Input id="dayRate" name="dayRate" type="number" placeholder="0.00" value={settings.dayRate || ''} onChange={handleSettingChange} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="nightRate">Hora Nocturna</Label>
-                            <Input id="nightRate" name="nightRate" type="number" placeholder="0.00" value={settings.nightRate || ''} onChange={handleSettingChange} />
-                        </div>
-                         <div className="grid gap-2">
-                            <Label htmlFor="dayOvertimeRate">Hora Extra Diurna</Label>
-                            <Input id="dayOvertimeRate" name="dayOvertimeRate" type="number" placeholder="0.00" value={settings.dayOvertimeRate || ''} onChange={handleSettingChange} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="nightOvertimeRate">Hora Extra Nocturna</Label>
-                            <Input id="nightOvertimeRate" name="nightOvertimeRate" type="number" placeholder="0.00" value={settings.nightOvertimeRate || ''} onChange={handleSettingChange} />
-                        </div>
+                    <fieldset className="space-y-6 p-4 border rounded-lg">
+                        <legend className="text-lg font-medium px-1 mb-4">Horario Normal</legend>
+                        {renderSettingInput('dayRate')}
+                        {renderSettingInput('nightRate')}
+                        {renderSettingInput('dayOvertimeRate')}
+                        {renderSettingInput('nightOvertimeRate')}
                     </fieldset>
-                    <fieldset className="space-y-4 p-4 border rounded-lg">
-                        <legend className="text-lg font-medium px-1">Horario Festivo</legend>
-                        <div className="grid gap-2">
-                            <Label htmlFor="holidayDayRate">Hora Festiva Diurna</Label>
-                            <Input id="holidayDayRate" name="holidayDayRate" type="number" placeholder="0.00" value={settings.holidayDayRate || ''} onChange={handleSettingChange} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="holidayNightRate">Hora Festiva Nocturna</Label>
-                            <Input id="holidayNightRate" name="holidayNightRate" type="number" placeholder="0.00" value={settings.holidayNightRate || ''} onChange={handleSettingChange} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="holidayDayOvertimeRate">Hora Extra Festiva Diurna</Label>
-                            <Input id="holidayDayOvertimeRate" name="holidayDayOvertimeRate" type="number" placeholder="0.00" value={settings.holidayDayOvertimeRate || ''} onChange={handleSettingChange} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="holidayNightOvertimeRate">Hora Extra Festiva Nocturna</Label>
-                            <Input id="holidayNightOvertimeRate" name="holidayNightOvertimeRate" type="number" placeholder="0.00" value={settings.holidayNightOvertimeRate || ''} onChange={handleSettingChange} />
-                        </div>
+                    <fieldset className="space-y-6 p-4 border rounded-lg">
+                        <legend className="text-lg font-medium px-1 mb-4">Horario Festivo</legend>
+                        {renderSettingInput('holidayDayRate')}
+                        {renderSettingInput('holidayNightRate')}
+                        {renderSettingInput('holidayDayOvertimeRate')}
+                        {renderSettingInput('holidayNightOvertimeRate')}
                     </fieldset>
                 </CardContent>
             </Card>
@@ -238,46 +310,20 @@ export default function CompanySettingsPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>Deducciones y Subsidios</CardTitle>
-                    <CardDescription>Configura los porcentajes de deducción y los montos fijos de subsidios.</CardDescription>
+                    <CardDescription>Activa y configura los porcentajes de deducción y los montos fijos de subsidios.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <fieldset className="space-y-4 p-4 border rounded-lg">
-                        <legend className="text-lg font-medium px-1">Deducciones (%)</legend>
-                         <div className="grid gap-2">
-                            <Label htmlFor="healthDeduction">Salud (%)</Label>
-                            <Input id="healthDeduction" name="healthDeduction" type="number" placeholder="4" value={settings.healthDeduction || ''} onChange={handleSettingChange} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="pensionDeduction">Pensión (%)</Label>
-                            <Input id="pensionDeduction" name="pensionDeduction" type="number" placeholder="4" value={settings.pensionDeduction || ''} onChange={handleSettingChange} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="arlDeduction">ARL (%)</Label>
-                            <Input id="arlDeduction" name="arlDeduction" type="number" placeholder="0.522" value={settings.arlDeduction || ''} onChange={handleSettingChange} />
-                        </div>
-                         <div className="grid gap-2">
-                            <Label htmlFor="taxWithholding">Retención en la Fuente (%)</Label>
-                            <Input id="taxWithholding" name="taxWithholding" type="number" placeholder="0" value={settings.taxWithholding || ''} onChange={handleSettingChange} />
-                        </div>
-                         <div className="grid gap-2">
-                            <div className="flex items-center gap-2">
-                                <Label htmlFor="solidarityFundDeduction">Fondo de Solidaridad (%)</Label>
-                                <Tooltip>
-                                    <TooltipTrigger><Info className="w-4 h-4 text-muted-foreground"/></TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Se aplica a salarios de 4 SMMLV o más.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </div>
-                            <Input id="solidarityFundDeduction" name="solidarityFundDeduction" type="number" placeholder="1" value={settings.solidarityFundDeduction || ''} onChange={handleSettingChange} />
-                        </div>
+                     <fieldset className="space-y-6 p-4 border rounded-lg">
+                        <legend className="text-lg font-medium px-1 mb-4">Deducciones (%)</legend>
+                        {renderSettingInput('healthDeduction')}
+                        {renderSettingInput('pensionDeduction')}
+                        {renderSettingInput('arlDeduction')}
+                        {renderSettingInput('taxWithholding')}
+                        {renderSettingInput('solidarityFundDeduction', 'Se aplica a salarios de 4 SMMLV o más.')}
                     </fieldset>
-                     <fieldset className="space-y-4 p-4 border rounded-lg">
-                        <legend className="text-lg font-medium px-1">Subsidios (Monto Fijo)</legend>
-                        <div className="grid gap-2">
-                            <Label htmlFor="transportSubsidy">Subsidio de Transporte</Label>
-                            <Input id="transportSubsidy" name="transportSubsidy" type="number" placeholder="0" value={settings.transportSubsidy || ''} onChange={handleSettingChange} />
-                        </div>
+                     <fieldset className="space-y-6 p-4 border rounded-lg">
+                        <legend className="text-lg font-medium px-1 mb-4">Subsidios (Monto Fijo)</legend>
+                        {renderSettingInput('transportSubsidy')}
                     </fieldset>
                 </CardContent>
             </Card>
@@ -375,3 +421,6 @@ export default function CompanySettingsPage() {
     </TooltipProvider>
   );
 }
+
+
+    
