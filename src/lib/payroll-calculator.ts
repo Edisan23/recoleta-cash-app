@@ -121,3 +121,14 @@ const parseTime = (date: Date, time: string): Date => {
     const [hours, minutes] = time.split(':').map(Number);
     return set(date, { hours, minutes, seconds: 0, milliseconds: 0 });
 };
+
+export const getPeriodKey = (date: Date, cycle: 'monthly' | 'fortnightly' = 'fortnightly'): string => {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1; // 1-indexed month
+    if (cycle === 'monthly') {
+      return `${year}-${month}`;
+    }
+    const dayOfMonth = date.getDate();
+    const fortnight = dayOfMonth <= 15 ? 1 : 2;
+    return `${year}-${month}-${fortnight}`;
+  };
