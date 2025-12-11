@@ -69,7 +69,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<Partial<CompanySettings>>({});
   
-  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   
@@ -103,8 +103,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }, [SHIFTS_DB_KEY]);
 
 
-  const calculateAndSetPayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
-    if (!currentSettings.payrollCycle) return;
+  const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
+    if (!currentSettings.payrollCycle || !currentDate) return;
     
     const allShifts = loadAllShifts();
     const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
@@ -125,10 +125,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }, { totalHours: 0, grossPay: 0, netPay: 0 });
 
     setPayrollSummary(summary);
-  }, [SHIFTS_DB_KEY, loadAllShifts]);
+  }, [loadAllShifts]);
 
 
-  // Effect to load company data
+  // Effect to load company data on mount
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -148,8 +148,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
         setSettings(allSettings[companyId] || {});
         
-        setDate(new Date()); // Set initial date
-
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
@@ -157,9 +155,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [companyId, router]);
 
-  // Effect to update everything when the date or settings change
+  // Effect to update UI when date or settings change
   useEffect(() => {
-    // Wait for initial data load to complete
     if (isLoading || !date || !settings.payrollCycle) return;
 
     const allShifts = loadAllShifts();
@@ -183,10 +180,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setEndTime('');
     }
     
-    // Always recalculate payroll summary when date changes
-    calculateAndSetPayrollSummary(date, settings);
+    updatePayrollSummary(date, settings);
 
-  }, [date, settings, isLoading, loadAllShifts, calculateAndSetPayrollSummary]);
+  }, [date, settings, isLoading, loadAllShifts, updatePayrollSummary]);
 
 
   const handleSave = () => {
@@ -227,7 +223,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         // --- Update UI State ---
         setShiftForSelectedDay(shiftData);
         setDailySummary(result);
-        calculateAndSetPayrollSummary(date, settings);
+        updatePayrollSummary(date, settings);
 
         toast({
             title: existingShiftIndex > -1 ? 'Turno Actualizado' : 'Turno Guardado',
@@ -257,7 +253,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     setDailySummary(null);
     setStartTime('');
     setEndTime('');
-    calculateAndSetPayrollSummary(date, settings);
+    updatePayrollSummary(date, settings);
     setShowDeleteConfirm(false);
 
     toast({
