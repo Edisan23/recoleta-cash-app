@@ -85,25 +85,22 @@ export default function CompanySettingsPage() {
         }
 
         const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
-        if (storedSettings) {
-            const allSettings: {[key: string]: CompanySettings} = JSON.parse(storedSettings);
-            const companySettings = allSettings[companyId];
-            if (companySettings) {
-                setSettings(companySettings);
-                // Initialize enabled fields based on existing values
-                const initialEnabled: EnabledFields = {};
-                for (const key in settingLabels) {
-                    if (Object.prototype.hasOwnProperty.call(settingLabels, key)) {
-                        const settingKey = key as keyof EnabledFields;
-                        if (companySettings[settingKey] != null && companySettings[settingKey] !== 0) {
-                            initialEnabled[settingKey] = true;
-                        } else {
-                            initialEnabled[settingKey] = false;
-                        }
-                    }
-                }
-                setEnabledFields(initialEnabled);
+        const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
+        const companySettings = allSettings[companyId];
+
+        const initialEnabled: EnabledFields = {};
+        for (const key in settingLabels) {
+            if (Object.prototype.hasOwnProperty.call(settingLabels, key)) {
+                const settingKey = key as keyof EnabledFields;
+                // A field is considered "enabled" if it has a value (even 0) or if there are no settings saved for it yet.
+                // It's only disabled if it's explicitly null/undefined in a saved setting object.
+                initialEnabled[settingKey] = !companySettings || companySettings[settingKey] != null;
             }
+        }
+        setEnabledFields(initialEnabled);
+
+        if (companySettings) {
+            setSettings(companySettings);
         }
 
     } catch (error) {
@@ -131,7 +128,8 @@ export default function CompanySettingsPage() {
     if (!checked) {
       setSettings(prev => {
         const newSettings = { ...prev };
-        delete newSettings[field];
+        // Set to undefined to mark it as "not set"
+        newSettings[field] = undefined; 
         return newSettings;
       });
     }
@@ -180,7 +178,13 @@ export default function CompanySettingsPage() {
         for (const key in enabledFields) {
             const settingKey = key as keyof EnabledFields;
             if (enabledFields[settingKey]) {
-                (activeSettings as any)[settingKey] = settings[settingKey];
+                // Only save the value if it's enabled and not undefined
+                if (settings[settingKey] !== undefined) {
+                    (activeSettings as any)[settingKey] = settings[settingKey];
+                }
+            } else {
+                 // Explicitly set to null when disabled to indicate "not active"
+                (activeSettings as any)[settingKey] = null;
             }
         }
         
