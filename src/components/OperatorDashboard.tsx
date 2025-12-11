@@ -115,44 +115,44 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const DEDUCTIONS_DB_KEY = useMemo(() => `${DEDUCTIONS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
 
   const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentDeductions: Partial<OperatorDeductions>) => {
-    if (!currentSettings.payrollCycle || !currentDate) {
-        setPayrollSummary({ totalHours: 0, grossPay: 0, netPay: 0 });
-        return;
-    };
-    
-    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-    const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-    
-    const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
-    
-    const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
-    
-    const summary = periodShifts.reduce((acc, shift) => {
-        const details = calculateShiftDetails({
-            date: new Date(shift.date),
-            startTime: shift.startTime,
-            endTime: shift.endTime,
-            rates: currentSettings
-        });
-        acc.totalHours += details.totalHours;
-        acc.grossPay += details.totalPayment;
-        return acc;
-    }, { totalHours: 0, grossPay: 0, netPay: 0 });
+      if (!currentSettings.payrollCycle || !currentDate) {
+          setPayrollSummary({ totalHours: 0, grossPay: 0, netPay: 0 });
+          return;
+      };
+      
+      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+      const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+      
+      const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
+      
+      const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
+      
+      const summary = periodShifts.reduce((acc, shift) => {
+          const details = calculateShiftDetails({
+              date: new Date(shift.date),
+              startTime: shift.startTime,
+              endTime: shift.endTime,
+              rates: currentSettings
+          });
+          acc.totalHours += details.totalHours;
+          acc.grossPay += details.totalPayment;
+          return acc;
+      }, { totalHours: 0, grossPay: 0, netPay: 0 });
 
-    const { healthDeduction = 0, pensionDeduction = 0, arlDeduction = 0, familyCompensationDeduction = 0 } = currentSettings;
-    const totalCompanyDeductionPercent = (healthDeduction + pensionDeduction + arlDeduction + familyCompensationDeduction) / 100;
-    const companyDeductionsAmount = summary.grossPay * totalCompanyDeductionPercent;
+      const { healthDeduction = 0, pensionDeduction = 0, arlDeduction = 0, familyCompensationDeduction = 0 } = currentSettings;
+      const totalCompanyDeductionPercent = (healthDeduction + pensionDeduction + arlDeduction + familyCompensationDeduction) / 100;
+      const companyDeductionsAmount = summary.grossPay * totalCompanyDeductionPercent;
 
-    const voluntaryDeductionsAmount = 
-        (currentDeductions.unionFeeDeduction || 0) +
-        (currentDeductions.cooperativeDeduction || 0) +
-        (currentDeductions.loanDeduction || 0);
+      const voluntaryDeductionsAmount = 
+          (currentDeductions.unionFeeDeduction || 0) +
+          (currentDeductions.cooperativeDeduction || 0) +
+          (currentDeductions.loanDeduction || 0);
 
-    summary.netPay = summary.grossPay - companyDeductionsAmount - voluntaryDeductionsAmount;
+      summary.netPay = summary.grossPay - companyDeductionsAmount - voluntaryDeductionsAmount;
 
-    setPayrollSummary(summary);
-  }, [SHIFTS_DB_KEY]);
-
+      setPayrollSummary(summary);
+    }, [SHIFTS_DB_KEY]);
+  
   // Effect to load initial company/settings data on mount
   useEffect(() => {
     setIsLoading(true);
@@ -184,18 +184,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             initialEnabled[deductionKey] = operatorDeductionsData[deductionKey] != null;
         }
         setEnabledDeductions(initialEnabled);
-        
-        // Initial calculation on load
-        if(date) {
-            updatePayrollSummary(date, companySettings, operatorDeductionsData);
-        }
-
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, date, updatePayrollSummary]);
+  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY]);
   
   // Effect to update UI based on selected date
   useEffect(() => {
@@ -246,7 +240,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const result = calculateShiftDetails({ date, startTime, endTime, rates: settings });
 
         const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-        const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+        let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
         
         const existingShiftIndex = allShifts.findIndex(s => isSameDay(new Date(s.date), date));
 
@@ -294,8 +288,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     if (!date) return;
 
     const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-    const allShifsts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-    const updatedShifts = allShifsts.filter(s => !isSameDay(new Date(s.date), date));
+    let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+    const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
     localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
 
     setShiftForSelectedDay(null);
@@ -531,7 +525,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <CardFooter className="flex justify-center gap-4">
                 <Button onClick={handleSave} disabled={isSaving}>
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                    Guardar Turno
+                    {shiftForSelectedDay ? 'Actualizar Turno' : 'Guardar Turno'}
                 </Button>
             </CardFooter>
           </Card>
