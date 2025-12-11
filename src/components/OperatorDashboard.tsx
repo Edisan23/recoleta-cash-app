@@ -106,15 +106,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const calculateAndSetPayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
     if (!currentSettings.payrollCycle) return;
     
-    // This function now loads shifts directly to avoid stale closures
-    let allShifts: Shift[] = [];
-    try {
-      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-      allShifts = storedShifts ? JSON.parse(storedShifts) : [];
-    } catch (e) {
-      console.error("Failed to load shifts from localStorage for payroll calc", e);
-    }
-
+    const allShifts: Shift[] = loadAllShifts();
     const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
     
     const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
@@ -133,7 +125,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }, { totalHours: 0, grossPay: 0, netPay: 0 });
 
     setPayrollSummary(summary);
-  }, [SHIFTS_DB_KEY]);
+  }, [loadAllShifts, settings]);
 
 
   // Effect to load company data and initial info
@@ -163,7 +155,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
         const initialDate = new Date();
         setDate(initialDate);
-        calculateAndSetPayrollSummary(initialDate, loadedSettings);
+        // This was missing/incorrect. We call it here once settings are loaded.
+        if (loadedSettings.payrollCycle) {
+            calculateAndSetPayrollSummary(initialDate, loadedSettings);
+        }
         setIsLoading(false);
     }
   }, [companyId, router, calculateAndSetPayrollSummary]);
@@ -422,7 +417,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                               {renderBreakdownRow("Festivas Diurnas", dailySummary?.holidayDayHours || 0, settings.holidayDayRate, (dailySummary?.holidayDayHours || 0) * (settings.holidayDayRate || 0))}
                               {renderBreakdownRow("Festivas Nocturnas", dailySummary?.holidayNightHours || 0, settings.holidayNightRate, (dailySummary?.holidayNightHours || 0) * (settings.holidayNightRate || 0))}
                               {renderBreakdownRow("Extras Festivas Diurnas", dailySummary?.holidayDayOvertimeHours || 0, settings.holidayDayOvertimeRate, (dailySummary?.holidayDayOvertimeHours || 0) * (settings.holidayDayOvertimeRate || 0))}
-                              {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary?.holidayNightOvertimeHours || 0, settings.holidayNightOvertimeRate, (dailySummary?.holidayNightOvertimeHours || 0) * (settings.holidayNightOvertimeRate || 0))}
+                              {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary?.holidayNightOvertimeHours || 0, settings.holidayNightOvertimeRate, (dailySummary?.holidayNightOvertimeHours || 0) * (settings.holidayNightOvertimeHours || 0))}
                             </AccordionContent>
                           </AccordionItem>
                         </Accordion>
