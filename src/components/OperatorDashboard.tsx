@@ -324,10 +324,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
 
         <main className="grid gap-8">
-          <Card>
+          <Card className="relative">
             <CardHeader>
               <CardTitle>Registrar o Editar Turno</CardTitle>
               <CardDescription>Selecciona la fecha y las horas. Si ya existe un turno para ese día, se actualizará.</CardDescription>
+                {shiftForSelectedDay && (
+                    <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar turno" className="absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                        <Trash2 className="h-5 w-5" />
+                    </Button>
+                )}
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
               <DatePicker date={date} setDate={setDate} />
@@ -350,11 +355,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
                     Guardar Turno
                 </Button>
-                {shiftForSelectedDay && (
-                    <Button variant="destructive" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar turno">
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                )}
             </CardFooter>
           </Card>
 
