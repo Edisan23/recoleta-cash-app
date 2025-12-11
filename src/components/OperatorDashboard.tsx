@@ -106,7 +106,16 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const calculateAndSetPayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
     if (!currentSettings.payrollCycle) return;
     
-    const allShifts: Shift[] = loadAllShifts();
+    // This function now reads from localStorage directly to avoid stale closures.
+    let allShifts: Shift[];
+    try {
+      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+      allShifts = storedShifts ? JSON.parse(storedShifts) : [];
+    } catch (e) {
+      console.error("Failed to load shifts from localStorage for calculation", e);
+      allShifts = [];
+    }
+    
     const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
     
     const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
@@ -125,10 +134,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }, { totalHours: 0, grossPay: 0, netPay: 0 });
 
     setPayrollSummary(summary);
-  }, [loadAllShifts, settings]);
+  }, [SHIFTS_DB_KEY]);
 
 
-  // Effect to load company data and initial info
+  // Effect to load company data
   useEffect(() => {
     setIsLoading(true);
     let loadedSettings: Partial<CompanySettings> = {};
@@ -149,23 +158,18 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
         loadedSettings = allSettings[companyId] || {};
         setSettings(loadedSettings);
+        setDate(new Date());
 
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
-        const initialDate = new Date();
-        setDate(initialDate);
-        // This was missing/incorrect. We call it here once settings are loaded.
-        if (loadedSettings.payrollCycle) {
-            calculateAndSetPayrollSummary(initialDate, loadedSettings);
-        }
         setIsLoading(false);
     }
-  }, [companyId, router, calculateAndSetPayrollSummary]);
+  }, [companyId, router]);
 
-  // Effect to update everything when the date changes
+  // Effect to update everything when the date or settings change
   useEffect(() => {
-    if (!date || isLoading) return;
+    if (!date || isLoading || !settings.payrollCycle) return;
 
     const allShifts = loadAllShifts();
     const dayShift = allShifts.find(shift => isSameDay(new Date(shift.date), date)) || null;
@@ -417,7 +421,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                               {renderBreakdownRow("Festivas Diurnas", dailySummary?.holidayDayHours || 0, settings.holidayDayRate, (dailySummary?.holidayDayHours || 0) * (settings.holidayDayRate || 0))}
                               {renderBreakdownRow("Festivas Nocturnas", dailySummary?.holidayNightHours || 0, settings.holidayNightRate, (dailySummary?.holidayNightHours || 0) * (settings.holidayNightRate || 0))}
                               {renderBreakdownRow("Extras Festivas Diurnas", dailySummary?.holidayDayOvertimeHours || 0, settings.holidayDayOvertimeRate, (dailySummary?.holidayDayOvertimeHours || 0) * (settings.holidayDayOvertimeRate || 0))}
-                              {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary?.holidayNightOvertimeHours || 0, settings.holidayNightOvertimeRate, (dailySummary?.holidayNightOvertimeHours || 0) * (settings.holidayNightOvertimeHours || 0))}
+                              {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary?.holidayNightOvertimeHours || 0, settings.holidayNightOvertimeRate, (dailySummary?.holidayNightOvertimeHours || 0) * (settings.holidayNightOvertimeRate || 0))}
                             </AccordionContent>
                           </AccordionItem>
                         </Accordion>
@@ -471,3 +475,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
