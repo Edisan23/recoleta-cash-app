@@ -34,6 +34,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+
 
 // --- FAKE DATA & KEYS ---
 const FAKE_OPERATOR_USER = {
@@ -85,7 +95,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [operatorDeductions, setOperatorDeductions] = useState<Partial<OperatorDeductions>>({});
   const [enabledDeductions, setEnabledDeductions] = useState<EnabledDeductionFields>({});
   
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const initialDate = useMemo(() => new Date(), []);
+  const [date, setDate] = useState<Date | undefined>(initialDate);
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   
@@ -98,64 +109,22 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingDeductions, setIsSavingDeductions] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeductionsDialog, setShowDeductionsDialog] = useState(false);
   
   const SHIFTS_DB_KEY = useMemo(() => `${SHIFTS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
   const DEDUCTIONS_DB_KEY = useMemo(() => `${DEDUCTIONS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
 
 
-  const loadAllData = useCallback(() => {
-    setIsLoading(true);
-    try {
-        // Load Company
-        const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
-        const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
-        const foundCompany = allCompanies.find(c => c.id === companyId);
-        
-        if (!foundCompany) {
-          console.error("Selected company not found in DB");
-          localStorage.removeItem(OPERATOR_COMPANY_KEY);
-          router.replace('/select-company');
-          return;
-        }
-        setCompany(foundCompany);
-        
-        // Load Company Settings
-        const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
-        const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
-        const companySettings = allSettings[companyId] || {};
-        setSettings(companySettings);
-
-        // Load Operator Deductions
-        const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
-        const operatorDeductionsData : OperatorDeductions = storedDeductions ? JSON.parse(storedDeductions) : { userId: user.uid };
-        setOperatorDeductions(operatorDeductionsData);
-
-        const initialEnabled: EnabledDeductionFields = {};
-        for (const key in deductionLabels) {
-            const deductionKey = key as keyof EnabledDeductionFields;
-            initialEnabled[deductionKey] = operatorDeductionsData[deductionKey] != null;
-        }
-        setEnabledDeductions(initialEnabled);
-
-        
-    } catch(e) {
-        console.error("Failed to load data from localStorage", e);
-    } finally {
-        setIsLoading(false);
-    }
-  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY]);
-  
-  // Initial data loading
-  useEffect(() => {
-    loadAllData();
-  }, [loadAllData]);
+  const loadAllShifts = useCallback(() => {
+    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+    return storedShifts ? JSON.parse(storedShifts) : [];
+  }, [SHIFTS_DB_KEY]);
 
 
   const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentDeductions: Partial<OperatorDeductions>) => {
     if (!currentSettings.payrollCycle || !currentDate) return;
     
-    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-    const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+    const allShifts: Shift[] = loadAllShifts();
     
     const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
     
@@ -185,15 +154,54 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     summary.netPay = summary.grossPay - companyDeductionsAmount - voluntaryDeductionsAmount;
 
     setPayrollSummary(summary);
-  }, [SHIFTS_DB_KEY]);
+  }, [loadAllShifts]);
 
+
+  // Effect to load initial company/settings data
+  useEffect(() => {
+    setIsLoading(true);
+    try {
+        const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
+        const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
+        const foundCompany = allCompanies.find(c => c.id === companyId);
+        
+        if (!foundCompany) {
+          console.error("Selected company not found in DB");
+          localStorage.removeItem(OPERATOR_COMPANY_KEY);
+          router.replace('/select-company');
+          return;
+        }
+        setCompany(foundCompany);
+        
+        const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
+        const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
+        const companySettings = allSettings[companyId] || {};
+        setSettings(companySettings);
+
+        const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
+        const operatorDeductionsData : OperatorDeductions = storedDeductions ? JSON.parse(storedDeductions) : { userId: user.uid };
+        setOperatorDeductions(operatorDeductionsData);
+
+        const initialEnabled: EnabledDeductionFields = {};
+        for (const key in deductionLabels) {
+            const deductionKey = key as keyof EnabledDeductionFields;
+            initialEnabled[deductionKey] = operatorDeductionsData[deductionKey] != null;
+        }
+        setEnabledDeductions(initialEnabled);
+        
+    } catch(e) {
+        console.error("Failed to load data from localStorage", e);
+    } finally {
+        setIsLoading(false);
+    }
+  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY]);
+  
 
   // Effect to update UI based on date or settings changes
   useEffect(() => {
-    if (!date || isLoading) return;
+    if (!date || isLoading || !settings.payrollCycle) return;
 
-    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-    const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+    const allShifts: Shift[] = loadAllShifts();
     const dayShift = allShifts.find(shift => isSameDay(new Date(shift.date), date)) || null;
     
     setShiftForSelectedDay(dayShift);
@@ -214,11 +222,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setEndTime('');
     }
     
-    if (settings.payrollCycle) {
-      updatePayrollSummary(date, settings, operatorDeductions);
-    }
+    // Always recalculate payroll for the selected date's period
+    const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
+    const currentDeductions = storedDeductions ? JSON.parse(storedDeductions) : {};
+    updatePayrollSummary(date, settings, currentDeductions);
 
-  }, [date, settings, operatorDeductions, isLoading, SHIFTS_DB_KEY, updatePayrollSummary]);
+  }, [date, settings, isLoading, loadAllShifts, updatePayrollSummary, DEDUCTIONS_DB_KEY]);
 
 
   const handleSave = () => {
@@ -236,8 +245,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     try {
         const result = calculateShiftDetails({ date, startTime, endTime, rates: settings });
 
-        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-        let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+        const allShifts: Shift[] = loadAllShifts();
         
         const existingShiftIndex = allShifts.findIndex(s => isSameDay(new Date(s.date), date));
 
@@ -260,7 +268,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         
         setShiftForSelectedDay(shiftData);
         setDailySummary(result);
-        updatePayrollSummary(date, settings, operatorDeductions);
+        
+        const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
+        const currentDeductions = storedDeductions ? JSON.parse(storedDeductions) : {};
+        updatePayrollSummary(date, settings, currentDeductions);
 
         toast({
             title: existingShiftIndex > -1 ? 'Turno Actualizado' : 'Turno Guardado',
@@ -281,8 +292,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const handleDelete = () => {
     if (!date) return;
 
-    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-    let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+    const allShifts: Shift[] = loadAllShifts();
     const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
     localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
 
@@ -290,7 +300,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     setDailySummary(null);
     setStartTime('');
     setEndTime('');
-    updatePayrollSummary(date, settings, operatorDeductions);
+    
+    const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
+    const currentDeductions = storedDeductions ? JSON.parse(storedDeductions) : {};
+    updatePayrollSummary(date, settings, currentDeductions);
+    
     setShowDeleteConfirm(false);
 
     toast({
@@ -339,14 +353,16 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             }
         }
         localStorage.setItem(DEDUCTIONS_DB_KEY, JSON.stringify(activeDeductions));
-        // We need to trigger a payroll update after saving deductions
+        
         if(date && settings.payrollCycle) {
             updatePayrollSummary(date, settings, activeDeductions);
         }
+        
         toast({
             title: 'Deducciones Guardadas',
             description: 'Tus deducciones voluntarias han sido actualizadas.',
         });
+        setShowDeductionsDialog(false); // Close dialog on save
     } catch (e) {
         console.error("Failed to save deductions", e);
         toast({
@@ -445,10 +461,40 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         )}
                     </div>
                 )}
-                <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
-                    <LogOut className="mr-2 h-5 w-5" />
-                    Salir
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Dialog open={showDeductionsDialog} onOpenChange={setShowDeductionsDialog}>
+                        <DialogTrigger asChild>
+                             <Button variant="ghost" size="icon" aria-label="Configurar deducciones">
+                                <Settings className="h-5 w-5" />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Mis Deducciones Voluntarias</DialogTitle>
+                                <DialogDescription>
+                                    Activa y define los montos fijos para tus aportes y pagos personales. Se descontarán en cada periodo de pago.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid grid-cols-1 gap-6 py-4">
+                                {renderDeductionInput('unionFeeDeduction')}
+                                {renderDeductionInput('cooperativeDeduction')}
+                                {renderDeductionInput('loanDeduction')}
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setShowDeductionsDialog(false)}>Cancelar</Button>
+                                <Button onClick={handleSaveDeductions} disabled={isSavingDeductions}>
+                                    {isSavingDeductions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                    Guardar Deducciones
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
+                        <LogOut className="mr-2 h-5 w-5" />
+                        Salir
+                    </Button>
+                </div>
             </div>
         </header>
 
@@ -557,23 +603,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               </CardContent>
             </Card>
           </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Mis Deducciones Voluntarias</CardTitle>
-                    <CardDescription>Activa y define los montos fijos para tus aportes y pagos personales. Se descontarán en cada periodo de pago.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {renderDeductionInput('unionFeeDeduction')}
-                    {renderDeductionInput('cooperativeDeduction')}
-                    {renderDeductionInput('loanDeduction')}
-                </CardContent>
-                <CardFooter>
-                    <Button onClick={handleSaveDeductions} disabled={isSavingDeductions}>
-                        {isSavingDeductions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Settings className="mr-2 h-4 w-4" />}
-                        Guardar Mis Deducciones
-                    </Button>
-                </CardFooter>
-            </Card>
         </main>
       </div>
 
