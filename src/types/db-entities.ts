@@ -61,6 +61,7 @@ export type User = {
     endTime: string;
     itemId?: string;
     supervisor?: string;
+    totalPaid?: number; // Total payment for the shift
   };
   
   export type Payroll = {
