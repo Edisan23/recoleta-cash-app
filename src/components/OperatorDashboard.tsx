@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -150,29 +151,24 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const DEDUCTIONS_DB_KEY = useMemo(() => `${DEDUCTIONS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
   
   const calculatePayrollForPeriod = useCallback((shifts: Shift[], periodSettings: Partial<CompanySettings>, periodDeductions: Partial<OperatorDeductions>): PayrollSummary => {
-        const summary = shifts.reduce((acc, shift) => {
+        let totalHoursInPeriod = 0;
+        let totalPaymentInPeriod = 0;
+        let totalTransportSubsidyInPeriod = 0;
+
+        for (const shift of shifts) {
             const details = calculateShiftDetails({
                 date: new Date(shift.date),
                 startTime: shift.startTime,
                 endTime: shift.endTime,
                 rates: periodSettings
             });
-            acc.totalHours += details.totalHours;
-            acc.totalPayment += details.totalPayment; // This includes per-shift subsidy
-            return acc;
-        }, { totalHours: 0, totalPayment: 0 });
+            totalHoursInPeriod += details.totalHours;
+            totalPaymentInPeriod += details.totalPayment;
+            totalTransportSubsidyInPeriod += details.transportSubsidyApplied;
+        }
 
-        const totalTransportSubsidy = shifts.reduce((acc, shift) => {
-            const details = calculateShiftDetails({
-                date: new Date(shift.date),
-                startTime: shift.startTime,
-                endTime: shift.endTime,
-                rates: periodSettings
-            });
-            return acc + details.transportSubsidyApplied;
-        }, 0);
+        const grossPay = totalPaymentInPeriod;
 
-        const grossPay = summary.totalPayment;
         const healthDeductionAmount = grossPay * ((periodSettings.healthDeduction || 0) / 100);
         const pensionDeductionAmount = grossPay * ((periodSettings.pensionDeduction || 0) / 100);
         const arlDeductionAmount = grossPay * ((periodSettings.arlDeduction || 0) / 100);
@@ -191,7 +187,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         return {
             grossPay,
             netPay,
-            totalHours: summary.totalHours,
+            totalHours: totalHoursInPeriod,
             legalDeductions: {
                 health: healthDeductionAmount,
                 pension: pensionDeductionAmount,
@@ -206,7 +202,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 loan: loanFee,
             },
             subsidies: {
-                transport: totalTransportSubsidy,
+                transport: totalTransportSubsidyInPeriod,
             },
         };
   }, []);
@@ -296,7 +292,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setEnabledDeductions(initialEnabled);
 
         // Initial data load and calculation
-        if (date && companySettings) {
+        if (date && companySettings.payrollCycle) {
             refreshAllData(date, companySettings);
         }
 
@@ -788,3 +784,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
