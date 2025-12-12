@@ -68,7 +68,7 @@ export default function SelectCompanyPage() {
   
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
-      <Card className="w-full max-w-2xl">
+      <Card className="w-full max-w-4xl">
         <CardHeader>
           <Button variant="ghost" onClick={() => router.push('/')} className="mb-4 justify-start p-0 h-auto">
             <ArrowLeft className="mr-2" />
@@ -85,36 +85,36 @@ export default function SelectCompanyPage() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {companies?.filter(c => c.isActive).map((company) => (
                 <button
                   key={company.id}
                   disabled={isSubmitting}
                   onClick={() => handleSelectCompany(company.id)}
-                  className="p-4 border rounded-lg text-center hover:bg-accent hover:border-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="p-4 border rounded-lg text-center hover:bg-accent hover:border-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-3"
                 >
-                  <div className="flex flex-col items-center gap-3">
+                  <div className="flex-grow flex items-center justify-center">
                     {company.logoUrl ? (
                       <Image
                         src={company.logoUrl}
                         alt={`${company.name} logo`}
-                        width={64}
-                        height={64}
-                        className="rounded-md object-contain h-16 w-16"
+                        width={80}
+                        height={80}
+                        className="rounded-md object-contain h-20 w-20"
                       />
                     ) : (
-                      <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
+                      <div className="w-20 h-20 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
                         Sin logo
                       </div>
                     )}
-                    <span className="font-medium">{company.name}</span>
                   </div>
+                  <span className="font-medium mt-2 block h-10">{company.name}</span>
                 </button>
               ))}
             </div>
           )}
            {companies && companies.filter(c => c.isActive).length === 0 && !isLoading && (
-               <p className="text-center text-muted-foreground col-span-full">No hay empresas activas disponibles. Contacta a un administrador.</p>
+               <p className="text-center text-muted-foreground col-span-full py-10">No hay empresas activas disponibles. Contacta a un administrador.</p>
            )}
         </CardContent>
          <CardFooter>
