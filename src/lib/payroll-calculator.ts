@@ -1,5 +1,6 @@
 import { CompanySettings } from "@/types/db-entities";
 import { parse, set, addDays, getDay, isSameDay, lastDayOfMonth } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
@@ -143,3 +144,23 @@ export const getPeriodKey = (date: Date, cycle: 'monthly' | 'fortnightly' = 'for
     const fortnight = dayOfMonth <= 15 ? 1 : 2;
     return `${year}-${month}-${fortnight}`;
   };
+
+export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fortnightly' = 'fortnightly'): string => {
+    const parts = periodKey.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]);
+    const date = new Date(year, month - 1, 1);
+    const monthName = date.toLocaleDateString('es-CO', { month: 'long' });
+
+    if (cycle === 'monthly') {
+        return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
+    }
+
+    const fortnight = parseInt(parts[2]);
+    if (fortnight === 1) {
+        return `1-15 de ${monthName} ${year}`;
+    } else {
+        const lastDay = lastDayOfMonth(date).getDate();
+        return `16-${lastDay} de ${monthName} ${year}`;
+    }
+};

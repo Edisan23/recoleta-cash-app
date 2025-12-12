@@ -8,13 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { TimeInput } from './TimeInput';
 import { DatePicker } from './DatePicker';
-import { LogOut, CalendarCheck, Wallet, Loader2, PlusCircle, Trash2, Settings } from 'lucide-react';
+import { LogOut, CalendarCheck, Wallet, Loader2, PlusCircle, Trash2, Settings, History } from 'lucide-react';
 import type { User, Company, CompanySettings, Shift, OperatorDeductions } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { calculateShiftDetails, ShiftCalculationResult, getPeriodKey } from '@/lib/payroll-calculator';
+import { calculateShiftDetails, ShiftCalculationResult, getPeriodKey, getPeriodDescription } from '@/lib/payroll-calculator';
 import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Separator } from '@/components/ui/separator';
@@ -85,6 +85,11 @@ interface PayrollSummary {
     }
 }
 
+interface HistoricalPayroll {
+    [periodKey: string]: PayrollSummary;
+}
+
+
 const deductionLabels: { [key in keyof EnabledDeductionFields]: string } = {
     unionFeeDeduction: 'Cuota Sindical',
     cooperativeDeduction: 'Aporte a Cooperativa',
@@ -131,6 +136,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     voluntaryDeductions: { union: 0, cooperative: 0, loan: 0 },
     subsidies: { transport: 0 }
   });
+  const [historicalPayroll, setHistoricalPayroll] = useState<HistoricalPayroll>({});
 
 
   const [isLoading, setIsLoading] = useState(true);
@@ -141,11 +147,59 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   const SHIFTS_DB_KEY = useMemo(() => `${SHIFTS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
   const DEDUCTIONS_DB_KEY = useMemo(() => `${DEDUCTIONS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
+  
+  const calculatePayrollForPeriod = useCallback((shifts: Shift[], periodSettings: Partial<CompanySettings>, periodDeductions: Partial<OperatorDeductions>): PayrollSummary => {
+      const summary = shifts.reduce((acc, shift) => {
+          const details = calculateShiftDetails({
+              date: new Date(shift.date),
+              startTime: shift.startTime,
+              endTime: shift.endTime,
+              rates: periodSettings
+          });
+          acc.totalHours += details.totalHours;
+          acc.totalPayment += details.totalPayment;
+          return acc;
+      }, { totalHours: 0, totalPayment: 0 });
+
+      const totalTransportSubsidy = shifts.reduce((acc, shift) => {
+           const details = calculateShiftDetails({
+              date: new Date(shift.date),
+              startTime: shift.startTime,
+              endTime: shift.endTime,
+              rates: periodSettings
+          });
+          return acc + details.transportSubsidyApplied;
+      }, 0);
+      
+      const grossPay = summary.totalPayment;
+      const healthDeductionAmount = grossPay * ((periodSettings.healthDeduction || 0) / 100);
+      const pensionDeductionAmount = grossPay * ((periodSettings.pensionDeduction || 0) / 100);
+      const arlDeductionAmount = grossPay * ((periodSettings.arlDeduction || 0) / 100);
+      const familyCompensationAmount = grossPay * ((periodSettings.familyCompensationDeduction || 0) / 100);
+      const solidarityFundAmount = grossPay * ((periodSettings.solidarityFundDeduction || 0) / 100);
+      const taxWithholdingAmount = grossPay * ((periodSettings.taxWithholding || 0) / 100);
+      const totalLegalDeductions = healthDeductionAmount + pensionDeductionAmount + arlDeductionAmount + familyCompensationAmount + solidarityFundAmount + taxWithholdingAmount;
+
+      const unionFee = periodDeductions.unionFeeDeduction || 0;
+      const cooperativeFee = periodDeductions.cooperativeDeduction || 0;
+      const loanFee = periodDeductions.loanDeduction || 0;
+      const totalVoluntaryDeductions = unionFee + cooperativeFee + loanFee;
+
+      const netPay = grossPay - totalLegalDeductions - totalVoluntaryDeductions;
+      
+      return {
+        grossPay, netPay, totalHours: summary.totalHours,
+        legalDeductions: {
+            health: healthDeductionAmount, pension: pensionDeductionAmount, arl: arlDeductionAmount,
+            familyCompensation: familyCompensationAmount, solidarityFund: solidarityFundAmount, taxWithholding: taxWithholdingAmount,
+        },
+        voluntaryDeductions: { union: unionFee, cooperative: cooperativeFee, loan: loanFee },
+        subsidies: { transport: totalTransportSubsidy }
+      };
+  }, []);
 
   const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentDeductions: Partial<OperatorDeductions>) => {
-      if (!currentSettings.payrollCycle || !currentDate) {
-          return;
-      };
+      if (!currentSettings.payrollCycle || !currentDate) return;
       
       const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
       const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
@@ -153,70 +207,28 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
       const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
       
-      const summary = periodShifts.reduce((acc, shift) => {
-          const details = calculateShiftDetails({
-              date: new Date(shift.date),
-              startTime: shift.startTime,
-              endTime: shift.endTime,
-              rates: currentSettings
-          });
-          acc.totalHours += details.totalHours;
-          acc.totalPayment += details.totalPayment; // This now includes transport subsidy per shift
-          return acc;
-      }, { totalHours: 0, totalPayment: 0 });
+      const summary = calculatePayrollForPeriod(periodShifts, currentSettings, currentDeductions);
+      setPayrollSummary(summary);
       
-      // We need to calculate transport subsidy separately for the summary view
-      const totalTransportSubsidy = periodShifts.reduce((acc, shift) => {
-           const details = calculateShiftDetails({
-              date: new Date(shift.date),
-              startTime: shift.startTime,
-              endTime: shift.endTime,
-              rates: currentSettings
-          });
-          return acc + details.transportSubsidyApplied;
-      }, 0);
-
-
-      const grossPay = summary.totalPayment;
-
-      const healthDeductionAmount = grossPay * ((currentSettings.healthDeduction || 0) / 100);
-      const pensionDeductionAmount = grossPay * ((currentSettings.pensionDeduction || 0) / 100);
-      const arlDeductionAmount = grossPay * ((currentSettings.arlDeduction || 0) / 100);
-      const familyCompensationAmount = grossPay * ((currentSettings.familyCompensationDeduction || 0) / 100);
-      const solidarityFundAmount = grossPay * ((currentSettings.solidarityFundDeduction || 0) / 100);
-      const taxWithholdingAmount = grossPay * ((currentSettings.taxWithholding || 0) / 100);
-      
-      const totalLegalDeductions = healthDeductionAmount + pensionDeductionAmount + arlDeductionAmount + familyCompensationAmount + solidarityFundAmount + taxWithholdingAmount;
-      
-      const unionFee = currentDeductions.unionFeeDeduction || 0;
-      const cooperativeFee = currentDeductions.cooperativeDeduction || 0;
-      const loanFee = currentDeductions.loanDeduction || 0;
-      const totalVoluntaryDeductions = unionFee + cooperativeFee + loanFee;
-
-      const netPay = grossPay - totalLegalDeductions - totalVoluntaryDeductions;
-
-      setPayrollSummary({
-        grossPay: grossPay,
-        netPay: netPay,
-        totalHours: summary.totalHours,
-        legalDeductions: {
-            health: healthDeductionAmount,
-            pension: pensionDeductionAmount,
-            arl: arlDeductionAmount,
-            familyCompensation: familyCompensationAmount,
-            solidarityFund: solidarityFundAmount,
-            taxWithholding: taxWithholdingAmount,
-        },
-        voluntaryDeductions: {
-            union: unionFee,
-            cooperative: cooperativeFee,
-            loan: loanFee,
-        },
-        subsidies: {
-            transport: totalTransportSubsidy,
+      // Update history
+      const groupedByPeriod: {[key: string]: Shift[]} = allShifts.reduce((acc, shift) => {
+        const periodKey = getPeriodKey(new Date(shift.date), currentSettings.payrollCycle);
+        if (!acc[periodKey]) {
+            acc[periodKey] = [];
         }
-      });
-    }, [SHIFTS_DB_KEY]);
+        acc[periodKey].push(shift);
+        return acc;
+      }, {} as {[key: string]: Shift[]});
+
+      const history: HistoricalPayroll = {};
+      for (const periodKey in groupedByPeriod) {
+        // Exclude current period from history
+        if (periodKey !== currentPeriodKey) {
+            history[periodKey] = calculatePayrollForPeriod(groupedByPeriod[periodKey], currentSettings, currentDeductions);
+        }
+      }
+      setHistoricalPayroll(history);
+    }, [SHIFTS_DB_KEY, calculatePayrollForPeriod]);
   
   // Effect to load initial company/settings data on mount
   useEffect(() => {
@@ -249,6 +261,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             initialEnabled[deductionKey] = operatorDeductionsData[deductionKey] != null;
         }
         setEnabledDeductions(initialEnabled);
+
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
@@ -498,6 +511,30 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </div>
         );
     };
+    
+    const renderFullBreakdown = (summary: PayrollSummary) => (
+        <div className="space-y-2 pt-2">
+            <h4 className="font-semibold text-sm mb-1">Ingresos</h4>
+            {renderSummaryRow("Salario por horas trabajadas", summary.grossPay - summary.subsidies.transport)}
+            {renderSummaryRow("Subsidio de transporte", summary.subsidies.transport)}
+            <Separator className="my-2" />
+
+            <h4 className="font-semibold text-sm mb-1">Deducciones Legales</h4>
+            {renderSummaryRow("Salud", summary.legalDeductions.health, false)}
+            {renderSummaryRow("Pensión", summary.legalDeductions.pension, false)}
+            {renderSummaryRow("ARL", summary.legalDeductions.arl, false)}
+            {renderSummaryRow("Caja de Compensación", summary.legalDeductions.familyCompensation, false)}
+            {renderSummaryRow("Fondo de Solidaridad", summary.legalDeductions.solidarityFund, false)}
+            {renderSummaryRow("Retención en la Fuente", summary.legalDeductions.taxWithholding, false)}
+            <Separator className="my-2" />
+
+            <h4 className="font-semibold text-sm mb-1">Deducciones Voluntarias</h4>
+            {renderSummaryRow("Cuota Sindical", summary.voluntaryDeductions.union, false)}
+            {renderSummaryRow("Aporte Cooperativa", summary.voluntaryDeductions.cooperative, false)}
+            {renderSummaryRow("Créditos", summary.voluntaryDeductions.loan, false)}
+        </div>
+    );
+
 
 
   return (
@@ -680,25 +717,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="details">
                             <AccordionTrigger className="text-sm py-2">Ver Detalles</AccordionTrigger>
-                            <AccordionContent className="space-y-2 pt-2">
-                                <h4 className="font-semibold text-sm mb-1">Ingresos</h4>
-                                {renderSummaryRow("Salario por horas trabajadas", payrollSummary.grossPay - payrollSummary.subsidies.transport)}
-                                {renderSummaryRow("Subsidio de transporte", payrollSummary.subsidies.transport)}
-                                <Separator className="my-2" />
-
-                                <h4 className="font-semibold text-sm mb-1">Deducciones Legales</h4>
-                                {renderSummaryRow("Salud", payrollSummary.legalDeductions.health, false)}
-                                {renderSummaryRow("Pensión", payrollSummary.legalDeductions.pension, false)}
-                                {renderSummaryRow("ARL", payrollSummary.legalDeductions.arl, false)}
-                                {renderSummaryRow("Caja de Compensación", payrollSummary.legalDeductions.familyCompensation, false)}
-                                {renderSummaryRow("Fondo de Solidaridad", payrollSummary.legalDeductions.solidarityFund, false)}
-                                {renderSummaryRow("Retención en la Fuente", payrollSummary.legalDeductions.taxWithholding, false)}
-                                <Separator className="my-2" />
-
-                                <h4 className="font-semibold text-sm mb-1">Deducciones Voluntarias</h4>
-                                {renderSummaryRow("Cuota Sindical", payrollSummary.voluntaryDeductions.union, false)}
-                                {renderSummaryRow("Aporte Cooperativa", payrollSummary.voluntaryDeductions.cooperative, false)}
-                                {renderSummaryRow("Créditos", payrollSummary.voluntaryDeductions.loan, false)}
+                            <AccordionContent>
+                                {renderFullBreakdown(payrollSummary)}
                             </AccordionContent>
                         </AccordionItem>
                     </Accordion>
@@ -706,6 +726,39 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-medium">
+                    Historial de Pagos
+                </CardTitle>
+                <History className="h-6 w-6 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                  <Accordion type="single" collapsible className="w-full">
+                    {Object.keys(historicalPayroll).length > 0 ? (
+                        Object.entries(historicalPayroll)
+                        .sort(([keyA], [keyB]) => keyB.localeCompare(keyA)) // Sort by most recent period
+                        .map(([periodKey, summary]) => (
+                            <AccordionItem value={periodKey} key={periodKey}>
+                                <AccordionTrigger>
+                                    <div className="flex justify-between w-full pr-4">
+                                        <span>{getPeriodDescription(periodKey, settings.payrollCycle)}</span>
+                                        <span className="font-bold">{formatCurrency(summary.netPay)}</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    {renderFullBreakdown(summary)}
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))
+                    ) : (
+                        <p className="text-sm text-muted-foreground pt-4">No hay periodos de pago anteriores.</p>
+                    )}
+                </Accordion>
+              </CardContent>
+          </Card>
+
         </main>
       </div>
 
