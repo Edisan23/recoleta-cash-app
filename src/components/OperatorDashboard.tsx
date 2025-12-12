@@ -211,37 +211,57 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         };
   }, []);
 
-  const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentDeductions: Partial<OperatorDeductions>) => {
-      if (!currentSettings.payrollCycle || !currentDate) return;
-      
-      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-      const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-      
-      const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
-      const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
-      
-      const summary = calculatePayrollForPeriod(periodShifts, currentSettings, currentDeductions);
-      setPayrollSummary(summary);
-      
-      // Update history
-      const groupedByPeriod: {[key: string]: Shift[]} = allShifts.reduce((acc, shift) => {
-        const periodKey = getPeriodKey(new Date(shift.date), currentSettings.payrollCycle);
-        if (!acc[periodKey]) {
-            acc[periodKey] = [];
-        }
-        acc[periodKey].push(shift);
-        return acc;
-      }, {} as {[key: string]: Shift[]});
-
-      const history: HistoricalPayroll = {};
-      for (const periodKey in groupedByPeriod) {
-        // Exclude current period from history
-        if (periodKey !== currentPeriodKey) {
-            history[periodKey] = calculatePayrollForPeriod(groupedByPeriod[periodKey], currentSettings, currentDeductions);
-        }
+  const refreshAllData = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
+    if (!currentSettings.payrollCycle) return;
+  
+    // 1. Read fresh data from localStorage
+    const allShifts: Shift[] = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
+    const currentDeductions: Partial<OperatorDeductions> = JSON.parse(localStorage.getItem(DEDUCTIONS_DB_KEY) || '{}');
+  
+    // 2. Update daily shift information
+    const dayShift = allShifts.find(s => isSameDay(new Date(s.date), currentDate)) || null;
+    setShiftForSelectedDay(dayShift);
+    if (dayShift) {
+      setStartTime(dayShift.startTime);
+      setEndTime(dayShift.endTime);
+      setDailySummary(calculateShiftDetails({
+        date: new Date(dayShift.date),
+        startTime: dayShift.startTime,
+        endTime: dayShift.endTime,
+        rates: currentSettings,
+      }));
+    } else {
+      setStartTime('');
+      setEndTime('');
+      setDailySummary(null);
+    }
+  
+    // 3. Calculate current period summary
+    const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
+    const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
+    const summary = calculatePayrollForPeriod(periodShifts, currentSettings, currentDeductions);
+    setPayrollSummary(summary);
+  
+    // 4. Calculate historical payroll
+    const groupedByPeriod: { [key: string]: Shift[] } = allShifts.reduce((acc, shift) => {
+      const periodKey = getPeriodKey(new Date(shift.date), currentSettings.payrollCycle);
+      if (!acc[periodKey]) {
+        acc[periodKey] = [];
       }
-      setHistoricalPayroll(history);
-    }, [SHIFTS_DB_KEY, calculatePayrollForPeriod]);
+      acc[periodKey].push(shift);
+      return acc;
+    }, {} as { [key: string]: Shift[] });
+  
+    const history: HistoricalPayroll = {};
+    for (const periodKey in groupedByPeriod) {
+      if (periodKey !== currentPeriodKey) {
+        history[periodKey] = calculatePayrollForPeriod(groupedByPeriod[periodKey], currentSettings, currentDeductions);
+      }
+    }
+    setHistoricalPayroll(history);
+  
+  }, [SHIFTS_DB_KEY, DEDUCTIONS_DB_KEY, calculatePayrollForPeriod]);
+
   
   // Effect to load initial company/settings data on mount
   useEffect(() => {
@@ -275,44 +295,23 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
         setEnabledDeductions(initialEnabled);
 
+        // Initial data load and calculation
+        if (date && companySettings) {
+            refreshAllData(date, companySettings);
+        }
+
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY]);
+  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, date, refreshAllData]);
   
   // Effect to update UI based on selected date
   useEffect(() => {
     if (!date || isLoading) return;
-
-    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-    const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-    const dayShift = allShifts.find(shift => isSameDay(new Date(shift.date), date)) || null;
-    
-    setShiftForSelectedDay(dayShift);
-
-    if (dayShift) {
-        const summary = calculateShiftDetails({ 
-            date: new Date(dayShift.date),
-            startTime: dayShift.startTime,
-            endTime: dayShift.endTime,
-            rates: settings
-        });
-        setDailySummary(summary);
-        setStartTime(dayShift.startTime);
-        setEndTime(dayShift.endTime);
-    } else {
-        setDailySummary(null);
-        setStartTime('');
-        setEndTime('');
-    }
-    
-    const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
-    const currentDeductions = storedDeductions ? JSON.parse(storedDeductions) : {};
-    updatePayrollSummary(date, settings, currentDeductions);
-
-  }, [date, settings, isLoading, SHIFTS_DB_KEY, updatePayrollSummary, DEDUCTIONS_DB_KEY]);
+    refreshAllData(date, settings);
+  }, [date, settings, isLoading, refreshAllData]);
 
 
   const handleSave = () => {
@@ -328,8 +327,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     setIsSaving(true);
     
     try {
-        const result = calculateShiftDetails({ date, startTime, endTime, rates: settings });
-
         const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
         let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
         
@@ -352,12 +349,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
         
-        setShiftForSelectedDay(shiftData);
-        setDailySummary(result);
-        
-        const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
-        const currentDeductions = storedDeductions ? JSON.parse(storedDeductions) : {};
-        updatePayrollSummary(date, settings, currentDeductions);
+        refreshAllData(date, settings);
 
         toast({
             title: existingShiftIndex > -1 ? 'Turno Actualizado' : 'Turno Guardado',
@@ -384,14 +376,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
     localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
 
-    setShiftForSelectedDay(null);
-    setDailySummary(null);
-    setStartTime('');
-    setEndTime('');
-    
-    const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
-    const currentDeductions = storedDeductions ? JSON.parse(storedDeductions) : {};
-    updatePayrollSummary(date, settings, currentDeductions);
+    refreshAllData(date, settings);
     
     setShowDeleteConfirm(false);
 
@@ -444,7 +429,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         localStorage.setItem(DEDUCTIONS_DB_KEY, JSON.stringify(activeDeductions));
         
         if(date && settings) {
-            updatePayrollSummary(date, settings, activeDeductions);
+            refreshAllData(date, settings);
         }
         
         toast({
