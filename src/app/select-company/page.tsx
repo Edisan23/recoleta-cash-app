@@ -67,10 +67,10 @@ export default function SelectCompanyPage() {
   };
   
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <Card className="w-full max-w-4xl">
         <CardHeader>
-          <Button variant="ghost" onClick={() => router.push('/')} className="mb-4 justify-start p-0 h-auto">
+          <Button variant="ghost" onClick={() => router.push('/')} className="mb-4 justify-start p-0 h-auto self-start">
             <ArrowLeft className="mr-2" />
             Volver al inicio
           </Button>
@@ -85,13 +85,13 @@ export default function SelectCompanyPage() {
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
               {companies?.filter(c => c.isActive).map((company) => (
                 <button
                   key={company.id}
                   disabled={isSubmitting}
                   onClick={() => handleSelectCompany(company.id)}
-                  className="p-4 border rounded-lg text-center hover:bg-accent hover:border-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-3"
+                  className="p-4 border rounded-lg text-center hover:bg-accent hover:border-primary transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-between gap-3 aspect-square"
                 >
                   <div className="flex-grow flex items-center justify-center">
                     {company.logoUrl ? (
@@ -100,15 +100,15 @@ export default function SelectCompanyPage() {
                         alt={`${company.name} logo`}
                         width={80}
                         height={80}
-                        className="rounded-md object-contain h-20 w-20"
+                        className="rounded-md object-contain h-full w-full max-h-20 max-w-20"
                       />
                     ) : (
-                      <div className="w-20 h-20 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
+                      <div className="w-full h-full bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground p-2">
                         Sin logo
                       </div>
                     )}
                   </div>
-                  <span className="font-medium mt-2 block h-10">{company.name}</span>
+                  <span className="font-medium text-sm block h-10 w-full overflow-hidden text-ellipsis">{company.name}</span>
                 </button>
               ))}
             </div>
