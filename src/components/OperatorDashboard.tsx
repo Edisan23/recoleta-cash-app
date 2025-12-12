@@ -43,6 +43,7 @@ import {
     DialogTitle,
     DialogTrigger,
 } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 
 // --- FAKE DATA & KEYS ---
@@ -149,53 +150,65 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const DEDUCTIONS_DB_KEY = useMemo(() => `${DEDUCTIONS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
   
   const calculatePayrollForPeriod = useCallback((shifts: Shift[], periodSettings: Partial<CompanySettings>, periodDeductions: Partial<OperatorDeductions>): PayrollSummary => {
-      const summary = shifts.reduce((acc, shift) => {
-          const details = calculateShiftDetails({
-              date: new Date(shift.date),
-              startTime: shift.startTime,
-              endTime: shift.endTime,
-              rates: periodSettings
-          });
-          acc.totalHours += details.totalHours;
-          acc.totalPayment += details.totalPayment;
-          return acc;
-      }, { totalHours: 0, totalPayment: 0 });
+        const summary = shifts.reduce((acc, shift) => {
+            const details = calculateShiftDetails({
+                date: new Date(shift.date),
+                startTime: shift.startTime,
+                endTime: shift.endTime,
+                rates: periodSettings
+            });
+            acc.totalHours += details.totalHours;
+            acc.totalPayment += details.totalPayment; // This includes per-shift subsidy
+            return acc;
+        }, { totalHours: 0, totalPayment: 0 });
 
-      const totalTransportSubsidy = shifts.reduce((acc, shift) => {
-           const details = calculateShiftDetails({
-              date: new Date(shift.date),
-              startTime: shift.startTime,
-              endTime: shift.endTime,
-              rates: periodSettings
-          });
-          return acc + details.transportSubsidyApplied;
-      }, 0);
-      
-      const grossPay = summary.totalPayment;
-      const healthDeductionAmount = grossPay * ((periodSettings.healthDeduction || 0) / 100);
-      const pensionDeductionAmount = grossPay * ((periodSettings.pensionDeduction || 0) / 100);
-      const arlDeductionAmount = grossPay * ((periodSettings.arlDeduction || 0) / 100);
-      const familyCompensationAmount = grossPay * ((periodSettings.familyCompensationDeduction || 0) / 100);
-      const solidarityFundAmount = grossPay * ((periodSettings.solidarityFundDeduction || 0) / 100);
-      const taxWithholdingAmount = grossPay * ((periodSettings.taxWithholding || 0) / 100);
-      const totalLegalDeductions = healthDeductionAmount + pensionDeductionAmount + arlDeductionAmount + familyCompensationAmount + solidarityFundAmount + taxWithholdingAmount;
+        const totalTransportSubsidy = shifts.reduce((acc, shift) => {
+            const details = calculateShiftDetails({
+                date: new Date(shift.date),
+                startTime: shift.startTime,
+                endTime: shift.endTime,
+                rates: periodSettings
+            });
+            return acc + details.transportSubsidyApplied;
+        }, 0);
 
-      const unionFee = periodDeductions.unionFeeDeduction || 0;
-      const cooperativeFee = periodDeductions.cooperativeDeduction || 0;
-      const loanFee = periodDeductions.loanDeduction || 0;
-      const totalVoluntaryDeductions = unionFee + cooperativeFee + loanFee;
+        const grossPay = summary.totalPayment;
+        const healthDeductionAmount = grossPay * ((periodSettings.healthDeduction || 0) / 100);
+        const pensionDeductionAmount = grossPay * ((periodSettings.pensionDeduction || 0) / 100);
+        const arlDeductionAmount = grossPay * ((periodSettings.arlDeduction || 0) / 100);
+        const familyCompensationAmount = grossPay * ((periodSettings.familyCompensationDeduction || 0) / 100);
+        const solidarityFundAmount = grossPay * ((periodSettings.solidarityFundDeduction || 0) / 100);
+        const taxWithholdingAmount = grossPay * ((periodSettings.taxWithholding || 0) / 100);
+        const totalLegalDeductions = healthDeductionAmount + pensionDeductionAmount + arlDeductionAmount + familyCompensationAmount + solidarityFundAmount + taxWithholdingAmount;
 
-      const netPay = grossPay - totalLegalDeductions - totalVoluntaryDeductions;
-      
-      return {
-        grossPay, netPay, totalHours: summary.totalHours,
-        legalDeductions: {
-            health: healthDeductionAmount, pension: pensionDeductionAmount, arl: arlDeductionAmount,
-            familyCompensation: familyCompensationAmount, solidarityFund: solidarityFundAmount, taxWithholding: taxWithholdingAmount,
-        },
-        voluntaryDeductions: { union: unionFee, cooperative: cooperativeFee, loan: loanFee },
-        subsidies: { transport: totalTransportSubsidy }
-      };
+        const unionFee = periodDeductions.unionFeeDeduction || 0;
+        const cooperativeFee = periodDeductions.cooperativeDeduction || 0;
+        const loanFee = periodDeductions.loanDeduction || 0;
+        const totalVoluntaryDeductions = unionFee + cooperativeFee + loanFee;
+
+        const netPay = grossPay - totalLegalDeductions - totalVoluntaryDeductions;
+        
+        return {
+            grossPay,
+            netPay,
+            totalHours: summary.totalHours,
+            legalDeductions: {
+                health: healthDeductionAmount,
+                pension: pensionDeductionAmount,
+                arl: arlDeductionAmount,
+                familyCompensation: familyCompensationAmount,
+                solidarityFund: solidarityFundAmount,
+                taxWithholding: taxWithholdingAmount,
+            },
+            voluntaryDeductions: {
+                union: unionFee,
+                cooperative: cooperativeFee,
+                loan: loanFee,
+            },
+            subsidies: {
+                transport: totalTransportSubsidy,
+            },
+        };
   }, []);
 
   const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentDeductions: Partial<OperatorDeductions>) => {
@@ -611,154 +624,162 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         </header>
 
 
-        <main className="grid gap-8">
-          <Card className="relative">
-            <CardHeader>
-              <CardTitle>Registrar o Editar Turno</CardTitle>
-              <CardDescription>Selecciona la fecha y las horas. Si ya existe un turno para ese día, se actualizará.</CardDescription>
-                {shiftForSelectedDay && (
-                    <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar turno" className="absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-                        <Trash2 className="h-5 w-5" />
-                    </Button>
-                )}
-            </CardHeader>
-            <CardContent className="flex flex-col items-center gap-6">
-              <DatePicker date={date} setDate={setDate} />
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                <TimeInput
-                  label="Hora de Entrada"
-                  value={startTime}
-                  onChange={setStartTime}
-                />
-                <span className="text-muted-foreground">a</span>
-                <TimeInput
-                  label="Hora de Salida"
-                  value={endTime}
-                  onChange={setEndTime}
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-center gap-4">
-                <Button onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                    {shiftForSelectedDay ? 'Actualizar Turno' : 'Guardar Turno'}
-                </Button>
-            </CardFooter>
-          </Card>
+        <main>
+           <Tabs defaultValue="pagos" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="pagos">Pagos</TabsTrigger>
+                <TabsTrigger value="historial">Historial</TabsTrigger>
+              </TabsList>
+              <TabsContent value="pagos" className="space-y-8 mt-8">
+                 <Card className="relative">
+                    <CardHeader>
+                    <CardTitle>Registrar o Editar Turno</CardTitle>
+                    <CardDescription>Selecciona la fecha y las horas. Si ya existe un turno para ese día, se actualizará.</CardDescription>
+                        {shiftForSelectedDay && (
+                            <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar turno" className="absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                                <Trash2 className="h-5 w-5" />
+                            </Button>
+                        )}
+                    </CardHeader>
+                    <CardContent className="flex flex-col items-center gap-6">
+                    <DatePicker date={date} setDate={setDate} />
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                        <TimeInput
+                        label="Hora de Entrada"
+                        value={startTime}
+                        onChange={setStartTime}
+                        />
+                        <span className="text-muted-foreground">a</span>
+                        <TimeInput
+                        label="Hora de Salida"
+                        value={endTime}
+                        onChange={setEndTime}
+                        />
+                    </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-center gap-4">
+                        <Button onClick={handleSave} disabled={isSaving}>
+                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
+                            {shiftForSelectedDay ? 'Actualizar Turno' : 'Guardar Turno'}
+                        </Button>
+                    </CardFooter>
+                </Card>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg font-medium">
-                  Resumen del Día ({date ? format(date, 'PPP', { locale: es }) : 'N/A'})
-                </CardTitle>
-                <CalendarCheck className="h-6 w-6 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {!shiftForSelectedDay ? (
-                    <p className="text-sm text-muted-foreground pt-4">
-                        No hay turnos registrados para este día.
-                    </p>
-                ) : (
-                    <div className="mt-4 space-y-4">
-                       <div className="flex justify-between pt-2">
-                           <span className="font-bold">Total del día:</span> 
-                           <strong className="text-xl">{formatCurrency(dailySummary?.totalPayment)}</strong>
+                <div className="grid md:grid-cols-2 gap-8">
+                    <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-lg font-medium">
+                        Resumen del Día ({date ? format(date, 'PPP', { locale: es }) : 'N/A'})
+                        </CardTitle>
+                        <CalendarCheck className="h-6 w-6 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        {!shiftForSelectedDay ? (
+                            <p className="text-sm text-muted-foreground pt-4">
+                                No hay turnos registrados para este día.
+                            </p>
+                        ) : (
+                            <div className="mt-4 space-y-4">
+                            <div className="flex justify-between pt-2">
+                                <span className="font-bold">Total del día:</span> 
+                                <strong className="text-xl">{formatCurrency(dailySummary?.totalPayment)}</strong>
+                                </div>
+                                <div className="flex justify-between text-muted-foreground text-sm">
+                                    <span>Horas totales del día:</span>
+                                    <strong>{dailySummary?.totalHours.toFixed(2)}</strong>
+                                </div>
+
+                                <Accordion type="single" collapsible className="w-full">
+                                <AccordionItem value="item-1">
+                                    <AccordionTrigger className="text-sm py-2">Ver desglose</AccordionTrigger>
+                                    <AccordionContent className="space-y-2 pt-2">
+                                    {renderBreakdownRow("Horas Diurnas", dailySummary?.dayHours || 0, settings.dayRate, (dailySummary?.dayHours || 0) * (settings.dayRate || 0))}
+                                    {renderBreakdownRow("Horas Nocturnas", dailySummary?.nightHours || 0, settings.nightRate, (dailySummary?.nightHours || 0) * (settings.nightRate || 0))}
+                                    {renderBreakdownRow("Extras Diurnas", dailySummary?.dayOvertimeHours || 0, settings.dayOvertimeRate, (dailySummary?.dayOvertimeHours || 0) * (settings.dayOvertimeRate || 0))}
+                                    {renderBreakdownRow("Extras Nocturnas", dailySummary?.nightOvertimeHours || 0, settings.nightOvertimeRate, (dailySummary?.nightOvertimeHours || 0) * (settings.nightOvertimeRate || 0))}
+                                    
+                                    {(dailySummary?.isHoliday) && <Separator className="my-2" />}
+
+                                    {renderBreakdownRow("Festivas Diurnas", dailySummary?.holidayDayHours || 0, settings.holidayDayRate, (dailySummary?.holidayDayHours || 0) * (settings.holidayDayRate || 0))}
+                                    {renderBreakdownRow("Festivas Nocturnas", dailySummary?.holidayNightHours || 0, settings.holidayNightRate, (dailySummary?.holidayNightHours || 0) * (settings.holidayNightRate || 0))}
+                                    {renderBreakdownRow("Extras Festivas Diurnas", dailySummary?.holidayDayOvertimeHours || 0, settings.holidayDayOvertimeRate, (dailySummary?.holidayDayOvertimeHours || 0) * (settings.holidayDayOvertimeRate || 0))}
+                                    {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary?.holidayNightOvertimeHours || 0, settings.holidayNightOvertimeRate, (dailySummary?.holidayNightOvertimeHours || 0) * (settings.holidayNightOvertimeRate || 0))}
+                                    </AccordionContent>
+                                </AccordionItem>
+                                </Accordion>
+                            </div>
+                        )}
+                    </CardContent>
+                    </Card>
+
+                    <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-lg font-medium">
+                        Acumulado {payrollCycleText}
+                        </CardTitle>
+                        <Wallet className="h-6 w-6 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2 mt-4">
+                            <div className="flex justify-between items-baseline">
+                                <span className="text-sm text-muted-foreground">Salario bruto:</span>
+                                <strong className="text-lg">{formatCurrency(payrollSummary.grossPay)}</strong>
+                            </div>
+                            <div className="flex justify-between items-baseline">
+                                <span className="text-lg font-semibold">Neto a pagar:</span>
+                                <strong className="text-2xl font-bold">{formatCurrency(payrollSummary.netPay)}</strong>
+                            </div>
+                            <p className="text-xs text-muted-foreground pt-1">
+                                Acumulado del periodo de pago actual ({payrollSummary.totalHours.toFixed(2)} horas).
+                            </p>
+
+                            <Accordion type="single" collapsible className="w-full">
+                                <AccordionItem value="details">
+                                    <AccordionTrigger className="text-sm py-2">Ver Detalles</AccordionTrigger>
+                                    <AccordionContent>
+                                        {renderFullBreakdown(payrollSummary)}
+                                    </AccordionContent>
+                                </AccordionItem>
+                            </Accordion>
                         </div>
-                        <div className="flex justify-between text-muted-foreground text-sm">
-                            <span>Horas totales del día:</span>
-                            <strong>{dailySummary?.totalHours.toFixed(2)}</strong>
-                        </div>
-
-                        <Accordion type="single" collapsible className="w-full">
-                          <AccordionItem value="item-1">
-                            <AccordionTrigger className="text-sm py-2">Ver desglose</AccordionTrigger>
-                            <AccordionContent className="space-y-2 pt-2">
-                              {renderBreakdownRow("Horas Diurnas", dailySummary?.dayHours || 0, settings.dayRate, (dailySummary?.dayHours || 0) * (settings.dayRate || 0))}
-                              {renderBreakdownRow("Horas Nocturnas", dailySummary?.nightHours || 0, settings.nightRate, (dailySummary?.nightHours || 0) * (settings.nightRate || 0))}
-                              {renderBreakdownRow("Extras Diurnas", dailySummary?.dayOvertimeHours || 0, settings.dayOvertimeRate, (dailySummary?.dayOvertimeHours || 0) * (settings.dayOvertimeRate || 0))}
-                              {renderBreakdownRow("Extras Nocturnas", dailySummary?.nightOvertimeHours || 0, settings.nightOvertimeRate, (dailySummary?.nightOvertimeHours || 0) * (settings.nightOvertimeRate || 0))}
-                              
-                              {(dailySummary?.isHoliday) && <Separator className="my-2" />}
-
-                              {renderBreakdownRow("Festivas Diurnas", dailySummary?.holidayDayHours || 0, settings.holidayDayRate, (dailySummary?.holidayDayHours || 0) * (settings.holidayDayRate || 0))}
-                              {renderBreakdownRow("Festivas Nocturnas", dailySummary?.holidayNightHours || 0, settings.holidayNightRate, (dailySummary?.holidayNightHours || 0) * (settings.holidayNightRate || 0))}
-                              {renderBreakdownRow("Extras Festivas Diurnas", dailySummary?.holidayDayOvertimeHours || 0, settings.holidayDayOvertimeRate, (dailySummary?.holidayDayOvertimeHours || 0) * (settings.holidayDayOvertimeRate || 0))}
-                              {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary?.holidayNightOvertimeHours || 0, settings.holidayNightOvertimeRate, (dailySummary?.holidayNightOvertimeHours || 0) * (settings.holidayNightOvertimeRate || 0))}
-                            </AccordionContent>
-                          </AccordionItem>
-                        </Accordion>
-                    </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg font-medium">
-                  Acumulado {payrollCycleText}
-                </CardTitle>
-                <Wallet className="h-6 w-6 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mt-4">
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-sm text-muted-foreground">Salario bruto:</span>
-                        <strong className="text-lg">{formatCurrency(payrollSummary.grossPay)}</strong>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                        <span className="text-lg font-semibold">Neto a pagar:</span>
-                        <strong className="text-2xl font-bold">{formatCurrency(payrollSummary.netPay)}</strong>
-                    </div>
-                    <p className="text-xs text-muted-foreground pt-1">
-                        Acumulado del periodo de pago actual ({payrollSummary.totalHours.toFixed(2)} horas).
-                    </p>
-
-                    <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value="details">
-                            <AccordionTrigger className="text-sm py-2">Ver Detalles</AccordionTrigger>
-                            <AccordionContent>
-                                {renderFullBreakdown(payrollSummary)}
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
+                    </CardContent>
+                    </Card>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg font-medium">
-                    Historial de Pagos
-                </CardTitle>
-                <History className="h-6 w-6 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                  <Accordion type="single" collapsible className="w-full">
-                    {Object.keys(historicalPayroll).length > 0 ? (
-                        Object.entries(historicalPayroll)
-                        .sort(([keyA], [keyB]) => keyB.localeCompare(keyA)) // Sort by most recent period
-                        .map(([periodKey, summary]) => (
-                            <AccordionItem value={periodKey} key={periodKey}>
-                                <AccordionTrigger>
-                                    <div className="flex justify-between w-full pr-4">
-                                        <span>{getPeriodDescription(periodKey, settings.payrollCycle)}</span>
-                                        <span className="font-bold">{formatCurrency(summary.netPay)}</span>
-                                    </div>
-                                </AccordionTrigger>
-                                <AccordionContent>
-                                    {renderFullBreakdown(summary)}
-                                </AccordionContent>
-                            </AccordionItem>
-                        ))
-                    ) : (
-                        <p className="text-sm text-muted-foreground pt-4">No hay periodos de pago anteriores.</p>
-                    )}
-                </Accordion>
-              </CardContent>
-          </Card>
-
+              </TabsContent>
+              <TabsContent value="historial" className="space-y-8 mt-8">
+                 <Card>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-lg font-medium">
+                            Historial de Pagos
+                        </CardTitle>
+                        <History className="h-6 w-6 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                        <Accordion type="single" collapsible className="w-full">
+                            {Object.keys(historicalPayroll).length > 0 ? (
+                                Object.entries(historicalPayroll)
+                                .sort(([keyA], [keyB]) => keyB.localeCompare(keyA)) // Sort by most recent period
+                                .map(([periodKey, summary]) => (
+                                    <AccordionItem value={periodKey} key={periodKey}>
+                                        <AccordionTrigger>
+                                            <div className="flex justify-between w-full pr-4">
+                                                <span>{getPeriodDescription(periodKey, settings.payrollCycle)}</span>
+                                                <span className="font-bold">{formatCurrency(summary.netPay)}</span>
+                                            </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent>
+                                            {renderFullBreakdown(summary)}
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                ))
+                            ) : (
+                                <p className="text-sm text-muted-foreground pt-4">No hay periodos de pago anteriores.</p>
+                            )}
+                        </Accordion>
+                    </CardContent>
+                </Card>
+              </TabsContent>
+           </Tabs>
         </main>
       </div>
 
