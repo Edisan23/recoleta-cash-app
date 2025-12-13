@@ -84,7 +84,8 @@ interface PayrollSummary {
     },
     subsidies: {
         transport: number;
-    }
+    },
+    totalPaymentFromHours: number;
 }
 
 interface HistoricalPayroll {
@@ -136,9 +137,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     grossPay: 0, netPay: 0, totalHours: 0,
     legalDeductions: { health: 0, pension: 0, arl: 0, familyCompensation: 0, solidarityFund: 0, taxWithholding: 0 },
     voluntaryDeductions: { union: 0, cooperative: 0, loan: 0 },
-    subsidies: { transport: 0 }
+    subsidies: { transport: 0 },
+    totalPaymentFromHours: 0,
   });
   const [historicalPayroll, setHistoricalPayroll] = useState<HistoricalPayroll>({});
+  const [showNetPay, setShowNetPay] = useState(false);
 
 
   const [isLoading, setIsLoading] = useState(true);
@@ -163,15 +166,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 rates: periodSettings
             });
             totalHoursInPeriod += details.totalHours;
-            totalPaymentForHours += details.totalPayment; // This is now only payment for hours
+            totalPaymentForHours += details.totalPayment;
             daysWithShifts.add(format(new Date(shift.date), 'yyyy-MM-dd'));
         }
-
-        // Calculate total transport subsidy for the period
+        
         const numberOfDaysWithShifts = daysWithShifts.size;
-        const dailyTransportSubsidy = (periodSettings.transportSubsidy || 0); // Assuming this is the daily value now
         const totalTransportSubsidyForPeriod = periodSettings.transportSubsidy ? (periodSettings.transportSubsidy / (periodSettings.payrollCycle === 'monthly' ? 30 : 15)) * numberOfDaysWithShifts : 0;
-
 
         const grossPay = totalPaymentForHours + totalTransportSubsidyForPeriod;
 
@@ -210,6 +210,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             subsidies: {
                 transport: totalTransportSubsidyForPeriod,
             },
+            totalPaymentFromHours: totalPaymentForHours,
         };
   }, []);
 
@@ -515,9 +516,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const renderFullBreakdown = (summary: PayrollSummary) => (
         <div className="space-y-2 pt-2">
             <h4 className="font-semibold text-sm mb-1">Ingresos</h4>
-            {renderSummaryRow("Salario por horas trabajadas", summary.grossPay - summary.subsidies.transport)}
+            {renderSummaryRow("Salario por horas", summary.totalPaymentFromHours)}
             {renderSummaryRow("Subsidio de transporte", summary.subsidies.transport)}
             <Separator className="my-2" />
+            <div className="flex justify-between font-semibold">
+                <span>Salario Bruto Total</span>
+                <span>{formatCurrency(summary.grossPay)}</span>
+            </div>
+            <Separator className="my-2" />
+
 
             <h4 className="font-semibold text-sm mb-1">Deducciones Legales</h4>
             {renderSummaryRow("Salud", summary.legalDeductions.health, false)}
@@ -532,6 +539,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             {renderSummaryRow("Cuota Sindical", summary.voluntaryDeductions.union, false)}
             {renderSummaryRow("Aporte Cooperativa", summary.voluntaryDeductions.cooperative, false)}
             {renderSummaryRow("Créditos", summary.voluntaryDeductions.loan, false)}
+             <Separator className="my-2" />
+             <div className="flex justify-between font-bold text-lg">
+                <span>Neto a Pagar</span>
+                <span>{formatCurrency(summary.netPay)}</span>
+            </div>
         </div>
     );
 
@@ -700,36 +712,58 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </Card>
 
                     <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-lg font-medium">
-                        Acumulado {payrollCycleText}
-                        </CardTitle>
-                        <Wallet className="h-6 w-6 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-2 mt-4">
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-sm text-muted-foreground">Salario bruto:</span>
-                                <strong className="text-lg">{formatCurrency(payrollSummary.grossPay)}</strong>
-                            </div>
-                            <div className="flex justify-between items-baseline">
-                                <span className="text-lg font-semibold">Neto a pagar:</span>
-                                <strong className="text-2xl font-bold">{formatCurrency(payrollSummary.netPay)}</strong>
-                            </div>
-                            <p className="text-xs text-muted-foreground pt-1">
-                                Acumulado del periodo de pago actual ({payrollSummary.totalHours.toFixed(2)} horas).
-                            </p>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <CardTitle className="text-lg font-medium">
+                            Acumulado {payrollCycleText}
+                            </CardTitle>
+                            <Wallet className="h-6 w-6 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4 mt-4">
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="show-net-pay" className="text-sm flex-grow text-muted-foreground">
+                                        Calcular Neto (con deducciones y subsidios)
+                                    </Label>
+                                    <Switch
+                                        id="show-net-pay"
+                                        checked={showNetPay}
+                                        onCheckedChange={setShowNetPay}
+                                        aria-label="Mostrar pago neto"
+                                    />
+                                </div>
+                                <Separator />
+                                {showNetPay ? (
+                                    <>
+                                        <div className="flex justify-between items-baseline">
+                                            <span className="text-sm text-muted-foreground">Neto a pagar:</span>
+                                            <strong className="text-2xl font-bold">{formatCurrency(payrollSummary.netPay)}</strong>
+                                        </div>
+                                        <div className="flex justify-between items-baseline">
+                                            <span className="text-sm text-muted-foreground">Salario bruto:</span>
+                                            <strong className="text-lg">{formatCurrency(payrollSummary.grossPay)}</strong>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex justify-between items-baseline">
+                                        <span className="text-sm text-muted-foreground">Salario por horas:</span>
+                                        <strong className="text-2xl font-bold">{formatCurrency(payrollSummary.totalPaymentFromHours)}</strong>
+                                    </div>
+                                )}
+                                
+                                <p className="text-xs text-muted-foreground pt-1">
+                                    Acumulado del periodo de pago actual ({payrollSummary.totalHours.toFixed(2)} horas).
+                                </p>
 
-                            <Accordion type="single" collapsible className="w-full">
-                                <AccordionItem value="details">
-                                    <AccordionTrigger className="text-sm py-2">Ver Detalles</AccordionTrigger>
-                                    <AccordionContent>
-                                        {renderFullBreakdown(payrollSummary)}
-                                    </AccordionContent>
-                                </AccordionItem>
-                            </Accordion>
-                        </div>
-                    </CardContent>
+                                <Accordion type="single" collapsible className="w-full">
+                                    <AccordionItem value="details">
+                                        <AccordionTrigger className="text-sm py-2">Ver Detalles</AccordionTrigger>
+                                        <AccordionContent>
+                                            {renderFullBreakdown(payrollSummary)}
+                                        </AccordionContent>
+                                    </AccordionItem>
+                                </Accordion>
+                            </div>
+                        </CardContent>
                     </Card>
                 </div>
               </TabsContent>
@@ -790,6 +824,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
 
     
 
