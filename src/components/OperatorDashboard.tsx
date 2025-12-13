@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { calculateShiftDetails, ShiftCalculationResult, getPeriodKey, getPeriodDescription } from '@/lib/payroll-calculator';
-import { format, isSameDay } from 'date-fns';
+import { format, isSameDay, lastDayOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -152,8 +152,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   const calculatePayrollForPeriod = useCallback((shifts: Shift[], periodSettings: Partial<CompanySettings>, periodDeductions: Partial<OperatorDeductions>): PayrollSummary => {
         let totalHoursInPeriod = 0;
-        let totalPaymentInPeriod = 0;
-        let totalTransportSubsidyInPeriod = 0;
+        let totalPaymentForHours = 0;
+        let daysWithShifts = new Set();
 
         for (const shift of shifts) {
             const details = calculateShiftDetails({
@@ -163,11 +163,17 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 rates: periodSettings
             });
             totalHoursInPeriod += details.totalHours;
-            totalPaymentInPeriod += details.totalPayment;
-            totalTransportSubsidyInPeriod += details.transportSubsidyApplied;
+            totalPaymentForHours += details.totalPayment; // This is now only payment for hours
+            daysWithShifts.add(format(new Date(shift.date), 'yyyy-MM-dd'));
         }
 
-        const grossPay = totalPaymentInPeriod;
+        // Calculate total transport subsidy for the period
+        const numberOfDaysWithShifts = daysWithShifts.size;
+        const dailyTransportSubsidy = (periodSettings.transportSubsidy || 0); // Assuming this is the daily value now
+        const totalTransportSubsidyForPeriod = periodSettings.transportSubsidy ? (periodSettings.transportSubsidy / (periodSettings.payrollCycle === 'monthly' ? 30 : 15)) * numberOfDaysWithShifts : 0;
+
+
+        const grossPay = totalPaymentForHours + totalTransportSubsidyForPeriod;
 
         const healthDeductionAmount = grossPay * ((periodSettings.healthDeduction || 0) / 100);
         const pensionDeductionAmount = grossPay * ((periodSettings.pensionDeduction || 0) / 100);
@@ -202,7 +208,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 loan: loanFee,
             },
             subsidies: {
-                transport: totalTransportSubsidyInPeriod,
+                transport: totalTransportSubsidyForPeriod,
             },
         };
   }, []);
@@ -784,5 +790,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
 
     

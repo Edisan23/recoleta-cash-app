@@ -41,8 +41,7 @@ export interface ShiftCalculationResult {
     holidayDayOvertimeHours: number;
     holidayNightOvertimeHours: number;
     isHoliday: boolean;
-    totalPayment: number;
-    transportSubsidyApplied: number;
+    totalPayment: number; // NOTE: This is now ONLY payment for hours worked.
 }
 
 
@@ -65,10 +64,10 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
         endDateTime = addDays(endDateTime, 1);
     }
     
-    const result: ShiftCalculationResult = {
-        totalHours: 0, dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
+    const result: Omit<ShiftCalculationResult, 'totalPayment' | 'totalHours'> = {
+        dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
         holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
-        isHoliday: false, totalPayment: 0, transportSubsidyApplied: 0
+        isHoliday: false
     };
 
     let workedHoursToday = 0;
@@ -103,9 +102,9 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
         currentMinute.setMinutes(currentMinute.getMinutes() + 1);
     }
 
-    result.totalHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
+    const totalHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
 
-    // 3. Calculate Payment
+    // 3. Calculate Payment (for hours ONLY)
     let paymentForHours = 0;
     paymentForHours += result.dayHours * (rates.dayRate || 0);
     paymentForHours += result.nightHours * (rates.nightRate || 0);
@@ -115,16 +114,12 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     paymentForHours += result.holidayNightHours * (rates.holidayNightRate || 0);
     paymentForHours += result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
     paymentForHours += result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
-    
-    // Add transport subsidy for the shift if applicable
-    const dailyTransportSubsidy = (rates.transportSubsidy || 0) / (rates.payrollCycle === 'monthly' ? lastDayOfMonth(date).getDate() : 15);
-    if(rates.transportSubsidy && rates.transportSubsidy > 0) {
-        result.transportSubsidyApplied = dailyTransportSubsidy;
-    }
 
-    result.totalPayment = paymentForHours + result.transportSubsidyApplied;
-
-    return result;
+    return {
+        ...result,
+        totalHours,
+        totalPayment: paymentForHours,
+    };
 };
 
 
@@ -164,3 +159,5 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16-${lastDay} de ${monthName} ${year}`;
     }
 };
+
+    
