@@ -374,20 +374,30 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     if (!date) return;
 
     setIsSaving(true);
-    const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-    let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-    const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
-    localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
+    try {
+        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+        let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+        const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
+        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
 
-    refreshAllData(date, settings);
-    
-    setShowDeleteConfirm(false);
+        refreshAllData(date, settings);
+        
+        setShowDeleteConfirm(false);
 
-    toast({
-        title: 'Turno Eliminado',
-        description: `El turno para el ${format(date, 'PPP', { locale: es })} ha sido eliminado.`,
-    });
-    setIsSaving(false);
+        toast({
+            title: 'Turno Eliminado',
+            description: `El turno para el ${format(date, 'PPP', { locale: es })} ha sido eliminado.`,
+        });
+    } catch (error) {
+        console.error('Failed to delete shift', error);
+         toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No se pudo eliminar el turno.',
+        });
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const handleSignOut = () => {
@@ -824,9 +834,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    
-
-    
 
     
