@@ -180,15 +180,18 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
         totalHoursInPeriod += details.totalHours;
     }
     
-    const monthlyTransportSubsidy = periodSettings.transportSubsidy || 0;
     let totalTransportSubsidyForPeriod = 0;
-
+    const monthlyTransportSubsidy = periodSettings.transportSubsidy || 0;
+    
+    // Transport subsidy is typically for those earning up to 2 minimum wages.
+    // For this app, we'll simplify and apply it if it's configured and there are shifts.
     if (monthlyTransportSubsidy > 0 && shifts.length > 0) {
-        const cycleDays = periodSettings.payrollCycle === 'monthly'
-            ? lastDayOfMonth(new Date(shifts[0].date)).getDate()
-            : 15; // Approximate days in a fortnight
-        const dailySubsidy = monthlyTransportSubsidy / cycleDays;
-        totalTransportSubsidyForPeriod = dailySubsidy * daysWithShifts.size;
+        const cycle = periodSettings.payrollCycle || 'fortnightly';
+        if (cycle === 'monthly') {
+            totalTransportSubsidyForPeriod = monthlyTransportSubsidy;
+        } else { // fortnightly
+            totalTransportSubsidyForPeriod = monthlyTransportSubsidy / 2;
+        }
     }
 
     const grossPay = totalBasePayment + totalTransportSubsidyForPeriod;
@@ -210,7 +213,7 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
     
     return {
         grossPay,
-        netPay,
+        netPay: Math.max(0, netPay), // Ensure net pay is not negative
         totalHours: totalHoursInPeriod,
         totalBasePayment,
         legalDeductions: {
@@ -272,3 +275,4 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
 
     
     
+
