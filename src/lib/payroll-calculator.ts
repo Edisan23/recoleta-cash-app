@@ -113,22 +113,21 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
         
         result.totalHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
 
+        const shiftIsHoliday = isHoliday(date); // Holiday status is determined by the start date of the shift
+        result.isHoliday = shiftIsHoliday;
+
         let workedHoursOnDay = 0;
         let currentMinute = new Date(startDateTime);
 
         while (currentMinute < endDateTime) {
-            const minuteDate = currentMinute;
-            const hour = minuteDate.getHours();
+            const hour = currentMinute.getHours();
             
-            const minuteIsHoliday = isHoliday(minuteDate);
-            if (minuteIsHoliday) result.isHoliday = true;
-
             const isNightHour = hour >= nightStartHour || hour < NIGHT_END_HOUR;
             const isOvertime = workedHoursOnDay >= NORMAL_WORK_HOURS_PER_DAY;
             const increment = 1 / 60;
 
             if (isOvertime) {
-                if (minuteIsHoliday) {
+                if (shiftIsHoliday) {
                     if (isNightHour) result.holidayNightOvertimeHours += increment;
                     else result.holidayDayOvertimeHours += increment;
                 } else {
@@ -136,7 +135,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
                     else result.dayOvertimeHours += increment;
                 }
             } else { // Regular hours
-                if (minuteIsHoliday) {
+                if (shiftIsHoliday) {
                     if (isNightHour) result.holidayNightHours += increment;
                     else result.holidayDayHours += increment;
                 } else {
@@ -271,4 +270,5 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16-${lastDay} de ${monthName} ${year}`;
     }
 };
+
 
