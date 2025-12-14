@@ -255,7 +255,7 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
     const year = parseInt(parts[0]);
     const month = parseInt(parts[1]);
     const date = new Date(year, month - 1, 1);
-    const monthName = date.toLocaleDateString('es-CO', { month: 'long' });
+    const monthName = date.toLocaleString('es-CO', { month: 'long' });
 
     if (cycle === 'monthly') {
         return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
