@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -16,7 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { calculateShiftDetails, calculatePayrollForPeriod, getPeriodKey, getPeriodDescription, ShiftCalculationResult, PayrollSummary } from '@/lib/payroll-calculator';
-import { format, isSameDay } from 'date-fns';
+import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -149,6 +150,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const paymentModel = settings.paymentModel || 'hourly';
 
   const refreshAllData = useCallback((currentDate: Date) => {
+    if (!currentDate) return;
     try {
         const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
         const allSettings: { [key: string]: CompanySettings } = storedSettings ? JSON.parse(storedSettings) : {};
@@ -166,7 +168,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
         // --- Daily Summary ---
         const currentDateStr = format(currentDate, 'yyyy-MM-dd');
-        const dayShift = allShifts.find(s => format(new Date(s.date), 'yyyy-MM-dd') === currentDateStr) || null;
+        const dayShift = allShifts.find(s => s.date.substring(0, 10) === currentDateStr) || null;
         
         setShiftForSelectedDay(dayShift);
         
@@ -266,9 +268,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   // Refresh data when date changes
   useEffect(() => {
-    if (!date) return;
+    if (!date || isLoading) return;
     refreshAllData(date);
-  }, [date, refreshAllData]);
+  }, [date, isLoading, refreshAllData]);
 
 
   const handleSave = () => {
@@ -304,9 +306,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
         let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
         
-        const existingShiftIndex = allShifts.findIndex(s => isSameDay(new Date(s.date), date));
+        const currentDateStr = format(date, 'yyyy-MM-dd');
+        const existingShiftIndex = allShifts.findIndex(s => s.date.substring(0, 10) === currentDateStr);
 
-        const baseShiftData: Omit<Shift, 'id' | 'startTime' | 'endTime' | 'itemId' | 'quantity'> = {
+        const baseShiftData = {
             userId: user.uid,
             companyId: company.id,
             date: date.toISOString(),
@@ -351,7 +354,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     try {
         const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
         let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-        const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
+        const currentDateStr = format(date, 'yyyy-MM-dd');
+        const updatedShifts = allShifts.filter(s => s.date.substring(0, 10) !== currentDateStr);
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
 
         refreshAllData(date);
@@ -835,4 +839,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
 

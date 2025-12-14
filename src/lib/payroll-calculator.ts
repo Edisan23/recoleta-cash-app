@@ -1,6 +1,7 @@
 
+
 import { CompanySettings, Shift, CompanyItem, OperatorDeductions } from "@/types/db-entities";
-import { parse, set, addDays, getDay, isSameDay, lastDayOfMonth } from 'date-fns';
+import { parse, addDays, getDay, isSameDay, lastDayOfMonth } from 'date-fns';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
@@ -97,10 +98,15 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     }
 
     if (paymentModel === 'hourly' && shift.startTime && shift.endTime) {
-        const nightStartHour = rates.nightShiftStart ? parseInt(rates.nightShiftStart.split(':')[0], 10) : 21;
-        const shiftDate = new Date(shift.date); // Use the date from the shift
+        // CRITICAL FIX: Use `parse` to correctly interpret the date string without timezone shifts.
+        const shiftDate = parse(shift.date.substring(0, 10), 'yyyy-MM-dd', new Date());
+
+        if (isNaN(shiftDate.getTime())) {
+            console.error("Invalid shift date provided:", shift.date);
+            return result;
+        }
         
-        // This is crucial: determines if the *entire shift* is considered a holiday based on its start date
+        const nightStartHour = rates.nightShiftStart ? parseInt(rates.nightShiftStart.split(':')[0], 10) : 21;
         const shiftIsHoliday = isHoliday(shiftDate);
         result.isHoliday = shiftIsHoliday;
 
@@ -122,7 +128,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
             const hour = currentMinute.getHours();
             const isNightHour = hour >= nightStartHour || hour < NIGHT_END_HOUR;
             const isOvertime = workedHoursOnDay >= NORMAL_WORK_HOURS_PER_DAY;
-            const increment = 1 / 60; // Increment per minute
+            const increment = 1 / 60; 
 
             if (isOvertime) {
                 if (shiftIsHoliday) {
@@ -132,7 +138,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
                     if (isNightHour) result.nightOvertimeHours += increment;
                     else result.dayOvertimeHours += increment;
                 }
-            } else { // Regular hours
+            } else {
                 if (shiftIsHoliday) {
                     if (isNightHour) result.holidayNightHours += increment;
                     else result.holidayDayHours += increment;
@@ -148,7 +154,6 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
 
         result.totalHours = workedHoursOnDay;
         
-        // Blind calculation to prevent failures if a rate is not set
         result.totalPayment =
             (result.dayHours * (rates.dayRate || 0)) +
             (result.nightHours * (rates.nightRate || 0)) +
@@ -188,7 +193,7 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
         const cycle = periodSettings.payrollCycle || 'fortnightly';
         if (cycle === 'monthly') {
             totalTransportSubsidyForPeriod = monthlyTransportSubsidy;
-        } else { // fortnightly
+        } else { 
             totalTransportSubsidyForPeriod = monthlyTransportSubsidy / 2;
         }
     }
@@ -212,7 +217,7 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
     
     return {
         grossPay,
-        netPay: Math.max(0, netPay), // Ensure net pay is not negative
+        netPay: Math.max(0, netPay),
         totalHours: totalHoursInPeriod,
         totalBasePayment,
         legalDeductions: {
@@ -238,7 +243,6 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
 // --- HELPER FUNCTIONS ---
 const parseTime = (date: Date, time: string): Date => {
     const [hours, minutes] = time.split(':').map(Number);
-    // Create a new date object to avoid mutating the original
     const newDate = new Date(date);
     newDate.setHours(hours, minutes, 0, 0);
     return newDate;
@@ -246,13 +250,13 @@ const parseTime = (date: Date, time: string): Date => {
 
 export const getPeriodKey = (date: Date, cycle: 'monthly' | 'fortnightly' = 'fortnightly'): string => {
     const year = date.getFullYear();
-    const month = date.getMonth() + 1; // 1-indexed month
+    const month = date.getMonth() + 1; 
     if (cycle === 'monthly') {
-      return `${year}-${month}`;
+      return `${year}-${String(month).padStart(2, '0')}`;
     }
     const dayOfMonth = date.getDate();
     const fortnight = dayOfMonth <= 15 ? 1 : 2;
-    return `${year}-${month}-${fortnight}`;
+    return `${year}-${String(month).padStart(2, '0')}-${fortnight}`;
   };
 
 export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fortnightly' = 'fortnightly'): string => {
@@ -274,4 +278,5 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16-${lastDay} de ${monthName} ${year}`;
     }
 };
+
 
