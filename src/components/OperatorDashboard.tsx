@@ -161,7 +161,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const allItems: CompanyItem[] = JSON.parse(localStorage.getItem(ITEMS_DB_KEY) || '[]');
     
         // --- Daily Summary ---
-        // Robust date comparison by formatting to string
         const currentDateStr = format(currentDate, 'yyyy-MM-dd');
         const dayShift = allShifts.find(s => format(new Date(s.date), 'yyyy-MM-dd') === currentDateStr) || null;
         
@@ -836,6 +835,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    
-    
