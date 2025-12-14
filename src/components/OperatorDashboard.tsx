@@ -161,7 +161,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const allItems: CompanyItem[] = JSON.parse(localStorage.getItem(ITEMS_DB_KEY) || '[]');
     
         // --- Daily Summary ---
-        const dayShift = allShifts.find(s => isSameDay(new Date(s.date), currentDate)) || null;
+        // Robust date comparison by formatting to string
+        const currentDateStr = format(currentDate, 'yyyy-MM-dd');
+        const dayShift = allShifts.find(s => format(new Date(s.date), 'yyyy-MM-dd') === currentDateStr) || null;
+        
         setShiftForSelectedDay(dayShift);
         
         if (dayShift) {
@@ -215,6 +218,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   }, [SHIFTS_DB_KEY, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY, companyId]);
   
+  // Initial load
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -225,7 +229,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         if (!foundCompany) {
           console.error("Selected company not found in DB");
           localStorage.removeItem(OPERATOR_COMPANY_KEY);
-router.replace('/select-company');
+          router.replace('/select-company');
           return;
         }
         setCompany(foundCompany);
@@ -261,6 +265,7 @@ router.replace('/select-company');
     }
   }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, date, refreshAllData]);
   
+  // Refresh data when date changes
   useEffect(() => {
     if (!date || isLoading) return;
     refreshAllData(date);
