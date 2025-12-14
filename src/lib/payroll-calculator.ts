@@ -1,6 +1,6 @@
 
 import { CompanySettings, Shift, CompanyItem, OperatorDeductions } from "@/types/db-entities";
-import { parse, set, addDays, getDay, isSameDay, lastDayOfMonth, format } from 'date-fns';
+import { parse, set, addDays, getDay, isSameDay, lastDayOfMonth } from 'date-fns';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
@@ -98,10 +98,10 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
 
     if (paymentModel === 'hourly' && shift.startTime && shift.endTime) {
         const nightStartHour = rates.nightShiftStart ? parseInt(rates.nightShiftStart.split(':')[0], 10) : 21;
-        const date = new Date(shift.date);
+        const shiftDate = new Date(shift.date);
         
-        const startDateTime = parseTime(date, shift.startTime);
-        let endDateTime = parseTime(date, shift.endTime);
+        const startDateTime = parseTime(shiftDate, shift.startTime);
+        let endDateTime = parseTime(shiftDate, shift.endTime);
 
         if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
             return result;
@@ -113,7 +113,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
         
         result.totalHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
 
-        const shiftIsHoliday = isHoliday(date); // Holiday status is determined by the start date of the shift
+        const shiftIsHoliday = isHoliday(shiftDate);
         result.isHoliday = shiftIsHoliday;
 
         let workedHoursOnDay = 0;
@@ -147,8 +147,8 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
             workedHoursOnDay += increment;
             currentMinute.setMinutes(currentMinute.getMinutes() + 1);
         }
-
-        result.totalPayment = 
+        
+        result.totalPayment =
             (result.dayHours * (rates.dayRate || 0)) +
             (result.nightHours * (rates.nightRate || 0)) +
             (result.dayOvertimeHours * (rates.dayOvertimeRate || 0)) +
@@ -270,5 +270,3 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16-${lastDay} de ${monthName} ${year}`;
     }
 };
-
-
