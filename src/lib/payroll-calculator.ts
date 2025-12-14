@@ -83,16 +83,17 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     const { shift, rates, items } = input;
     const paymentModel = rates.paymentModel || 'hourly';
 
-    const baseResult: Omit<ShiftCalculationResult, 'totalPayment'> = {
+    const result: ShiftCalculationResult = {
         totalHours: 0, dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
         holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
-        isHoliday: false
+        isHoliday: false,
+        totalPayment: 0
     };
 
     if (paymentModel === 'production' && shift.itemId && shift.quantity) {
         const item = items.find(i => i.id === shift.itemId);
-        const payment = (item?.value || 0) * shift.quantity;
-        return { ...baseResult, totalPayment: payment };
+        result.totalPayment = (item?.value || 0) * shift.quantity;
+        return result;
     }
 
     if (paymentModel === 'hourly' && shift.startTime && shift.endTime) {
@@ -103,65 +104,67 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
         let endDateTime = parseTime(date, shift.endTime);
 
         if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-            return { ...baseResult, totalPayment: 0 };
+            return result;
         }
         
         if (endDateTime <= startDateTime) {
             endDateTime = addDays(endDateTime, 1);
         }
         
-        let workedHoursToday = 0;
+        result.totalHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
+
+        let workedHoursOnDay = 0;
         let currentMinute = new Date(startDateTime);
 
         while (currentMinute < endDateTime) {
-            const dayOfCurrentMinute = currentMinute;
-            const minuteIsHoliday = isHoliday(dayOfCurrentMinute);
-            if(minuteIsHoliday) baseResult.isHoliday = true;
+            const minuteDate = currentMinute;
+            const hour = minuteDate.getHours();
+            
+            const minuteIsHoliday = isHoliday(minuteDate);
+            if (minuteIsHoliday) result.isHoliday = true;
 
-            const hour = currentMinute.getHours();
             const isNightHour = hour >= nightStartHour || hour < NIGHT_END_HOUR;
-
-            const isOvertime = workedHoursToday >= NORMAL_WORK_HOURS_PER_DAY;
+            const isOvertime = workedHoursOnDay >= NORMAL_WORK_HOURS_PER_DAY;
+            const increment = 1 / 60;
 
             if (isOvertime) {
-                if(minuteIsHoliday) {
-                    if(isNightHour) baseResult.holidayNightOvertimeHours += 1/60;
-                    else baseResult.holidayDayOvertimeHours += 1/60;
+                if (minuteIsHoliday) {
+                    if (isNightHour) result.holidayNightOvertimeHours += increment;
+                    else result.holidayDayOvertimeHours += increment;
                 } else {
-                    if(isNightHour) baseResult.nightOvertimeHours += 1/60;
-                    else baseResult.dayOvertimeHours += 1/60;
+                    if (isNightHour) result.nightOvertimeHours += increment;
+                    else result.dayOvertimeHours += increment;
                 }
             } else { // Regular hours
-                if(minuteIsHoliday) {
-                    if(isNightHour) baseResult.holidayNightHours += 1/60;
-                    else baseResult.holidayDayHours += 1/60;
+                if (minuteIsHoliday) {
+                    if (isNightHour) result.holidayNightHours += increment;
+                    else result.holidayDayHours += increment;
                 } else {
-                    if(isNightHour) baseResult.nightHours += 1/60;
-                    else baseResult.dayHours += 1/60;
+                    if (isNightHour) result.nightHours += increment;
+                    else result.dayHours += increment;
                 }
             }
             
-            workedHoursToday += 1/60;
+            workedHoursOnDay += increment;
             currentMinute.setMinutes(currentMinute.getMinutes() + 1);
         }
 
-        baseResult.totalHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
+        result.totalPayment = 
+            (result.dayHours * (rates.dayRate || 0)) +
+            (result.nightHours * (rates.nightRate || 0)) +
+            (result.dayOvertimeHours * (rates.dayOvertimeRate || 0)) +
+            (result.nightOvertimeHours * (rates.nightOvertimeRate || 0)) +
+            (result.holidayDayHours * (rates.holidayDayRate || 0)) +
+            (result.holidayNightHours * (rates.holidayNightRate || 0)) +
+            (result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0)) +
+            (result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0));
 
-        let totalPayment = 0;
-        totalPayment += baseResult.dayHours * (rates.dayRate || 0);
-        totalPayment += baseResult.nightHours * (rates.nightRate || 0);
-        totalPayment += baseResult.dayOvertimeHours * (rates.dayOvertimeRate || 0);
-        totalPayment += baseResult.nightOvertimeHours * (rates.nightOvertimeRate || 0);
-        totalPayment += baseResult.holidayDayHours * (rates.holidayDayRate || 0);
-        totalPayment += baseResult.holidayNightHours * (rates.holidayNightRate || 0);
-        totalPayment += baseResult.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
-        totalPayment += baseResult.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
-
-        return { ...baseResult, totalPayment };
+        return result;
     }
 
-    return { ...baseResult, totalPayment: 0 };
+    return result;
 };
+
 
 /**
  * Calculates the full payroll summary for a given period.
@@ -171,10 +174,8 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
     
     let totalBasePayment = 0;
     let totalHoursInPeriod = 0;
-    const daysWithShifts = new Set<string>();
 
     for (const shift of shifts) {
-        daysWithShifts.add(format(new Date(shift.date), 'yyyy-MM-dd'));
         const details = calculateShiftDetails({ shift, rates: periodSettings, items });
         totalBasePayment += details.totalPayment;
         totalHoursInPeriod += details.totalHours;
@@ -183,8 +184,6 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
     let totalTransportSubsidyForPeriod = 0;
     const monthlyTransportSubsidy = periodSettings.transportSubsidy || 0;
     
-    // Transport subsidy is typically for those earning up to 2 minimum wages.
-    // For this app, we'll simplify and apply it if it's configured and there are shifts.
     if (monthlyTransportSubsidy > 0 && shifts.length > 0) {
         const cycle = periodSettings.payrollCycle || 'fortnightly';
         if (cycle === 'monthly') {
@@ -272,7 +271,4 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16-${lastDay} de ${monthName} ${year}`;
     }
 };
-
-    
-    
 
