@@ -98,8 +98,12 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
 
     if (paymentModel === 'hourly' && shift.startTime && shift.endTime) {
         const nightStartHour = rates.nightShiftStart ? parseInt(rates.nightShiftStart.split(':')[0], 10) : 21;
-        const shiftDate = new Date(shift.date);
+        const shiftDate = new Date(shift.date); // Use the date from the shift
         
+        // This is crucial: determines if the *entire shift* is considered a holiday based on its start date
+        const shiftIsHoliday = isHoliday(shiftDate);
+        result.isHoliday = shiftIsHoliday;
+
         const startDateTime = parseTime(shiftDate, shift.startTime);
         let endDateTime = parseTime(shiftDate, shift.endTime);
 
@@ -111,20 +115,14 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
             endDateTime = addDays(endDateTime, 1);
         }
         
-        result.totalHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
-
-        const shiftIsHoliday = isHoliday(shiftDate);
-        result.isHoliday = shiftIsHoliday;
-
         let workedHoursOnDay = 0;
         let currentMinute = new Date(startDateTime);
 
         while (currentMinute < endDateTime) {
             const hour = currentMinute.getHours();
-            
             const isNightHour = hour >= nightStartHour || hour < NIGHT_END_HOUR;
             const isOvertime = workedHoursOnDay >= NORMAL_WORK_HOURS_PER_DAY;
-            const increment = 1 / 60;
+            const increment = 1 / 60; // Increment per minute
 
             if (isOvertime) {
                 if (shiftIsHoliday) {
@@ -147,7 +145,10 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
             workedHoursOnDay += increment;
             currentMinute.setMinutes(currentMinute.getMinutes() + 1);
         }
+
+        result.totalHours = workedHoursOnDay;
         
+        // Blind calculation to prevent failures if a rate is not set
         result.totalPayment =
             (result.dayHours * (rates.dayRate || 0)) +
             (result.nightHours * (rates.nightRate || 0)) +
@@ -237,7 +238,10 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
 // --- HELPER FUNCTIONS ---
 const parseTime = (date: Date, time: string): Date => {
     const [hours, minutes] = time.split(':').map(Number);
-    return set(date, { hours, minutes, seconds: 0, milliseconds: 0 });
+    // Create a new date object to avoid mutating the original
+    const newDate = new Date(date);
+    newDate.setHours(hours, minutes, 0, 0);
+    return newDate;
 };
 
 export const getPeriodKey = (date: Date, cycle: 'monthly' | 'fortnightly' = 'fortnightly'): string => {
@@ -270,3 +274,4 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16-${lastDay} de ${monthName} ${year}`;
     }
 };
+
