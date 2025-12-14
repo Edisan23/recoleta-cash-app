@@ -171,7 +171,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
         
         const numberOfDaysWithShifts = daysWithShifts.size;
-        const totalTransportSubsidyForPeriod = periodSettings.transportSubsidy ? (periodSettings.transportSubsidy / (periodSettings.payrollCycle === 'monthly' ? 30 : 15)) * numberOfDaysWithShifts : 0;
+        
+        const monthlyTransportSubsidy = periodSettings.transportSubsidy || 0;
+        let totalTransportSubsidyForPeriod = 0;
+
+        if (monthlyTransportSubsidy > 0) {
+            const daysInCycle = periodSettings.payrollCycle === 'monthly' ? lastDayOfMonth(shifts[0] ? new Date(shifts[0].date) : new Date()).getDate() : 15;
+            const dailySubsidy = monthlyTransportSubsidy / daysInCycle;
+            totalTransportSubsidyForPeriod = dailySubsidy * numberOfDaysWithShifts;
+        }
 
         const grossPay = totalPaymentForHours + totalTransportSubsidyForPeriod;
 
@@ -308,7 +316,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, date, refreshAllData]);
+  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY]);
   
   // Effect to update UI based on selected date
   useEffect(() => {
@@ -834,5 +842,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
 
     
