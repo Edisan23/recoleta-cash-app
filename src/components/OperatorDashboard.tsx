@@ -15,8 +15,8 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { calculateShiftDetails, ShiftCalculationResult, getPeriodKey, getPeriodDescription } from '@/lib/payroll-calculator';
-import { format, isSameDay, lastDayOfMonth } from 'date-fns';
+import { calculateShiftDetails, calculatePayrollForPeriod, getPeriodKey, getPeriodDescription, ShiftCalculationResult, PayrollSummary } from '@/lib/payroll-calculator';
+import { format, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -73,29 +73,6 @@ type EnabledDeductionFields = {
     [K in keyof Omit<OperatorDeductions, 'userId'>]?: boolean;
 };
 
-interface PayrollSummary {
-    grossPay: number;
-    netPay: number;
-    totalHours: number;
-    legalDeductions: {
-        health: number;
-        pension: number;
-        arl: number;
-        familyCompensation: number;
-        solidarityFund: number;
-        taxWithholding: number;
-    },
-    voluntaryDeductions: {
-        union: number;
-        cooperative: number;
-        loan: number;
-    },
-    subsidies: {
-        transport: number;
-    },
-    totalPaymentFromHours: number;
-}
-
 interface HistoricalPayroll {
     [periodKey: string]: PayrollSummary;
 }
@@ -120,6 +97,13 @@ function getInitials(name: string) {
 const formatCurrency = (value: number = 0) => {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
+
+const EMPTY_PAYROLL_SUMMARY: PayrollSummary = {
+    grossPay: 0, netPay: 0, totalHours: 0, totalBasePayment: 0,
+    legalDeductions: { health: 0, pension: 0, arl: 0, familyCompensation: 0, solidarityFund: 0, taxWithholding: 0 },
+    voluntaryDeductions: { union: 0, cooperative: 0, loan: 0 },
+    subsidies: { transport: 0 },
+};
 
 // --- COMPONENT ---
 export function OperatorDashboard({ companyId }: { companyId: string }) {
@@ -147,13 +131,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [shiftForSelectedDay, setShiftForSelectedDay] = useState<Shift | null>(null);
   const [dailySummary, setDailySummary] = useState<ShiftCalculationResult | null>(null);
   
-  const [payrollSummary, setPayrollSummary] = useState<PayrollSummary>({
-    grossPay: 0, netPay: 0, totalHours: 0,
-    legalDeductions: { health: 0, pension: 0, arl: 0, familyCompensation: 0, solidarityFund: 0, taxWithholding: 0 },
-    voluntaryDeductions: { union: 0, cooperative: 0, loan: 0 },
-    subsidies: { transport: 0 },
-    totalPaymentFromHours: 0,
-  });
+  const [payrollSummary, setPayrollSummary] = useState<PayrollSummary>(EMPTY_PAYROLL_SUMMARY);
   const [historicalPayroll, setHistoricalPayroll] = useState<HistoricalPayroll>({});
   const [showNetPay, setShowNetPay] = useState(false);
 
@@ -170,150 +148,68 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   const paymentModel = settings.paymentModel || 'hourly';
 
-  const calculatePayrollForPeriod = useCallback((shifts: Shift[], periodSettings: Partial<CompanySettings>, periodDeductions: Partial<OperatorDeductions>): PayrollSummary => {
-        let totalPaymentFromUnits = 0;
-        let totalPaymentForHours = 0;
-        let totalHoursInPeriod = 0;
-        let daysWithShifts = new Set();
-
-        for (const shift of shifts) {
-            daysWithShifts.add(format(new Date(shift.date), 'yyyy-MM-dd'));
-
-            if (periodSettings.paymentModel === 'production' && shift.itemId && shift.quantity) {
-                const item = companyItems.find(i => i.id === shift.itemId);
-                if(item && item.value) {
-                    totalPaymentFromUnits += item.value * shift.quantity;
-                }
-            } else if (periodSettings.paymentModel === 'hourly' && shift.startTime && shift.endTime) {
-                const details = calculateShiftDetails({
-                    date: new Date(shift.date),
-                    startTime: shift.startTime,
-                    endTime: shift.endTime,
-                    rates: periodSettings
-                });
-                totalHoursInPeriod += details.totalHours;
-                totalPaymentForHours += details.totalPayment;
-            }
-        }
-        
-        const totalBasePayment = totalPaymentForHours + totalPaymentFromUnits;
-        const numberOfDaysWithShifts = daysWithShifts.size;
-        
-        const monthlyTransportSubsidy = periodSettings.transportSubsidy || 0;
-        let totalTransportSubsidyForPeriod = 0;
-
-        if (monthlyTransportSubsidy > 0) {
-            const daysInCycle = periodSettings.payrollCycle === 'monthly' ? lastDayOfMonth(shifts[0] ? new Date(shifts[0].date) : new Date()).getDate() : 15;
-            const dailySubsidy = monthlyTransportSubsidy / daysInCycle;
-            totalTransportSubsidyForPeriod = dailySubsidy * numberOfDaysWithShifts;
-        }
-
-        const grossPay = totalBasePayment + totalTransportSubsidyForPeriod;
-
-        const healthDeductionAmount = grossPay * ((periodSettings.healthDeduction || 0) / 100);
-        const pensionDeductionAmount = grossPay * ((periodSettings.pensionDeduction || 0) / 100);
-        const arlDeductionAmount = grossPay * ((periodSettings.arlDeduction || 0) / 100);
-        const familyCompensationAmount = grossPay * ((periodSettings.familyCompensationDeduction || 0) / 100);
-        const solidarityFundAmount = grossPay * ((periodSettings.solidarityFundDeduction || 0) / 100);
-        const taxWithholdingAmount = grossPay * ((periodSettings.taxWithholding || 0) / 100);
-        const totalLegalDeductions = healthDeductionAmount + pensionDeductionAmount + arlDeductionAmount + familyCompensationAmount + solidarityFundAmount + taxWithholdingAmount;
-
-        const unionFee = periodDeductions.unionFeeDeduction || 0;
-        const cooperativeFee = periodDeductions.cooperativeDeduction || 0;
-        const loanFee = periodDeductions.loanDeduction || 0;
-        const totalVoluntaryDeductions = unionFee + cooperativeFee + loanFee;
-
-        const netPay = grossPay - totalLegalDeductions - totalVoluntaryDeductions;
-        
-        return {
-            grossPay,
-            netPay,
-            totalHours: totalHoursInPeriod,
-            legalDeductions: {
-                health: healthDeductionAmount,
-                pension: pensionDeductionAmount,
-                arl: arlDeductionAmount,
-                familyCompensation: familyCompensationAmount,
-                solidarityFund: solidarityFundAmount,
-                taxWithholding: taxWithholdingAmount,
-            },
-            voluntaryDeductions: {
-                union: unionFee,
-                cooperative: cooperativeFee,
-                loan: loanFee,
-            },
-            subsidies: {
-                transport: totalTransportSubsidyForPeriod,
-            },
-            totalPaymentFromHours: totalBasePayment,
-        };
-  }, [companyItems]);
-
-  const refreshAllData = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
-    if (!currentSettings.payrollCycle) return;
+  const refreshAllData = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, allItems: CompanyItem[]) => {
+      if (!currentSettings.payrollCycle) return;
   
-    const allShifts: Shift[] = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
-    const currentDeductions: Partial<OperatorDeductions> = JSON.parse(localStorage.getItem(DEDUCTIONS_DB_KEY) || '{}');
+      const allShifts: Shift[] = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
+      const currentDeductions: Partial<OperatorDeductions> = JSON.parse(localStorage.getItem(DEDUCTIONS_DB_KEY) || '{}');
   
-    const dayShift = allShifts.find(s => isSameDay(new Date(s.date), currentDate)) || null;
-    setShiftForSelectedDay(dayShift);
-    
-    let dailySummary: ShiftCalculationResult | null = null;
-    if (dayShift) {
-        if (paymentModel === 'hourly' && dayShift.startTime && dayShift.endTime) {
-            dailySummary = calculateShiftDetails({
-                date: new Date(dayShift.date),
-                startTime: dayShift.startTime,
-                endTime: dayShift.endTime,
-                rates: currentSettings,
-            });
-            setStartTime(dayShift.startTime);
-            setEndTime(dayShift.endTime);
-        } else if (paymentModel === 'production' && dayShift.itemId && dayShift.quantity) {
-             const item = companyItems.find(i => i.id === dayShift.itemId);
-             if (item && item.value) {
-                 dailySummary = {
-                     totalPayment: item.value * dayShift.quantity,
-                     totalHours: 0, dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
-                     holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
-                     isHoliday: false
-                 }
-             }
-            setSelectedItemId(dayShift.itemId);
-            setQuantity(dayShift.quantity);
-        }
-    } else {
-      setStartTime('');
-      setEndTime('');
-      setSelectedItemId(undefined);
-      setQuantity('');
-    }
-    setDailySummary(dailySummary);
-  
-    const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
-    const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
-    const summary = calculatePayrollForPeriod(periodShifts, currentSettings, currentDeductions);
-    setPayrollSummary(summary);
-  
-    const groupedByPeriod: { [key: string]: Shift[] } = allShifts.reduce((acc, shift) => {
-      const periodKey = getPeriodKey(new Date(shift.date), currentSettings.payrollCycle);
-      if (!acc[periodKey]) {
-        acc[periodKey] = [];
+      // --- Daily Summary ---
+      const dayShift = allShifts.find(s => isSameDay(new Date(s.date), currentDate)) || null;
+      setShiftForSelectedDay(dayShift);
+      
+      let newDailySummary: ShiftCalculationResult | null = null;
+      if (dayShift) {
+          newDailySummary = calculateShiftDetails({
+              shift: dayShift,
+              rates: currentSettings,
+              items: allItems
+          });
+          setStartTime(dayShift.startTime || '');
+          setEndTime(dayShift.endTime || '');
+          setSelectedItemId(dayShift.itemId);
+          setQuantity(dayShift.quantity || '');
+      } else {
+        setStartTime('');
+        setEndTime('');
+        setSelectedItemId(undefined);
+        setQuantity('');
       }
-      acc[periodKey].push(shift);
-      return acc;
-    }, {} as { [key: string]: Shift[] });
+      setDailySummary(newDailySummary);
   
-    const history: HistoricalPayroll = {};
-    for (const periodKey in groupedByPeriod) {
-      if (periodKey !== currentPeriodKey) {
-        history[periodKey] = calculatePayrollForPeriod(groupedByPeriod[periodKey], currentSettings, currentDeductions);
+      // --- Current Period & History ---
+      const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
+      
+      const groupedByPeriod = allShifts.reduce((acc, shift) => {
+        const periodKey = getPeriodKey(new Date(shift.date), currentSettings.payrollCycle);
+        if (!acc[periodKey]) {
+          acc[periodKey] = [];
+        }
+        acc[periodKey].push(shift);
+        return acc;
+      }, {} as { [key: string]: Shift[] });
+  
+      const newHistory: HistoricalPayroll = {};
+      let newCurrentPeriodSummary: PayrollSummary = EMPTY_PAYROLL_SUMMARY;
+  
+      for (const periodKey in groupedByPeriod) {
+          const summary = calculatePayrollForPeriod({
+              shifts: groupedByPeriod[periodKey],
+              periodSettings: currentSettings,
+              periodDeductions: currentDeductions,
+              items: allItems,
+          });
+          if (periodKey === currentPeriodKey) {
+              newCurrentPeriodSummary = summary;
+          } else {
+              newHistory[periodKey] = summary;
+          }
       }
-    }
-    setHistoricalPayroll(history);
+      
+      setPayrollSummary(newCurrentPeriodSummary);
+      setHistoricalPayroll(newHistory);
   
-  }, [SHIFTS_DB_KEY, DEDUCTIONS_DB_KEY, calculatePayrollForPeriod, companyItems, paymentModel]);
-
+  }, [SHIFTS_DB_KEY, DEDUCTIONS_DB_KEY]);
   
   useEffect(() => {
     setIsLoading(true);
@@ -350,49 +246,48 @@ router.replace('/select-company');
         }
         setEnabledDeductions(initialEnabled);
 
+        if(date && companySettings) {
+            refreshAllData(date, companySettings, companyItemsData);
+        }
+
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY]);
+  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY, date, refreshAllData]);
   
   useEffect(() => {
     if (!date || isLoading || !settings.payrollCycle) return;
-    refreshAllData(date, settings);
-  }, [date, settings, isLoading, refreshAllData]);
+    refreshAllData(date, settings, companyItems);
+  }, [date, settings, isLoading, refreshAllData, companyItems]);
 
 
   const handleSave = () => {
     if (!date || !company || !settings) return;
 
-    let isValid = false;
     let shiftData: Partial<Shift> = {};
 
     if (paymentModel === 'hourly') {
-        if (startTime && endTime) {
-            isValid = true;
-            shiftData = { startTime, endTime };
-        } else {
-             toast({
+        if (!startTime || !endTime) {
+            toast({
                 variant: 'destructive',
                 title: 'Datos incompletos',
                 description: 'Por favor, completa las horas de entrada y salida.',
             });
             return;
         }
+        shiftData = { startTime, endTime, itemId: undefined, quantity: undefined };
     } else { // production
-        if (selectedItemId && quantity > 0) {
-            isValid = true;
-            shiftData = { itemId: selectedItemId, quantity };
-        } else {
-             toast({
+        if (!selectedItemId || !quantity || quantity <= 0) {
+            toast({
                 variant: 'destructive',
                 title: 'Datos incompletos',
                 description: 'Por favor, selecciona un ítem y una cantidad mayor a cero.',
             });
             return;
         }
+        shiftData = { itemId: selectedItemId, quantity, startTime: undefined, endTime: undefined };
     }
 
     setIsSaving(true);
@@ -403,24 +298,27 @@ router.replace('/select-company');
         
         const existingShiftIndex = allShifts.findIndex(s => isSameDay(new Date(s.date), date));
 
-        const baseShiftData: Shift = {
-            id: existingShiftIndex > -1 ? allShifts[existingShiftIndex].id : `shift_${Date.now()}`,
+        const baseShiftData: Omit<Shift, 'id' | 'startTime' | 'endTime' | 'itemId' | 'quantity'> = {
             userId: user.uid,
             companyId: company.id,
             date: date.toISOString(),
         };
 
-        const finalShiftData = { ...baseShiftData, ...shiftData } as Shift;
-
         if (existingShiftIndex > -1) {
-            allShifts[existingShiftIndex] = finalShiftData;
+            const existingShift = allShifts[existingShiftIndex];
+            allShifts[existingShiftIndex] = { ...existingShift, ...shiftData };
         } else {
-            allShifts.push(finalShiftData);
+            const newShift: Shift = {
+                id: `shift_${Date.now()}`,
+                ...baseShiftData,
+                ...shiftData,
+            } as Shift;
+            allShifts.push(newShift);
         }
         
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
         
-        refreshAllData(date, settings);
+        refreshAllData(date, settings, companyItems);
 
         toast({
             title: existingShiftIndex > -1 ? 'Registro Actualizado' : 'Registro Guardado',
@@ -448,7 +346,7 @@ router.replace('/select-company');
         const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
 
-        refreshAllData(date, settings);
+        refreshAllData(date, settings, companyItems);
         
         setShowDeleteConfirm(false);
 
@@ -510,7 +408,7 @@ router.replace('/select-company');
         localStorage.setItem(DEDUCTIONS_DB_KEY, JSON.stringify(activeDeductions));
         
         if(date && settings) {
-            refreshAllData(date, settings);
+            refreshAllData(date, settings, companyItems);
         }
         
         toast({
@@ -569,7 +467,7 @@ router.replace('/select-company');
 
   const payrollCycleText = settings.payrollCycle === 'monthly' ? 'Mensual' : 'Quincenal';
 
-  const renderBreakdownRow = (label: string, hours: number, rate: number = 0, payment: number) => {
+  const renderBreakdownRow = (label: string, hours: number, payment: number) => {
     if (hours === 0 && payment === 0) return null;
     return (
         <div className="flex justify-between items-center text-sm">
@@ -594,7 +492,7 @@ router.replace('/select-company');
     const renderFullBreakdown = (summary: PayrollSummary) => (
         <div className="space-y-2 pt-2">
             <h4 className="font-semibold text-sm mb-1">Ingresos</h4>
-            {renderSummaryRow("Pago base (horas/producción)", summary.totalPaymentFromHours)}
+            {renderSummaryRow("Pago base (horas/producción)", summary.totalBasePayment)}
             {renderSummaryRow("Subsidio de transporte", summary.subsidies.transport)}
             <Separator className="my-2" />
             <div className="flex justify-between font-semibold">
@@ -790,22 +688,22 @@ router.replace('/select-company');
                                     </div>
                                 )}
 
-                                {paymentModel === 'hourly' && (
+                                {paymentModel === 'hourly' && dailySummary && dailySummary.totalHours > 0 && (
                                      <Accordion type="single" collapsible className="w-full">
                                         <AccordionItem value="item-1">
                                             <AccordionTrigger className="text-sm py-2">Ver desglose de horas</AccordionTrigger>
                                             <AccordionContent className="space-y-2 pt-2">
-                                            {renderBreakdownRow("Horas Diurnas", dailySummary?.dayHours || 0, settings.dayRate, (dailySummary?.dayHours || 0) * (settings.dayRate || 0))}
-                                            {renderBreakdownRow("Horas Nocturnas", dailySummary?.nightHours || 0, settings.nightRate, (dailySummary?.nightHours || 0) * (settings.nightRate || 0))}
-                                            {renderBreakdownRow("Extras Diurnas", dailySummary?.dayOvertimeHours || 0, settings.dayOvertimeRate, (dailySummary?.dayOvertimeHours || 0) * (settings.dayOvertimeRate || 0))}
-                                            {renderBreakdownRow("Extras Nocturnas", dailySummary?.nightOvertimeHours || 0, settings.nightOvertimeRate, (dailySummary?.nightOvertimeHours || 0) * (settings.nightOvertimeRate || 0))}
+                                            {renderBreakdownRow("Horas Diurnas", dailySummary.dayHours, dailySummary.dayHours * (settings.dayRate || 0))}
+                                            {renderBreakdownRow("Horas Nocturnas", dailySummary.nightHours, dailySummary.nightHours * (settings.nightRate || 0))}
+                                            {renderBreakdownRow("Extras Diurnas", dailySummary.dayOvertimeHours, dailySummary.dayOvertimeHours * (settings.dayOvertimeRate || 0))}
+                                            {renderBreakdownRow("Extras Nocturnas", dailySummary.nightOvertimeHours, dailySummary.nightOvertimeHours * (settings.nightOvertimeRate || 0))}
                                             
-                                            {(dailySummary?.isHoliday) && <Separator className="my-2" />}
+                                            {(dailySummary.isHoliday) && <Separator className="my-2" />}
 
-                                            {renderBreakdownRow("Festivas Diurnas", dailySummary?.holidayDayHours || 0, settings.holidayDayRate, (dailySummary?.holidayDayHours || 0) * (settings.holidayDayRate || 0))}
-                                            {renderBreakdownRow("Festivas Nocturnas", dailySummary?.holidayNightHours || 0, settings.holidayNightRate, (dailySummary?.holidayNightHours || 0) * (settings.holidayNightRate || 0))}
-                                            {renderBreakdownRow("Extras Festivas Diurnas", dailySummary?.holidayDayOvertimeHours || 0, settings.holidayDayOvertimeRate, (dailySummary?.holidayDayOvertimeHours || 0) * (settings.holidayDayOvertimeRate || 0))}
-                                            {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary?.holidayNightOvertimeHours || 0, settings.holidayNightOvertimeRate, (dailySummary?.holidayNightOvertimeHours || 0) * (settings.holidayNightOvertimeRate || 0))}
+                                            {renderBreakdownRow("Festivas Diurnas", dailySummary.holidayDayHours, dailySummary.holidayDayHours * (settings.holidayDayRate || 0))}
+                                            {renderBreakdownRow("Festivas Nocturnas", dailySummary.holidayNightHours, dailySummary.holidayNightHours * (settings.holidayNightRate || 0))}
+                                            {renderBreakdownRow("Extras Festivas Diurnas", dailySummary.holidayDayOvertimeHours, dailySummary.holidayDayOvertimeHours * (settings.holidayDayOvertimeRate || 0))}
+                                            {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary.holidayNightOvertimeHours, dailySummary.holidayNightOvertimeHours * (settings.holidayNightOvertimeRate || 0))}
                                             </AccordionContent>
                                         </AccordionItem>
                                     </Accordion>
@@ -850,7 +748,7 @@ router.replace('/select-company');
                                 ) : (
                                     <div className="flex justify-between items-baseline">
                                         <span className="text-sm text-muted-foreground">Pago base acumulado:</span>
-                                        <strong className="text-2xl font-bold">{formatCurrency(payrollSummary.totalPaymentFromHours)}</strong>
+                                        <strong className="text-2xl font-bold">{formatCurrency(payrollSummary.totalBasePayment)}</strong>
                                     </div>
                                 )}
                                 
@@ -929,3 +827,5 @@ router.replace('/select-company');
     </div>
   );
 }
+
+    

@@ -1,6 +1,6 @@
-import { CompanySettings } from "@/types/db-entities";
+
+import { CompanySettings, Shift, CompanyItem } from "@/types/db-entities";
 import { parse, set, addDays, getDay, isSameDay, lastDayOfMonth } from 'date-fns';
-import { es } from 'date-fns/locale';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
@@ -15,19 +15,18 @@ const COLOMBIAN_HOLIDAYS_2024 = [
 ].map(d => parse(d, 'yyyy-MM-dd', new Date()));
 
 const isHoliday = (date: Date): boolean => {
-    // Sunday is a holiday
+    // Sunday is a holiday by law
     if (getDay(date) === 0) return true;
-    // Check against the list of holidays
+    // Check against the list of official holidays
     return COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(date, holiday));
 };
 
 
 // --- INTERFACES ---
 interface ShiftInput {
-    date: Date;
-    startTime: string; // "HH:mm" format
-    endTime: string;   // "HH:mm" format
+    shift: Shift;
     rates: Partial<CompanySettings>;
+    items: CompanyItem[];
 }
 
 export interface ShiftCalculationResult {
@@ -41,84 +40,195 @@ export interface ShiftCalculationResult {
     holidayDayOvertimeHours: number;
     holidayNightOvertimeHours: number;
     isHoliday: boolean;
-    totalPayment: number; // NOTE: This is now ONLY payment for hours worked.
+    totalPayment: number;
+}
+
+export interface PayrollSummary {
+    grossPay: number;
+    netPay: number;
+    totalHours: number;
+    totalBasePayment: number;
+    legalDeductions: {
+        health: number;
+        pension: number;
+        arl: number;
+        familyCompensation: number;
+        solidarityFund: number;
+        taxWithholding: number;
+    },
+    voluntaryDeductions: {
+        union: number;
+        cooperative: number;
+        loan: number;
+    },
+    subsidies: {
+        transport: number;
+    },
+}
+
+interface PayrollInput {
+    shifts: Shift[];
+    periodSettings: Partial<CompanySettings>;
+    periodDeductions: Partial<any>;
+    items: CompanyItem[];
 }
 
 
-// --- MAIN CALCULATION FUNCTION ---
+// --- MAIN CALCULATION FUNCTIONS ---
+
+/**
+ * Calculates the payment details for a SINGLE shift.
+ */
 export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult => {
-    const { date, startTime, endTime, rates } = input;
-    const nightStartHour = rates.nightShiftStart ? parseInt(rates.nightShiftStart.split(':')[0], 10) : 21;
+    const { shift, rates, items } = input;
+    const paymentModel = rates.paymentModel || 'hourly';
 
-
-    // 1. Parse Times and Handle Invalid Input
-    const startDateTime = parseTime(date, startTime);
-    let endDateTime = parseTime(date, endTime);
-
-    if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
-        throw new Error("Formato de hora inválido. Usa HH:mm.");
-    }
-    
-    // Handle overnight shifts
-    if (endDateTime <= startDateTime) {
-        endDateTime = addDays(endDateTime, 1);
-    }
-    
-    const result: Omit<ShiftCalculationResult, 'totalPayment' | 'totalHours'> = {
-        dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
+    const baseResult: Omit<ShiftCalculationResult, 'totalPayment'> = {
+        totalHours: 0, dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
         holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
         isHoliday: false
     };
 
-    let workedHoursToday = 0;
-
-    // 2. Iterate through each minute of the shift
-    let currentMinute = new Date(startDateTime);
-    while (currentMinute < endDateTime) {
-        const dayOfCurrentMinute = currentMinute;
-        const minuteIsHoliday = isHoliday(dayOfCurrentMinute);
-        if(minuteIsHoliday) result.isHoliday = true;
-
-        const hour = currentMinute.getHours();
-        const isNightHour = hour >= nightStartHour || hour < NIGHT_END_HOUR;
-
-        const hourTypeKey = `${minuteIsHoliday ? 'holiday' : 'normal'}_${isNightHour ? 'night' : 'day'}`;
-
-        if (workedHoursToday < NORMAL_WORK_HOURS_PER_DAY) {
-            // Regular hours
-            if (hourTypeKey === 'normal_day') result.dayHours += 1/60;
-            else if (hourTypeKey === 'normal_night') result.nightHours += 1/60;
-            else if (hourTypeKey === 'holiday_day') result.holidayDayHours += 1/60;
-            else if (hourTypeKey === 'holiday_night') result.holidayNightHours += 1/60;
-        } else {
-            // Overtime hours
-            if (hourTypeKey === 'normal_day') result.dayOvertimeHours += 1/60;
-            else if (hourTypeKey === 'normal_night') result.nightOvertimeHours += 1/60;
-            else if (hourTypeKey === 'holiday_day') result.holidayDayOvertimeHours += 1/60;
-            else if (hourTypeKey === 'holiday_night') result.holidayNightOvertimeHours += 1/60;
-        }
-        
-        workedHoursToday += 1/60;
-        currentMinute.setMinutes(currentMinute.getMinutes() + 1);
+    if (paymentModel === 'production' && shift.itemId && shift.quantity) {
+        const item = items.find(i => i.id === shift.itemId);
+        const payment = (item?.value || 0) * shift.quantity;
+        return { ...baseResult, totalPayment: payment };
     }
 
-    const totalHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
+    if (paymentModel === 'hourly' && shift.startTime && shift.endTime) {
+        const nightStartHour = rates.nightShiftStart ? parseInt(rates.nightShiftStart.split(':')[0], 10) : 21;
+        const date = new Date(shift.date);
+        
+        const startDateTime = parseTime(date, shift.startTime);
+        let endDateTime = parseTime(date, shift.endTime);
 
-    // 3. Calculate Payment (for hours ONLY)
-    let paymentForHours = 0;
-    paymentForHours += result.dayHours * (rates.dayRate || 0);
-    paymentForHours += result.nightHours * (rates.nightRate || 0);
-    paymentForHours += result.dayOvertimeHours * (rates.dayOvertimeRate || 0);
-    paymentForHours += result.nightOvertimeHours * (rates.nightOvertimeRate || 0);
-    paymentForHours += result.holidayDayHours * (rates.holidayDayRate || 0);
-    paymentForHours += result.holidayNightHours * (rates.holidayNightRate || 0);
-    paymentForHours += result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
-    paymentForHours += result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
+        if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+            return { ...baseResult, totalPayment: 0 };
+        }
+        
+        if (endDateTime <= startDateTime) {
+            endDateTime = addDays(endDateTime, 1);
+        }
+        
+        let workedHoursToday = 0;
+        let currentMinute = new Date(startDateTime);
 
+        while (currentMinute < endDateTime) {
+            const dayOfCurrentMinute = currentMinute;
+            const minuteIsHoliday = isHoliday(dayOfCurrentMinute);
+            if(minuteIsHoliday) baseResult.isHoliday = true;
+
+            const hour = currentMinute.getHours();
+            const isNightHour = hour >= nightStartHour || hour < NIGHT_END_HOUR;
+
+            const isOvertime = workedHoursToday >= NORMAL_WORK_HOURS_PER_DAY;
+
+            if (isOvertime) {
+                if(minuteIsHoliday) {
+                    if(isNightHour) baseResult.holidayNightOvertimeHours += 1/60;
+                    else baseResult.holidayDayOvertimeHours += 1/60;
+                } else {
+                    if(isNightHour) baseResult.nightOvertimeHours += 1/60;
+                    else baseResult.dayOvertimeHours += 1/60;
+                }
+            } else { // Regular hours
+                if(minuteIsHoliday) {
+                    if(isNightHour) baseResult.holidayNightHours += 1/60;
+                    else baseResult.holidayDayHours += 1/60;
+                } else {
+                    if(isNightHour) baseResult.nightHours += 1/60;
+                    else baseResult.dayHours += 1/60;
+                }
+            }
+            
+            workedHoursToday += 1/60;
+            currentMinute.setMinutes(currentMinute.getMinutes() + 1);
+        }
+
+        baseResult.totalHours = (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60);
+
+        let totalPayment = 0;
+        totalPayment += baseResult.dayHours * (rates.dayRate || 0);
+        totalPayment += baseResult.nightHours * (rates.nightRate || 0);
+        totalPayment += baseResult.dayOvertimeHours * (rates.dayOvertimeRate || 0);
+        totalPayment += baseResult.nightOvertimeHours * (rates.nightOvertimeRate || 0);
+        totalPayment += baseResult.holidayDayHours * (rates.holidayDayRate || 0);
+        totalPayment += baseResult.holidayNightHours * (rates.holidayNightRate || 0);
+        totalPayment += baseResult.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
+        totalPayment += baseResult.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
+
+        return { ...baseResult, totalPayment };
+    }
+
+    return { ...baseResult, totalPayment: 0 };
+};
+
+/**
+ * Calculates the full payroll summary for a given period.
+ */
+export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary => {
+    const { shifts, periodSettings, periodDeductions, items } = input;
+    
+    let totalBasePayment = 0;
+    let totalHoursInPeriod = 0;
+    const daysWithShifts = new Set<string>();
+
+    for (const shift of shifts) {
+        daysWithShifts.add(format(new Date(shift.date), 'yyyy-MM-dd'));
+        const details = calculateShiftDetails({ shift, rates: periodSettings, items });
+        totalBasePayment += details.totalPayment;
+        totalHoursInPeriod += details.totalHours;
+    }
+    
+    const monthlyTransportSubsidy = periodSettings.transportSubsidy || 0;
+    let totalTransportSubsidyForPeriod = 0;
+
+    if (monthlyTransportSubsidy > 0 && shifts.length > 0) {
+        const cycleDays = periodSettings.payrollCycle === 'monthly'
+            ? lastDayOfMonth(new Date(shifts[0].date)).getDate()
+            : 15;
+        const dailySubsidy = monthlyTransportSubsidy / cycleDays;
+        totalTransportSubsidyForPeriod = dailySubsidy * daysWithShifts.size;
+    }
+
+    const grossPay = totalBasePayment + totalTransportSubsidyForPeriod;
+
+    const healthDeductionAmount = grossPay * ((periodSettings.healthDeduction || 0) / 100);
+    const pensionDeductionAmount = grossPay * ((periodSettings.pensionDeduction || 0) / 100);
+    const arlDeductionAmount = grossPay * ((periodSettings.arlDeduction || 0) / 100);
+    const familyCompensationAmount = grossPay * ((periodSettings.familyCompensationDeduction || 0) / 100);
+    const solidarityFundAmount = grossPay * ((periodSettings.solidarityFundDeduction || 0) / 100);
+    const taxWithholdingAmount = grossPay * ((periodSettings.taxWithholding || 0) / 100);
+    const totalLegalDeductions = healthDeductionAmount + pensionDeductionAmount + arlDeductionAmount + familyCompensationAmount + solidarityFundAmount + taxWithholdingAmount;
+
+    const unionFee = periodDeductions.unionFeeDeduction || 0;
+    const cooperativeFee = periodDeductions.cooperativeDeduction || 0;
+    const loanFee = periodDeductions.loanDeduction || 0;
+    const totalVoluntaryDeductions = unionFee + cooperativeFee + loanFee;
+
+    const netPay = grossPay - totalLegalDeductions - totalVoluntaryDeductions;
+    
     return {
-        ...result,
-        totalHours,
-        totalPayment: paymentForHours,
+        grossPay,
+        netPay,
+        totalHours: totalHoursInPeriod,
+        totalBasePayment,
+        legalDeductions: {
+            health: healthDeductionAmount,
+            pension: pensionDeductionAmount,
+            arl: arlDeductionAmount,
+            familyCompensation: familyCompensationAmount,
+            solidarityFund: solidarityFundAmount,
+            taxWithholding: taxWithholdingAmount,
+        },
+        voluntaryDeductions: {
+            union: unionFee,
+            cooperative: cooperativeFee,
+            loan: loanFee,
+        },
+        subsidies: {
+            transport: totalTransportSubsidyForPeriod,
+        },
     };
 };
 
@@ -159,7 +269,5 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16-${lastDay} de ${monthName} ${year}`;
     }
 };
-
-    
 
     
