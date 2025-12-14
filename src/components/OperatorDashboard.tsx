@@ -148,68 +148,72 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   const paymentModel = settings.paymentModel || 'hourly';
 
-  const refreshAllData = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, allItems: CompanyItem[]) => {
-      if (!currentSettings.payrollCycle) return;
-  
-      const allShifts: Shift[] = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
-      const currentDeductions: Partial<OperatorDeductions> = JSON.parse(localStorage.getItem(DEDUCTIONS_DB_KEY) || '{}');
-  
-      // --- Daily Summary ---
-      const dayShift = allShifts.find(s => isSameDay(new Date(s.date), currentDate)) || null;
-      setShiftForSelectedDay(dayShift);
-      
-      let newDailySummary: ShiftCalculationResult | null = null;
-      if (dayShift) {
-          newDailySummary = calculateShiftDetails({
-              shift: dayShift,
-              rates: currentSettings,
-              items: allItems
-          });
-          setStartTime(dayShift.startTime || '');
-          setEndTime(dayShift.endTime || '');
-          setSelectedItemId(dayShift.itemId);
-          setQuantity(dayShift.quantity || '');
-      } else {
-        setStartTime('');
-        setEndTime('');
-        setSelectedItemId(undefined);
-        setQuantity('');
-      }
-      setDailySummary(newDailySummary);
-  
-      // --- Current Period & History ---
-      const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
-      
-      const groupedByPeriod = allShifts.reduce((acc, shift) => {
-        const periodKey = getPeriodKey(new Date(shift.date), currentSettings.payrollCycle);
-        if (!acc[periodKey]) {
-          acc[periodKey] = [];
+  const refreshAllData = useCallback((currentDate: Date) => {
+      try {
+        const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
+        const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
+        const currentSettings = allSettings[companyId] || {};
+
+        if (!currentSettings.payrollCycle) return;
+    
+        const allShifts: Shift[] = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
+        const currentDeductions: Partial<OperatorDeductions> = JSON.parse(localStorage.getItem(DEDUCTIONS_DB_KEY) || '{}');
+        const allItems: CompanyItem[] = JSON.parse(localStorage.getItem(ITEMS_DB_KEY) || '[]');
+    
+        // --- Daily Summary ---
+        const dayShift = allShifts.find(s => isSameDay(new Date(s.date), currentDate)) || null;
+        setShiftForSelectedDay(dayShift);
+        
+        if (dayShift) {
+            setDailySummary(calculateShiftDetails({ shift: dayShift, rates: currentSettings, items: allItems }));
+            setStartTime(dayShift.startTime || '');
+            setEndTime(dayShift.endTime || '');
+            setSelectedItemId(dayShift.itemId);
+            setQuantity(dayShift.quantity || '');
+        } else {
+          setDailySummary(null);
+          setStartTime('');
+          setEndTime('');
+          setSelectedItemId(undefined);
+          setQuantity('');
         }
-        acc[periodKey].push(shift);
-        return acc;
-      }, {} as { [key: string]: Shift[] });
-  
-      const newHistory: HistoricalPayroll = {};
-      let newCurrentPeriodSummary: PayrollSummary = EMPTY_PAYROLL_SUMMARY;
-  
-      for (const periodKey in groupedByPeriod) {
-          const summary = calculatePayrollForPeriod({
-              shifts: groupedByPeriod[periodKey],
-              periodSettings: currentSettings,
-              periodDeductions: currentDeductions,
-              items: allItems,
-          });
-          if (periodKey === currentPeriodKey) {
-              newCurrentPeriodSummary = summary;
-          } else {
-              newHistory[periodKey] = summary;
+    
+        // --- Current Period & History ---
+        const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
+        
+        const groupedByPeriod = allShifts.reduce((acc, shift) => {
+          const periodKey = getPeriodKey(new Date(shift.date), currentSettings.payrollCycle);
+          if (!acc[periodKey]) {
+            acc[periodKey] = [];
           }
+          acc[periodKey].push(shift);
+          return acc;
+        }, {} as { [key: string]: Shift[] });
+    
+        const newHistory: HistoricalPayroll = {};
+        let newCurrentPeriodSummary: PayrollSummary = EMPTY_PAYROLL_SUMMARY;
+    
+        for (const periodKey in groupedByPeriod) {
+            const summary = calculatePayrollForPeriod({
+                shifts: groupedByPeriod[periodKey],
+                periodSettings: currentSettings,
+                periodDeductions: currentDeductions,
+                items: allItems,
+            });
+            if (periodKey === currentPeriodKey) {
+                newCurrentPeriodSummary = summary;
+            } else {
+                newHistory[periodKey] = summary;
+            }
+        }
+        
+        setPayrollSummary(newCurrentPeriodSummary);
+        setHistoricalPayroll(newHistory);
+      } catch (e) {
+          console.error("Error refreshing data:", e);
       }
-      
-      setPayrollSummary(newCurrentPeriodSummary);
-      setHistoricalPayroll(newHistory);
   
-  }, [SHIFTS_DB_KEY, DEDUCTIONS_DB_KEY]);
+  }, [SHIFTS_DB_KEY, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY, companyId]);
   
   useEffect(() => {
     setIsLoading(true);
@@ -246,8 +250,8 @@ router.replace('/select-company');
         }
         setEnabledDeductions(initialEnabled);
 
-        if(date && companySettings) {
-            refreshAllData(date, companySettings, companyItemsData);
+        if(date) {
+            refreshAllData(date);
         }
 
     } catch(e) {
@@ -255,12 +259,12 @@ router.replace('/select-company');
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY, date, refreshAllData]);
+  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, date, refreshAllData]);
   
   useEffect(() => {
-    if (!date || isLoading || !settings.payrollCycle) return;
-    refreshAllData(date, settings, companyItems);
-  }, [date, settings, isLoading, refreshAllData, companyItems]);
+    if (!date || isLoading) return;
+    refreshAllData(date);
+  }, [date, isLoading, refreshAllData]);
 
 
   const handleSave = () => {
@@ -318,7 +322,7 @@ router.replace('/select-company');
         
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
         
-        refreshAllData(date, settings, companyItems);
+        refreshAllData(date);
 
         toast({
             title: existingShiftIndex > -1 ? 'Registro Actualizado' : 'Registro Guardado',
@@ -346,7 +350,7 @@ router.replace('/select-company');
         const updatedShifts = allShifts.filter(s => !isSameDay(new Date(s.date), date));
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
 
-        refreshAllData(date, settings, companyItems);
+        refreshAllData(date);
         
         setShowDeleteConfirm(false);
 
@@ -407,8 +411,8 @@ router.replace('/select-company');
         }
         localStorage.setItem(DEDUCTIONS_DB_KEY, JSON.stringify(activeDeductions));
         
-        if(date && settings) {
-            refreshAllData(date, settings, companyItems);
+        if(date) {
+            refreshAllData(date);
         }
         
         toast({
@@ -828,4 +832,5 @@ router.replace('/select-company');
   );
 }
 
+    
     

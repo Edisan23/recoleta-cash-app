@@ -1,6 +1,6 @@
 
-import { CompanySettings, Shift, CompanyItem } from "@/types/db-entities";
-import { parse, set, addDays, getDay, isSameDay, lastDayOfMonth } from 'date-fns';
+import { CompanySettings, Shift, CompanyItem, OperatorDeductions } from "@/types/db-entities";
+import { parse, set, addDays, getDay, isSameDay, lastDayOfMonth, format } from 'date-fns';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
@@ -69,7 +69,7 @@ export interface PayrollSummary {
 interface PayrollInput {
     shifts: Shift[];
     periodSettings: Partial<CompanySettings>;
-    periodDeductions: Partial<any>;
+    periodDeductions: Partial<OperatorDeductions>;
     items: CompanyItem[];
 }
 
@@ -186,7 +186,7 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
     if (monthlyTransportSubsidy > 0 && shifts.length > 0) {
         const cycleDays = periodSettings.payrollCycle === 'monthly'
             ? lastDayOfMonth(new Date(shifts[0].date)).getDate()
-            : 15;
+            : 15; // Approximate days in a fortnight
         const dailySubsidy = monthlyTransportSubsidy / cycleDays;
         totalTransportSubsidyForPeriod = dailySubsidy * daysWithShifts.size;
     }
@@ -270,4 +270,5 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
     }
 };
 
+    
     
