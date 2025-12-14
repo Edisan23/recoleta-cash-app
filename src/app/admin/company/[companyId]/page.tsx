@@ -33,7 +33,7 @@ const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
 const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
 
 type EnabledFields = {
-    [K in keyof Omit<CompanySettings, 'id' | 'payrollCycle' | 'nightShiftStart'>]?: boolean;
+    [K in keyof Omit<CompanySettings, 'id' | 'payrollCycle' | 'nightShiftStart' | 'paymentModel'>]?: boolean;
 };
 
 const settingLabels: { [key in keyof EnabledFields]: string } = {
@@ -86,19 +86,24 @@ export default function CompanySettingsPage() {
         const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
         const companySettings = allSettings[companyId];
 
-        const initialEnabled: EnabledFields = {};
-        for (const key in settingLabels) {
-            if (Object.prototype.hasOwnProperty.call(settingLabels, key)) {
-                const settingKey = key as keyof EnabledFields;
-                 // A field is enabled if no settings are saved yet (all enabled by default for new company)
-                // OR if the saved setting for this key is not explicitly null.
-                initialEnabled[settingKey] = !companySettings || companySettings[settingKey] != null;
-            }
-        }
-        setEnabledFields(initialEnabled);
-
         if (companySettings) {
             setSettings(companySettings);
+            
+            const initialEnabled: EnabledFields = {};
+            for (const key in settingLabels) {
+                if (Object.prototype.hasOwnProperty.call(settingLabels, key)) {
+                    const settingKey = key as keyof EnabledFields;
+                    initialEnabled[settingKey] = companySettings[settingKey] != null;
+                }
+            }
+            setEnabledFields(initialEnabled);
+        } else {
+             // If no settings, enable all by default
+            const allEnabled: EnabledFields = {};
+            for (const key in settingLabels) {
+                allEnabled[key as keyof EnabledFields] = true;
+            }
+            setEnabledFields(allEnabled);
         }
 
     } catch (error) {
@@ -141,8 +146,8 @@ export default function CompanySettingsPage() {
     setSettings(prev => ({ ...prev, [name]: value }));
   }
   
-  const handlePayrollCycleChange = (value: 'monthly' | 'fortnightly') => {
-      setSettings(prev => ({ ...prev, payrollCycle: value }));
+  const handleRadioGroupChange = (name: keyof CompanySettings, value: string) => {
+    setSettings(prev => ({ ...prev, [name]: value }));
   }
 
 
@@ -170,7 +175,13 @@ export default function CompanySettingsPage() {
         const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
         let allSettings: { [key: string]: Partial<CompanySettings> } = storedSettings ? JSON.parse(storedSettings) : {};
         
-        const activeSettings: Partial<CompanySettings> = { id: companyId, payrollCycle: settings.payrollCycle, nightShiftStart: settings.nightShiftStart };
+        const activeSettings: Partial<CompanySettings> = { 
+            id: companyId, 
+            payrollCycle: settings.payrollCycle, 
+            nightShiftStart: settings.nightShiftStart,
+            paymentModel: settings.paymentModel || 'hourly'
+        };
+
         for (const key in enabledFields) {
             const settingKey = key as keyof EnabledFields;
             if (enabledFields[settingKey]) {
@@ -241,6 +252,8 @@ export default function CompanySettingsPage() {
       </div>
     );
   };
+  
+  const paymentModel = settings.paymentModel || 'hourly';
 
   if (isLoading) {
     return (
@@ -282,33 +295,68 @@ export default function CompanySettingsPage() {
 
       <main className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
-            <Card>
+             <Card>
                 <CardHeader>
-                    <CardTitle>Tarifas de Pago</CardTitle>
-                    <CardDescription>Activa y define los valores por hora para los diferentes tipos de turno.</CardDescription>
+                    <CardTitle>Modelo de Pago</CardTitle>
+                    <CardDescription>Define cómo se calcularán los pagos para los operadores de esta empresa.</CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <fieldset className="space-y-6 p-4 border rounded-lg">
-                        <legend className="text-lg font-medium px-1 mb-4">Horario Normal</legend>
-                        {renderSettingInput('dayRate')}
-                        {renderSettingInput('nightRate')}
-                        {renderSettingInput('dayOvertimeRate')}
-                        {renderSettingInput('nightOvertimeRate')}
-                    </fieldset>
-                    <fieldset className="space-y-6 p-4 border rounded-lg">
-                        <legend className="text-lg font-medium px-1 mb-4">Horario Festivo</legend>
-                        {renderSettingInput('holidayDayRate')}
-                        {renderSettingInput('holidayNightRate')}
-                        {renderSettingInput('holidayDayOvertimeRate')}
-                        {renderSettingInput('holidayNightOvertimeRate')}
-                    </fieldset>
+                <CardContent>
+                    <RadioGroup 
+                        value={paymentModel} 
+                        onValueChange={(value) => handleRadioGroupChange('paymentModel', value)}
+                    >
+                        <div className="flex items-start space-x-2">
+                            <RadioGroupItem value="hourly" id="hourly" />
+                            <div className='grid gap-1.5'>
+                                <Label htmlFor="hourly" className='font-bold'>Pago por Hora</Label>
+                                <p className="text-sm text-muted-foreground">
+                                    El pago se basa en las horas trabajadas (diurnas, nocturnas, extras, festivas). Ideal para roles de vigilancia, servicios generales, etc.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-start space-x-2 mt-4">
+                            <RadioGroupItem value="production" id="production" />
+                             <div className='grid gap-1.5'>
+                                <Label htmlFor="production" className='font-bold'>Pago por Producción</Label>
+                                 <p className="text-sm text-muted-foreground">
+                                    El pago se basa en unidades de trabajo completadas (ej: bultos movidos, viajes realizados, obra terminada). Los ítems y sus valores se definen en otra sección.
+                                </p>
+                            </div>
+                        </div>
+                    </RadioGroup>
                 </CardContent>
             </Card>
+
+
+            {paymentModel === 'hourly' && (
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Tarifas de Pago por Hora</CardTitle>
+                        <CardDescription>Activa y define los valores por hora para los diferentes tipos de turno.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <fieldset className="space-y-6 p-4 border rounded-lg">
+                            <legend className="text-lg font-medium px-1 mb-4">Horario Normal</legend>
+                            {renderSettingInput('dayRate')}
+                            {renderSettingInput('nightRate')}
+                            {renderSettingInput('dayOvertimeRate')}
+                            {renderSettingInput('nightOvertimeRate')}
+                        </fieldset>
+                        <fieldset className="space-y-6 p-4 border rounded-lg">
+                            <legend className="text-lg font-medium px-1 mb-4">Horario Festivo</legend>
+                            {renderSettingInput('holidayDayRate')}
+                            {renderSettingInput('holidayNightRate')}
+                            {renderSettingInput('holidayDayOvertimeRate')}
+                            {renderSettingInput('holidayNightOvertimeRate')}
+                        </fieldset>
+                    </CardContent>
+                </Card>
+            )}
 
             <Card>
                 <CardHeader>
                     <CardTitle>Deducciones y Subsidios</CardTitle>
-                    <CardDescription>Activa y configura los porcentajes de deducción y los montos fijos de subsidios.</CardDescription>
+                    <CardDescription>Activa y configura los porcentajes de deducción y los montos fijos de subsidios. Aplican a todos los modelos de pago.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      <fieldset className="space-y-6 p-4 border rounded-lg">
@@ -336,7 +384,7 @@ export default function CompanySettingsPage() {
                 <CardContent className="space-y-6">
                      <RadioGroup 
                         value={settings.payrollCycle || 'fortnightly'} 
-                        onValueChange={handlePayrollCycleChange}
+                        onValueChange={(value) => handleRadioGroupChange('payrollCycle', value as 'monthly' | 'fortnightly')}
                     >
                         <Label>Frecuencia de Pago</Label>
                         <div className="flex items-center space-x-2 mt-2">
@@ -354,21 +402,25 @@ export default function CompanySettingsPage() {
                             El ciclo va desde el primer hasta el último día del mes.
                         </p>
                     </RadioGroup>
-                    <Separator />
-                    <div className='grid gap-2'>
-                        <Label>Inicio de Horario Nocturno</Label>
-                        <div className='flex items-center gap-4'>
-                         <TimeInput 
-                           label="Inicio de Horario Nocturno"
-                           value={settings.nightShiftStart || '21:00'}
-                           onChange={(value) => handleStringSettingChange('nightShiftStart', value)}
-                         />
-                         <p className="text-xs text-muted-foreground">
-                            Hora a partir de la cual se considera turno nocturno (formato 24h). Por defecto 21:00.
-                        </p>
+                    
+                    {paymentModel === 'hourly' && (
+                        <>
+                        <Separator />
+                        <div className='grid gap-2'>
+                            <Label>Inicio de Horario Nocturno</Label>
+                            <div className='flex items-center gap-4'>
+                            <TimeInput 
+                            label="Inicio de Horario Nocturno"
+                            value={settings.nightShiftStart || '21:00'}
+                            onChange={(value) => handleStringSettingChange('nightShiftStart', value)}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                Hora a partir de la cual se considera turno nocturno (formato 24h). Por defecto 21:00.
+                            </p>
+                            </div>
                         </div>
-
-                    </div>
+                        </>
+                    )}
                 </CardContent>
             </Card>
         </div>

@@ -20,6 +20,7 @@ export type User = {
   
   export type CompanySettings = {
     id: string;
+    paymentModel?: "hourly" | "production"; // The payment model for the company.
     dayRate?: number;
     nightRate?: number;
     dayOvertimeRate?: number;
@@ -51,7 +52,10 @@ export type User = {
     id: string;
     name: string;
     description?: string;
-    affectsPayment: boolean;
+    // For production model
+    value?: number; // Value per unit
+    // For hourly model (legacy or future use)
+    affectsPayment?: boolean;
     paymentMultiplier?: number;
     extraPerHour?: number;
     requiresSupervisor?: boolean;
@@ -62,9 +66,12 @@ export type User = {
     userId: string;
     companyId: string;
     date: string;
-    startTime: string;
-    endTime: string;
+    // For hourly model
+    startTime?: string;
+    endTime?: string;
+    // For production model
     itemId?: string;
+    quantity?: number;
     supervisor?: string;
   };
   
@@ -77,3 +84,4 @@ export type User = {
   };
   
     
+

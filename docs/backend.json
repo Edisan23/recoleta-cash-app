@@ -77,6 +77,11 @@
       "type": "object",
       "properties": {
         "id": { "type": "string" },
+        "paymentModel": {
+            "type": "string",
+            "enum": ["hourly", "production"],
+            "description": "The payment model for the company."
+        },
         "dayRate": { "type": "number" },
         "nightRate": { "type": "number" },
         "dayOvertimeRate": { "type": "number" },
@@ -118,34 +123,36 @@
     },
     "CompanyItem": {
       "title": "Company Item",
-      "description": "Represents an item or machine an operator can select for a shift.",
+      "description": "Represents an item for production-based payment (e.g., 'bulto movido') or a special condition for hourly payment.",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
         "description": { "type": "string" },
+        "value": { "type": "number", "description": "Value per unit for production-based payment."},
         "affectsPayment": { "type": "boolean" },
         "paymentMultiplier": { "type": "number" },
         "extraPerHour": { "type": "number" },
         "requiresSupervisor": { "type": "boolean" }
       },
-      "required": ["id", "name", "affectsPayment"]
+      "required": ["id", "name"]
     },
     "Shift": {
         "title": "Shift",
-        "description": "Represents a single work shift for a user.",
+        "description": "Represents a single work shift or production entry for a user.",
         "type": "object",
         "properties": {
             "id": { "type": "string" },
             "userId": { "type": "string" },
             "companyId": { "type": "string" },
             "date": { "type": "string", "format": "date-time" },
-            "startTime": { "type": "string", "format": "time" },
-            "endTime": { "type": "string", "format": "time" },
-            "itemId": { "type": "string" },
+            "startTime": { "type": "string", "format": "time", "description": "Used for 'hourly' payment model." },
+            "endTime": { "type": "string", "format": "time", "description": "Used for 'hourly' payment model." },
+            "itemId": { "type": "string", "description": "Used for 'production' payment model to link to a CompanyItem." },
+            "quantity": { "type": "number", "description": "Used for 'production' payment model." },
             "supervisor": { "type": "string" }
         },
-        "required": ["id", "userId", "companyId", "date", "startTime", "endTime"]
+        "required": ["id", "userId", "companyId", "date"]
     },
     "Payroll": {
         "title": "Payroll",
@@ -190,7 +197,7 @@
                 "path": "items/{itemId}",
                 "definition": {
                     "schema": { "$ref": "#/entities/CompanyItem" },
-                    "description": "Items/machines specific to the company."
+                    "description": "Items for production payment or special conditions for hourly payment."
                 }
             },
             {

@@ -10,7 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { TimeInput } from './TimeInput';
 import { DatePicker } from './DatePicker';
 import { LogOut, CalendarCheck, Wallet, Loader2, PlusCircle, Trash2, Settings, History } from 'lucide-react';
-import type { User, Company, CompanySettings, Shift, OperatorDeductions } from '@/types/db-entities';
+import type { User, Company, CompanySettings, Shift, OperatorDeductions, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -45,6 +45,13 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 
 // --- FAKE DATA & KEYS ---
@@ -57,6 +64,7 @@ const FAKE_OPERATOR_USER = {
 
 const COMPANIES_DB_KEY = 'fake_companies_db';
 const SETTINGS_DB_KEY = 'fake_company_settings_db';
+const ITEMS_DB_KEY_PREFIX = 'fake_company_items_db_'; // Assuming items are stored per company
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 const SHIFTS_DB_KEY_PREFIX = 'fake_shifts_db_';
 const DEDUCTIONS_DB_KEY_PREFIX = 'fake_deductions_db_';
@@ -122,13 +130,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<Partial<CompanySettings>>({});
+  const [companyItems, setCompanyItems] = useState<CompanyItem[]>([]);
   const [operatorDeductions, setOperatorDeductions] = useState<Partial<OperatorDeductions>>({});
   const [enabledDeductions, setEnabledDeductions] = useState<EnabledDeductionFields>({});
   
   const initialDate = useMemo(() => new Date(), []);
   const [date, setDate] = useState<Date | undefined>(initialDate);
+  // Hourly model state
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  // Production model state
+  const [selectedItemId, setSelectedItemId] = useState<string | undefined>();
+  const [quantity, setQuantity] = useState<number | ''>('');
+
   
   const [shiftForSelectedDay, setShiftForSelectedDay] = useState<Shift | null>(null);
   const [dailySummary, setDailySummary] = useState<ShiftCalculationResult | null>(null);
@@ -152,24 +166,37 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   const SHIFTS_DB_KEY = useMemo(() => `${SHIFTS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
   const DEDUCTIONS_DB_KEY = useMemo(() => `${DEDUCTIONS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
+  const ITEMS_DB_KEY = useMemo(() => `${ITEMS_DB_KEY_PREFIX}${companyId}`, [companyId]);
   
+  const paymentModel = settings.paymentModel || 'hourly';
+
   const calculatePayrollForPeriod = useCallback((shifts: Shift[], periodSettings: Partial<CompanySettings>, periodDeductions: Partial<OperatorDeductions>): PayrollSummary => {
-        let totalHoursInPeriod = 0;
+        let totalPaymentFromUnits = 0;
         let totalPaymentForHours = 0;
+        let totalHoursInPeriod = 0;
         let daysWithShifts = new Set();
 
         for (const shift of shifts) {
-            const details = calculateShiftDetails({
-                date: new Date(shift.date),
-                startTime: shift.startTime,
-                endTime: shift.endTime,
-                rates: periodSettings
-            });
-            totalHoursInPeriod += details.totalHours;
-            totalPaymentForHours += details.totalPayment;
             daysWithShifts.add(format(new Date(shift.date), 'yyyy-MM-dd'));
+
+            if (periodSettings.paymentModel === 'production' && shift.itemId && shift.quantity) {
+                const item = companyItems.find(i => i.id === shift.itemId);
+                if(item && item.value) {
+                    totalPaymentFromUnits += item.value * shift.quantity;
+                }
+            } else if (periodSettings.paymentModel === 'hourly' && shift.startTime && shift.endTime) {
+                const details = calculateShiftDetails({
+                    date: new Date(shift.date),
+                    startTime: shift.startTime,
+                    endTime: shift.endTime,
+                    rates: periodSettings
+                });
+                totalHoursInPeriod += details.totalHours;
+                totalPaymentForHours += details.totalPayment;
+            }
         }
         
+        const totalBasePayment = totalPaymentForHours + totalPaymentFromUnits;
         const numberOfDaysWithShifts = daysWithShifts.size;
         
         const monthlyTransportSubsidy = periodSettings.transportSubsidy || 0;
@@ -181,7 +208,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             totalTransportSubsidyForPeriod = dailySubsidy * numberOfDaysWithShifts;
         }
 
-        const grossPay = totalPaymentForHours + totalTransportSubsidyForPeriod;
+        const grossPay = totalBasePayment + totalTransportSubsidyForPeriod;
 
         const healthDeductionAmount = grossPay * ((periodSettings.healthDeduction || 0) / 100);
         const pensionDeductionAmount = grossPay * ((periodSettings.pensionDeduction || 0) / 100);
@@ -218,42 +245,56 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             subsidies: {
                 transport: totalTransportSubsidyForPeriod,
             },
-            totalPaymentFromHours: totalPaymentForHours,
+            totalPaymentFromHours: totalBasePayment,
         };
-  }, []);
+  }, [companyItems]);
 
   const refreshAllData = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>) => {
     if (!currentSettings.payrollCycle) return;
   
-    // 1. Read fresh data from localStorage
     const allShifts: Shift[] = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
     const currentDeductions: Partial<OperatorDeductions> = JSON.parse(localStorage.getItem(DEDUCTIONS_DB_KEY) || '{}');
   
-    // 2. Update daily shift information
     const dayShift = allShifts.find(s => isSameDay(new Date(s.date), currentDate)) || null;
     setShiftForSelectedDay(dayShift);
+    
+    let dailySummary: ShiftCalculationResult | null = null;
     if (dayShift) {
-      setStartTime(dayShift.startTime);
-      setEndTime(dayShift.endTime);
-      setDailySummary(calculateShiftDetails({
-        date: new Date(dayShift.date),
-        startTime: dayShift.startTime,
-        endTime: dayShift.endTime,
-        rates: currentSettings,
-      }));
+        if (paymentModel === 'hourly' && dayShift.startTime && dayShift.endTime) {
+            dailySummary = calculateShiftDetails({
+                date: new Date(dayShift.date),
+                startTime: dayShift.startTime,
+                endTime: dayShift.endTime,
+                rates: currentSettings,
+            });
+            setStartTime(dayShift.startTime);
+            setEndTime(dayShift.endTime);
+        } else if (paymentModel === 'production' && dayShift.itemId && dayShift.quantity) {
+             const item = companyItems.find(i => i.id === dayShift.itemId);
+             if (item && item.value) {
+                 dailySummary = {
+                     totalPayment: item.value * dayShift.quantity,
+                     totalHours: 0, dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
+                     holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
+                     isHoliday: false
+                 }
+             }
+            setSelectedItemId(dayShift.itemId);
+            setQuantity(dayShift.quantity);
+        }
     } else {
       setStartTime('');
       setEndTime('');
-      setDailySummary(null);
+      setSelectedItemId(undefined);
+      setQuantity('');
     }
+    setDailySummary(dailySummary);
   
-    // 3. Calculate current period summary
     const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
     const periodShifts = allShifts.filter(s => getPeriodKey(new Date(s.date), currentSettings.payrollCycle) === currentPeriodKey);
     const summary = calculatePayrollForPeriod(periodShifts, currentSettings, currentDeductions);
     setPayrollSummary(summary);
   
-    // 4. Calculate historical payroll
     const groupedByPeriod: { [key: string]: Shift[] } = allShifts.reduce((acc, shift) => {
       const periodKey = getPeriodKey(new Date(shift.date), currentSettings.payrollCycle);
       if (!acc[periodKey]) {
@@ -271,10 +312,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
     setHistoricalPayroll(history);
   
-  }, [SHIFTS_DB_KEY, DEDUCTIONS_DB_KEY, calculatePayrollForPeriod]);
+  }, [SHIFTS_DB_KEY, DEDUCTIONS_DB_KEY, calculatePayrollForPeriod, companyItems, paymentModel]);
 
   
-  // Effect to load initial company/settings data on mount
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -285,7 +325,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         if (!foundCompany) {
           console.error("Selected company not found in DB");
           localStorage.removeItem(OPERATOR_COMPANY_KEY);
-          router.replace('/select-company');
+router.replace('/select-company');
           return;
         }
         setCompany(foundCompany);
@@ -294,6 +334,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
         const companySettings = allSettings[companyId] || {};
         setSettings(companySettings);
+        
+        const storedItems = localStorage.getItem(ITEMS_DB_KEY);
+        const companyItemsData : CompanyItem[] = storedItems ? JSON.parse(storedItems) : [];
+        setCompanyItems(companyItemsData);
 
         const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
         const operatorDeductionsData : OperatorDeductions = storedDeductions ? JSON.parse(storedDeductions) : { userId: user.uid };
@@ -306,33 +350,49 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
         setEnabledDeductions(initialEnabled);
 
-        // Initial data load and calculation
-        if (date && companySettings.payrollCycle) {
-            refreshAllData(date, companySettings);
-        }
-
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY]);
+  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY]);
   
-  // Effect to update UI based on selected date
   useEffect(() => {
-    if (!date || isLoading) return;
+    if (!date || isLoading || !settings.payrollCycle) return;
     refreshAllData(date, settings);
   }, [date, settings, isLoading, refreshAllData]);
 
 
   const handleSave = () => {
-    if (!date || !startTime || !endTime || !company || !settings) {
-        toast({
-            variant: 'destructive',
-            title: 'Datos incompletos',
-            description: 'Por favor, completa la fecha y las horas de entrada y salida.',
-        });
-        return;
+    if (!date || !company || !settings) return;
+
+    let isValid = false;
+    let shiftData: Partial<Shift> = {};
+
+    if (paymentModel === 'hourly') {
+        if (startTime && endTime) {
+            isValid = true;
+            shiftData = { startTime, endTime };
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Datos incompletos',
+                description: 'Por favor, completa las horas de entrada y salida.',
+            });
+            return;
+        }
+    } else { // production
+        if (selectedItemId && quantity > 0) {
+            isValid = true;
+            shiftData = { itemId: selectedItemId, quantity };
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Datos incompletos',
+                description: 'Por favor, selecciona un ítem y una cantidad mayor a cero.',
+            });
+            return;
+        }
     }
 
     setIsSaving(true);
@@ -343,19 +403,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         
         const existingShiftIndex = allShifts.findIndex(s => isSameDay(new Date(s.date), date));
 
-        const shiftData: Shift = {
+        const baseShiftData: Shift = {
             id: existingShiftIndex > -1 ? allShifts[existingShiftIndex].id : `shift_${Date.now()}`,
             userId: user.uid,
             companyId: company.id,
             date: date.toISOString(),
-            startTime: startTime,
-            endTime: endTime,
         };
 
+        const finalShiftData = { ...baseShiftData, ...shiftData } as Shift;
+
         if (existingShiftIndex > -1) {
-            allShifts[existingShiftIndex] = shiftData;
+            allShifts[existingShiftIndex] = finalShiftData;
         } else {
-            allShifts.push(shiftData);
+            allShifts.push(finalShiftData);
         }
         
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
@@ -363,14 +423,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         refreshAllData(date, settings);
 
         toast({
-            title: existingShiftIndex > -1 ? 'Turno Actualizado' : 'Turno Guardado',
-            description: `Turno del ${format(date, 'PPP', { locale: es })} guardado.`,
+            title: existingShiftIndex > -1 ? 'Registro Actualizado' : 'Registro Guardado',
+            description: `Registro del ${format(date, 'PPP', { locale: es })} guardado.`,
         });
 
     } catch (error: any) {
         toast({
             variant: 'destructive',
-            title: 'Error al Calcular',
+            title: 'Error al Guardar',
             description: error.message,
         });
     } finally {
@@ -393,15 +453,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setShowDeleteConfirm(false);
 
         toast({
-            title: 'Turno Eliminado',
-            description: `El turno para el ${format(date, 'PPP', { locale: es })} ha sido eliminado.`,
+            title: 'Registro Eliminado',
+            description: `El registro para el ${format(date, 'PPP', { locale: es })} ha sido eliminado.`,
         });
     } catch (error) {
         console.error('Failed to delete shift', error);
          toast({
             variant: 'destructive',
             title: 'Error',
-            description: 'No se pudo eliminar el turno.',
+            description: 'No se pudo eliminar el registro.',
         });
     } finally {
         setIsSaving(false);
@@ -457,7 +517,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             title: 'Deducciones Guardadas',
             description: 'Tus deducciones voluntarias han sido actualizadas.',
         });
-        setShowDeductionsDialog(false); // Close dialog on save
+        setShowDeductionsDialog(false);
     } catch (e) {
         console.error("Failed to save deductions", e);
         toast({
@@ -534,7 +594,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const renderFullBreakdown = (summary: PayrollSummary) => (
         <div className="space-y-2 pt-2">
             <h4 className="font-semibold text-sm mb-1">Ingresos</h4>
-            {renderSummaryRow("Salario por horas", summary.totalPaymentFromHours)}
+            {renderSummaryRow("Pago base (horas/producción)", summary.totalPaymentFromHours)}
             {renderSummaryRow("Subsidio de transporte", summary.subsidies.transport)}
             <Separator className="my-2" />
             <div className="flex justify-between font-semibold">
@@ -583,7 +643,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     Bienvenido, {user?.isAnonymous ? 'Operador' : user?.displayName || ''}
                     </h1>
                     <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">
-                    Panel de Turnos
+                    Panel de Registro
                     </p>
                 </div>
             </div>
@@ -644,14 +704,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         <main>
            <Tabs defaultValue="pagos" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="pagos">Pagos</TabsTrigger>
+                <TabsTrigger value="pagos">Registro y Pagos</TabsTrigger>
                 <TabsTrigger value="historial">Historial</TabsTrigger>
               </TabsList>
               <TabsContent value="pagos" className="space-y-8 mt-8">
                  <Card className="relative">
                     <CardHeader>
-                    <CardTitle>Registrar o Editar Turno</CardTitle>
-                    <CardDescription>Selecciona la fecha y las horas. Si ya existe un turno para ese día, se actualizará.</CardDescription>
+                    <CardTitle>Registrar o Editar Día</CardTitle>
+                    <CardDescription>Selecciona la fecha y completa los datos. Si ya existe un registro, se actualizará.</CardDescription>
                         {shiftForSelectedDay && (
                             <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar turno" className="absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                                 <Trash2 className="h-5 w-5" />
@@ -659,25 +719,46 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         )}
                     </CardHeader>
                     <CardContent className="flex flex-col items-center gap-6">
-                    <DatePicker date={date} setDate={setDate} />
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                        <TimeInput
-                        label="Hora de Entrada"
-                        value={startTime}
-                        onChange={setStartTime}
-                        />
-                        <span className="text-muted-foreground">a</span>
-                        <TimeInput
-                        label="Hora de Salida"
-                        value={endTime}
-                        onChange={setEndTime}
-                        />
-                    </div>
+                        <DatePicker date={date} setDate={setDate} />
+                        
+                        {paymentModel === 'hourly' ? (
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                                <TimeInput label="Hora de Entrada" value={startTime} onChange={setStartTime} />
+                                <span className="text-muted-foreground">a</span>
+                                <TimeInput label="Hora de Salida" value={endTime} onChange={setEndTime} />
+                            </div>
+                        ) : (
+                            <div className="grid sm:grid-cols-2 gap-6 w-full max-w-md">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="production-item">Ítem de Producción</Label>
+                                    <Select value={selectedItemId} onValueChange={setSelectedItemId}>
+                                        <SelectTrigger id="production-item">
+                                            <SelectValue placeholder="Selecciona un ítem..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {companyItems.map(item => (
+                                                <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="quantity">Cantidad</Label>
+                                    <Input 
+                                        id="quantity" 
+                                        type="number" 
+                                        placeholder="0" 
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </CardContent>
                     <CardFooter className="flex justify-center gap-4">
                         <Button onClick={handleSave} disabled={isSaving}>
                             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                            {shiftForSelectedDay ? 'Actualizar Turno' : 'Guardar Turno'}
+                            {shiftForSelectedDay ? 'Actualizar Registro' : 'Guardar Registro'}
                         </Button>
                     </CardFooter>
                 </Card>
@@ -693,7 +774,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     <CardContent>
                         {!shiftForSelectedDay ? (
                             <p className="text-sm text-muted-foreground pt-4">
-                                No hay turnos registrados para este día.
+                                No hay registros para este día.
                             </p>
                         ) : (
                             <div className="mt-4 space-y-4">
@@ -701,29 +782,34 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                 <span className="font-bold">Total del día:</span> 
                                 <strong className="text-xl">{formatCurrency(dailySummary?.totalPayment)}</strong>
                                 </div>
-                                <div className="flex justify-between text-muted-foreground text-sm">
-                                    <span>Horas totales del día:</span>
-                                    <strong>{dailySummary?.totalHours.toFixed(2)}</strong>
-                                </div>
+                                
+                                {paymentModel === 'hourly' && dailySummary && dailySummary.totalHours > 0 && (
+                                    <div className="flex justify-between text-muted-foreground text-sm">
+                                        <span>Horas totales del día:</span>
+                                        <strong>{dailySummary?.totalHours.toFixed(2)}</strong>
+                                    </div>
+                                )}
 
-                                <Accordion type="single" collapsible className="w-full">
-                                <AccordionItem value="item-1">
-                                    <AccordionTrigger className="text-sm py-2">Ver desglose</AccordionTrigger>
-                                    <AccordionContent className="space-y-2 pt-2">
-                                    {renderBreakdownRow("Horas Diurnas", dailySummary?.dayHours || 0, settings.dayRate, (dailySummary?.dayHours || 0) * (settings.dayRate || 0))}
-                                    {renderBreakdownRow("Horas Nocturnas", dailySummary?.nightHours || 0, settings.nightRate, (dailySummary?.nightHours || 0) * (settings.nightRate || 0))}
-                                    {renderBreakdownRow("Extras Diurnas", dailySummary?.dayOvertimeHours || 0, settings.dayOvertimeRate, (dailySummary?.dayOvertimeHours || 0) * (settings.dayOvertimeRate || 0))}
-                                    {renderBreakdownRow("Extras Nocturnas", dailySummary?.nightOvertimeHours || 0, settings.nightOvertimeRate, (dailySummary?.nightOvertimeHours || 0) * (settings.nightOvertimeRate || 0))}
-                                    
-                                    {(dailySummary?.isHoliday) && <Separator className="my-2" />}
+                                {paymentModel === 'hourly' && (
+                                     <Accordion type="single" collapsible className="w-full">
+                                        <AccordionItem value="item-1">
+                                            <AccordionTrigger className="text-sm py-2">Ver desglose de horas</AccordionTrigger>
+                                            <AccordionContent className="space-y-2 pt-2">
+                                            {renderBreakdownRow("Horas Diurnas", dailySummary?.dayHours || 0, settings.dayRate, (dailySummary?.dayHours || 0) * (settings.dayRate || 0))}
+                                            {renderBreakdownRow("Horas Nocturnas", dailySummary?.nightHours || 0, settings.nightRate, (dailySummary?.nightHours || 0) * (settings.nightRate || 0))}
+                                            {renderBreakdownRow("Extras Diurnas", dailySummary?.dayOvertimeHours || 0, settings.dayOvertimeRate, (dailySummary?.dayOvertimeHours || 0) * (settings.dayOvertimeRate || 0))}
+                                            {renderBreakdownRow("Extras Nocturnas", dailySummary?.nightOvertimeHours || 0, settings.nightOvertimeRate, (dailySummary?.nightOvertimeHours || 0) * (settings.nightOvertimeRate || 0))}
+                                            
+                                            {(dailySummary?.isHoliday) && <Separator className="my-2" />}
 
-                                    {renderBreakdownRow("Festivas Diurnas", dailySummary?.holidayDayHours || 0, settings.holidayDayRate, (dailySummary?.holidayDayHours || 0) * (settings.holidayDayRate || 0))}
-                                    {renderBreakdownRow("Festivas Nocturnas", dailySummary?.holidayNightHours || 0, settings.holidayNightRate, (dailySummary?.holidayNightHours || 0) * (settings.holidayNightRate || 0))}
-                                    {renderBreakdownRow("Extras Festivas Diurnas", dailySummary?.holidayDayOvertimeHours || 0, settings.holidayDayOvertimeRate, (dailySummary?.holidayDayOvertimeHours || 0) * (settings.holidayDayOvertimeRate || 0))}
-                                    {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary?.holidayNightOvertimeHours || 0, settings.holidayNightOvertimeRate, (dailySummary?.holidayNightOvertimeHours || 0) * (settings.holidayNightOvertimeRate || 0))}
-                                    </AccordionContent>
-                                </AccordionItem>
-                                </Accordion>
+                                            {renderBreakdownRow("Festivas Diurnas", dailySummary?.holidayDayHours || 0, settings.holidayDayRate, (dailySummary?.holidayDayHours || 0) * (settings.holidayDayRate || 0))}
+                                            {renderBreakdownRow("Festivas Nocturnas", dailySummary?.holidayNightHours || 0, settings.holidayNightRate, (dailySummary?.holidayNightHours || 0) * (settings.holidayNightRate || 0))}
+                                            {renderBreakdownRow("Extras Festivas Diurnas", dailySummary?.holidayDayOvertimeHours || 0, settings.holidayDayOvertimeRate, (dailySummary?.holidayDayOvertimeHours || 0) * (settings.holidayDayOvertimeRate || 0))}
+                                            {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary?.holidayNightOvertimeHours || 0, settings.holidayNightOvertimeRate, (dailySummary?.holidayNightOvertimeHours || 0) * (settings.holidayNightOvertimeRate || 0))}
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    </Accordion>
+                                )}
                             </div>
                         )}
                     </CardContent>
@@ -763,13 +849,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                     </>
                                 ) : (
                                     <div className="flex justify-between items-baseline">
-                                        <span className="text-sm text-muted-foreground">Salario por horas:</span>
+                                        <span className="text-sm text-muted-foreground">Pago base acumulado:</span>
                                         <strong className="text-2xl font-bold">{formatCurrency(payrollSummary.totalPaymentFromHours)}</strong>
                                     </div>
                                 )}
                                 
                                 <p className="text-xs text-muted-foreground pt-1">
-                                    Acumulado del periodo de pago actual ({payrollSummary.totalHours.toFixed(2)} horas).
+                                    Acumulado del periodo de pago actual.
+                                    {paymentModel === 'hourly' && ` (${payrollSummary.totalHours.toFixed(2)} horas).`}
                                 </p>
 
                                 <Accordion type="single" collapsible className="w-full">
@@ -797,7 +884,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         <Accordion type="single" collapsible className="w-full">
                             {Object.keys(historicalPayroll).length > 0 ? (
                                 Object.entries(historicalPayroll)
-                                .sort(([keyA], [keyB]) => keyB.localeCompare(keyA)) // Sort by most recent period
+                                .sort(([keyA], [keyB]) => keyB.localeCompare(keyA))
                                 .map(([periodKey, summary]) => (
                                     <AccordionItem value={periodKey} key={periodKey}>
                                         <AccordionTrigger>
@@ -827,7 +914,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción eliminará permanentemente el turno del día {date ? format(date, 'PPP', { locale: es }) : ''}. No se puede deshacer.
+              Esta acción eliminará permanentemente el registro del día {date ? format(date, 'PPP', { locale: es }) : ''}. No se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -842,7 +929,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    
-
-    
