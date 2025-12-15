@@ -40,14 +40,12 @@ const isHoliday = (date: Date): boolean => {
     }
 
     // A Monday is a holiday only if it's in the official list
-    if (dayOfWeek === 1) {
-        const isOfficialHoliday = COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(date, holiday));
-        if (isOfficialHoliday) {
-            return true;
-        }
+    const isOfficialHoliday = COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(date, holiday));
+    if (dayOfWeek === 1 && isOfficialHoliday) {
+        return true;
     }
 
-    // Check against manually added holidays
+    // Check against manually added holidays, regardless of the day of the week
     const manualHolidays = getManualHolidays();
     const today = startOfDay(date);
     const isManualHoliday = manualHolidays.some(manualHoliday => isSameDay(today, startOfDay(manualHoliday)));
@@ -55,7 +53,11 @@ const isHoliday = (date: Date): boolean => {
         return true;
     }
     
-    // Other days are not considered holidays based on the new rule
+    // Other official holidays that are not on Monday are also holidays
+    if (dayOfWeek !== 1 && isOfficialHoliday) {
+        return true;
+    }
+
     return false;
 };
 
@@ -79,6 +81,15 @@ export interface ShiftCalculationResult {
     holidayNightOvertimeHours: number;
     isHoliday: boolean;
     totalPayment: number;
+    // Payment breakdowns
+    dayPayment: number;
+    nightPayment: number;
+    dayOvertimePayment: number;
+    nightOvertimePayment: number;
+    holidayDayPayment: number;
+    holidayNightPayment: number;
+    holidayDayOvertimePayment: number;
+    holidayNightOvertimePayment: number;
 }
 
 export interface PayrollSummary {
@@ -108,7 +119,9 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
         totalHours: 0, dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
         holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
         isHoliday: false,
-        totalPayment: 0
+        totalPayment: 0,
+        dayPayment: 0, nightPayment: 0, dayOvertimePayment: 0, nightOvertimePayment: 0,
+        holidayDayPayment: 0, holidayNightPayment: 0, holidayDayOvertimePayment: 0, holidayNightOvertimePayment: 0
     };
 
     if (paymentModel === 'production' && shift.itemId && shift.quantity) {
@@ -175,8 +188,25 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
 
         result.totalHours = workedHoursOnDay;
         
-        // Payment is not calculated here for hourly model, just the hours.
-        result.totalPayment = 0;
+        result.dayPayment = result.dayHours * (rates.dayRate || 0);
+        result.nightPayment = result.nightHours * (rates.nightRate || 0);
+        result.dayOvertimePayment = result.dayOvertimeHours * (rates.dayOvertimeRate || 0);
+        result.nightOvertimePayment = result.nightOvertimeHours * (rates.nightOvertimeRate || 0);
+        result.holidayDayPayment = result.holidayDayHours * (rates.holidayDayRate || 0);
+        result.holidayNightPayment = result.holidayNightHours * (rates.holidayNightRate || 0);
+        result.holidayDayOvertimePayment = result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
+        result.holidayNightOvertimePayment = result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
+
+        result.totalPayment = 
+            result.dayPayment +
+            result.nightPayment +
+            result.dayOvertimePayment +
+            result.nightOvertimePayment +
+            result.holidayDayPayment +
+            result.holidayNightPayment +
+            result.holidayDayOvertimePayment +
+            result.holidayNightOvertimePayment;
+
 
         return result;
     }
@@ -247,3 +277,4 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16-${lastDay} de ${monthName} ${year}`;
     }
 };
+
