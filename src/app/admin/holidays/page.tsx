@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -43,20 +44,30 @@ export default function HolidaysPage() {
     }
   };
 
-  const handleDateSelect = (date: Date | undefined) => {
-    if (!date) return;
-
-    const normalizedDate = startOfDay(date);
-    const isAlreadySelected = holidays.some(h => isSameDay(h, normalizedDate));
-
-    let updatedHolidays;
-    if (isAlreadySelected) {
-      updatedHolidays = holidays.filter(h => !isSameDay(h, normalizedDate));
-      toast({ title: "Feriado eliminado", description: `Se quitó el ${format(normalizedDate, 'PPP', { locale: es })}.` });
-    } else {
-      updatedHolidays = [...holidays, normalizedDate].sort((a, b) => a.getTime() - b.getTime());
-      toast({ title: "Feriado agregado", description: `Se añadió el ${format(normalizedDate, 'PPP', { locale: es })}.` });
+  const handleDateSelect = (dates: Date[] | undefined) => {
+    if (!dates) {
+        dates = [];
     }
+
+    const previouslySelectedCount = holidays.length;
+    const currentlySelectedCount = dates.length;
+
+    // Determine if a date was added or removed
+    if (currentlySelectedCount > previouslySelectedCount) {
+        // Date added
+        const newDate = dates.find(d => !holidays.some(h => isSameDay(h, d)));
+        if (newDate) {
+            toast({ title: "Feriado agregado", description: `Se añadió el ${format(newDate, 'PPP', { locale: es })}.` });
+        }
+    } else {
+        // Date removed
+        const removedDate = holidays.find(h => !dates.some(d => isSameDay(h, d)));
+        if (removedDate) {
+            toast({ title: "Feriado eliminado", description: `Se quitó el ${format(removedDate, 'PPP', { locale: es })}.` });
+        }
+    }
+
+    const updatedHolidays = dates.map(d => startOfDay(d)).sort((a, b) => a.getTime() - b.getTime());
     setHolidays(updatedHolidays);
     saveHolidaysToStorage(updatedHolidays);
   };
