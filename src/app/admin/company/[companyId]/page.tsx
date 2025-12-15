@@ -355,29 +355,6 @@ export default function CompanySettingsPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Deducciones y Subsidios</CardTitle>
-                    <CardDescription>Activa y configura los porcentajes de deducción y los montos fijos de subsidios. Aplican a todos los modelos de pago.</CardDescription>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <fieldset className="space-y-6 p-4 border rounded-lg">
-                        <legend className="text-lg font-medium px-1 mb-4">Deducciones Legales (%)</legend>
-                        {renderSettingInput('healthDeduction')}
-                        {renderSettingInput('pensionDeduction')}
-                        {renderSettingInput('arlDeduction')}
-                        {renderSettingInput('familyCompensationDeduction')}
-                        {renderSettingInput('taxWithholding')}
-                        {renderSettingInput('solidarityFundDeduction', 'Se aplica a salarios de 4 SMMLV o más.')}
-                    </fieldset>
-                     <fieldset className="space-y-6 p-4 border rounded-lg">
-                        <legend className="text-lg font-medium px-1 mb-4">Subsidios (Monto Fijo)</legend>
-                        {renderSettingInput('transportSubsidy')}
-                    </fieldset>
-                </CardContent>
-            </Card>
-
-
-            <Card>
-                <CardHeader>
                     <CardTitle>Configuración de Nómina</CardTitle>
                     <CardDescription>Establece las reglas generales de la nómina.</CardDescription>
                 </CardHeader>
@@ -472,3 +449,5 @@ export default function CompanySettingsPage() {
     </TooltipProvider>
   );
 }
+
+    
