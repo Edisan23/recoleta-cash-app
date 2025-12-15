@@ -2,12 +2,15 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2 } from 'lucide-react';
+import { LogOut, Loader2, Save } from 'lucide-react';
 import type { User, Company, CompanySettings, Shift, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { TimeInput } from '@/components/TimeInput';
+import { format } from 'date-fns';
 
 // --- FAKE DATA & KEYS ---
 const FAKE_OPERATOR_USER = {
@@ -19,6 +22,8 @@ const FAKE_OPERATOR_USER = {
 
 const COMPANIES_DB_KEY = 'fake_companies_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
+const SHIFTS_DB_KEY = 'fake_shifts_db';
+const SETTINGS_DB_KEY = 'fake_company_settings_db';
 
 
 // --- HELPER FUNCTIONS ---
@@ -34,15 +39,22 @@ function getInitials(name: string) {
 // --- COMPONENT ---
 export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
+  const { toast } = useToast();
   
   const user = FAKE_OPERATOR_USER;
 
   const [company, setCompany] = useState<Company | null>(null);
+  const [settings, setSettings] = useState<Partial<CompanySettings>>({});
   const [isLoading, setIsLoading] = useState(true);
-  
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Initial load
-  useEffect(() => {
+  const [date, setDate] = useState(new Date());
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [todaysShiftId, setTodaysShiftId] = useState<string | null>(null);
+
+
+  const loadDataForDay = useCallback((currentDate: Date) => {
     setIsLoading(true);
     try {
         const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
@@ -57,12 +69,84 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
         setCompany(foundCompany);
 
+        const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
+        const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
+        setSettings(allSettings[companyId] || {});
+
+        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+        const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+
+        const todayString = format(currentDate, 'yyyy-MM-dd');
+        const shiftForDay = allShifts.find(s => s.userId === user.uid && s.companyId === companyId && s.date.startsWith(todayString));
+
+        if (shiftForDay) {
+            setStartTime(shiftForDay.startTime || '');
+            setEndTime(shiftForDay.endTime || '');
+            setTodaysShiftId(shiftForDay.id);
+        } else {
+            setStartTime('');
+            setEndTime('');
+            setTodaysShiftId(null);
+        }
+
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
+        toast({ title: 'Error', description: 'No se pudieron cargar los datos.', variant: 'destructive' });
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router]);
+  }, [companyId, router, user.uid, toast]);
+
+  // Initial load
+  useEffect(() => {
+    loadDataForDay(date);
+  }, [date, loadDataForDay]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate save
+
+    try {
+        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+        let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+        
+        const todayString = format(date, 'yyyy-MM-dd');
+        
+        const shiftIndex = allShifts.findIndex(s => s.id === todaysShiftId);
+
+        if (shiftIndex > -1) {
+            // Update existing shift
+            allShifts[shiftIndex] = {
+                ...allShifts[shiftIndex],
+                startTime,
+                endTime,
+            };
+        } else {
+            // Create new shift
+            const newShift: Shift = {
+                id: `shift_${Date.now()}`,
+                userId: user.uid,
+                companyId: companyId,
+                date: todayString,
+                startTime,
+                endTime,
+            };
+            allShifts.push(newShift);
+            setTodaysShiftId(newShift.id);
+        }
+
+        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
+        toast({ title: '¡Guardado!', description: 'Tu turno ha sido actualizado.' });
+
+    } catch (e) {
+        console.error("Failed to save shift to localStorage", e);
+        toast({ title: 'Error', description: 'No se pudo guardar el turno.', variant: 'destructive' });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
 
   const handleSignOut = () => {
     try {
@@ -80,6 +164,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         </div>
     );
   }
+
+  const isHourly = settings.paymentModel === 'hourly';
+
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
@@ -127,7 +214,33 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         </header>
 
         <main>
-           {/* Content removed as requested */}
+           <Card>
+                <CardHeader>
+                    <CardTitle>Registrar Turno de Hoy</CardTitle>
+                    <CardDescription>
+                        Ingresa tus horas de entrada y salida para el día {format(date, 'PPP', { locale: { code: 'es' }})}.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="flex flex-col sm:flex-row gap-8 items-center justify-around">
+                        <div className="grid gap-2 text-center">
+                            <h3 className="font-semibold">Hora de Entrada</h3>
+                            <TimeInput label="Hora de entrada" value={startTime} onChange={setStartTime} />
+                        </div>
+
+                         <div className="grid gap-2 text-center">
+                            <h3 className="font-semibold">Hora de Salida</h3>
+                            <TimeInput label="Hora de salida" value={endTime} onChange={setEndTime} />
+                        </div>
+                    </div>
+                </CardContent>
+                <CardFooter className="flex justify-end">
+                    <Button onClick={handleSave} disabled={isSaving || isLoading}>
+                        {isSaving ? <Loader2 className="mr-2 animate-spin"/> : <Save className="mr-2"/>}
+                        Guardar Turno
+                    </Button>
+                </CardFooter>
+           </Card>
         </main>
       </div>
     </div>
