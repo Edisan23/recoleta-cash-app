@@ -98,7 +98,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     }
 
     if (paymentModel === 'hourly' && shift.startTime && shift.endTime) {
-        // CRITICAL FIX: Use `parse` to correctly interpret the date string without timezone shifts.
+        // Use parse to avoid timezone issues.
         const shiftDate = parse(shift.date.substring(0, 10), 'yyyy-MM-dd', new Date());
 
         if (isNaN(shiftDate.getTime())) {
@@ -130,18 +130,18 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
             const isOvertime = workedHoursOnDay >= NORMAL_WORK_HOURS_PER_DAY;
             const increment = 1 / 60; 
 
-            if (isOvertime) {
-                if (shiftIsHoliday) {
+            if (shiftIsHoliday) {
+                if(isOvertime) {
                     if (isNightHour) result.holidayNightOvertimeHours += increment;
                     else result.holidayDayOvertimeHours += increment;
                 } else {
-                    if (isNightHour) result.nightOvertimeHours += increment;
-                    else result.dayOvertimeHours += increment;
-                }
-            } else {
-                if (shiftIsHoliday) {
                     if (isNightHour) result.holidayNightHours += increment;
                     else result.holidayDayHours += increment;
+                }
+            } else {
+                 if(isOvertime) {
+                    if (isNightHour) result.nightOvertimeHours += increment;
+                    else result.dayOvertimeHours += increment;
                 } else {
                     if (isNightHour) result.nightHours += increment;
                     else result.dayHours += increment;
@@ -186,55 +186,29 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
         totalHoursInPeriod += details.totalHours;
     }
     
-    let totalTransportSubsidyForPeriod = 0;
-    const monthlyTransportSubsidy = periodSettings.transportSubsidy || 0;
-    
-    if (monthlyTransportSubsidy > 0 && shifts.length > 0) {
-        const cycle = periodSettings.payrollCycle || 'fortnightly';
-        if (cycle === 'monthly') {
-            totalTransportSubsidyForPeriod = monthlyTransportSubsidy;
-        } else { 
-            totalTransportSubsidyForPeriod = monthlyTransportSubsidy / 2;
-        }
-    }
+    // Subsidies and deductions are no longer calculated.
+    // Gross Pay and Net Pay are the same as the base payment.
 
-    const grossPay = totalBasePayment + totalTransportSubsidyForPeriod;
-
-    const healthDeductionAmount = grossPay * ((periodSettings.healthDeduction || 0) / 100);
-    const pensionDeductionAmount = grossPay * ((periodSettings.pensionDeduction || 0) / 100);
-    const arlDeductionAmount = grossPay * ((periodSettings.arlDeduction || 0) / 100);
-    const familyCompensationAmount = grossPay * ((periodSettings.familyCompensationDeduction || 0) / 100);
-    const solidarityFundAmount = grossPay * ((periodSettings.solidarityFundDeduction || 0) / 100);
-    const taxWithholdingAmount = grossPay * ((periodSettings.taxWithholding || 0) / 100);
-    const totalLegalDeductions = healthDeductionAmount + pensionDeductionAmount + arlDeductionAmount + familyCompensationAmount + solidarityFundAmount + taxWithholdingAmount;
-
-    const unionFee = periodDeductions.unionFeeDeduction || 0;
-    const cooperativeFee = periodDeductions.cooperativeDeduction || 0;
-    const loanFee = periodDeductions.loanDeduction || 0;
-    const totalVoluntaryDeductions = unionFee + cooperativeFee + loanFee;
-
-    const netPay = grossPay - totalLegalDeductions - totalVoluntaryDeductions;
-    
     return {
-        grossPay,
-        netPay: Math.max(0, netPay),
+        grossPay: totalBasePayment,
+        netPay: totalBasePayment,
         totalHours: totalHoursInPeriod,
         totalBasePayment,
         legalDeductions: {
-            health: healthDeductionAmount,
-            pension: pensionDeductionAmount,
-            arl: arlDeductionAmount,
-            familyCompensation: familyCompensationAmount,
-            solidarityFund: solidarityFundAmount,
-            taxWithholding: taxWithholdingAmount,
+            health: 0,
+            pension: 0,
+            arl: 0,
+            familyCompensation: 0,
+            solidarityFund: 0,
+            taxWithholding: 0,
         },
         voluntaryDeductions: {
-            union: unionFee,
-            cooperative: cooperativeFee,
-            loan: loanFee,
+            union: 0,
+            cooperative: 0,
+            loan: 0,
         },
         subsidies: {
-            transport: totalTransportSubsidyForPeriod,
+            transport: 0,
         },
     };
 };
@@ -278,5 +252,6 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16-${lastDay} de ${monthName} ${year}`;
     }
 };
+
 
 
