@@ -8,18 +8,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { TimeInput } from './TimeInput';
 import { DatePicker } from './DatePicker';
-import { LogOut, CalendarCheck, Wallet, Loader2, PlusCircle, Trash2, Settings, History } from 'lucide-react';
+import { LogOut, Loader2, PlusCircle, Trash2, Settings, History } from 'lucide-react';
 import type { User, Company, CompanySettings, Shift, OperatorDeductions, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { calculateShiftDetails, calculatePayrollForPeriod, getPeriodKey, getPeriodDescription, ShiftCalculationResult, PayrollSummary } from '@/lib/payroll-calculator';
+import { calculateShiftDetails, calculatePayrollForPeriod, getPeriodKey, getPeriodDescription, PayrollSummary } from '@/lib/payroll-calculator';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Separator } from '@/components/ui/separator';
 import {
   Accordion,
   AccordionContent,
@@ -43,7 +41,6 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -121,18 +118,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   const initialDate = useMemo(() => new Date(), []);
   const [date, setDate] = useState<Date | undefined>(initialDate);
-  // Hourly model state
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  
   // Production model state
   const [selectedItemId, setSelectedItemId] = useState<string | undefined>();
   const [quantity, setQuantity] = useState<number | ''>('');
 
   
   const [shiftForSelectedDay, setShiftForSelectedDay] = useState<Shift | null>(null);
-  const [dailySummary, setDailySummary] = useState<ShiftCalculationResult | null>(null);
   
-  const [payrollSummary, setPayrollSummary] = useState<PayrollSummary>(EMPTY_PAYROLL_SUMMARY);
   const [historicalPayroll, setHistoricalPayroll] = useState<HistoricalPayroll>({});
 
 
@@ -172,16 +165,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setShiftForSelectedDay(dayShift);
         
         if (dayShift) {
-            const calculatedDailySummary = calculateShiftDetails({ shift: dayShift, rates: currentSettings, items: allItems });
-            setDailySummary(calculatedDailySummary);
-            setStartTime(dayShift.startTime || '');
-            setEndTime(dayShift.endTime || '');
             setSelectedItemId(dayShift.itemId);
             setQuantity(dayShift.quantity || '');
         } else {
-            setDailySummary(null);
-            setStartTime('');
-            setEndTime('');
             setSelectedItemId(undefined);
             setQuantity('');
         }
@@ -199,7 +185,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }, {} as { [key: string]: Shift[] });
 
         const newHistory: HistoricalPayroll = {};
-        let newCurrentPeriodSummary: PayrollSummary = EMPTY_PAYROLL_SUMMARY;
 
         for (const periodKey in groupedByPeriod) {
             const summary = calculatePayrollForPeriod({
@@ -208,14 +193,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 periodDeductions: currentDeductions,
                 items: allItems,
             });
-            if (periodKey === currentPeriodKey) {
-                newCurrentPeriodSummary = summary;
-            } else {
-                newHistory[periodKey] = summary;
+            if (periodKey !== currentPeriodKey) {
+                 newHistory[periodKey] = summary;
             }
         }
         
-        setPayrollSummary(newCurrentPeriodSummary);
         setHistoricalPayroll(newHistory);
 
     } catch (e) {
@@ -271,17 +253,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
     let shiftData: Partial<Shift> = {};
 
-    if (paymentModel === 'hourly') {
-        if (!startTime || !endTime) {
-            toast({
-                variant: 'destructive',
-                title: 'Datos incompletos',
-                description: 'Por favor, completa las horas de entrada y salida.',
-            });
-            return;
-        }
-        shiftData = { startTime, endTime, itemId: undefined, quantity: undefined };
-    } else { // production
+    if (paymentModel === 'production') {
         if (!selectedItemId || !quantity || quantity <= 0) {
             toast({
                 variant: 'destructive',
@@ -291,7 +263,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             return;
         }
         shiftData = { itemId: selectedItemId, quantity, startTime: undefined, endTime: undefined };
+    } else { // fallback for hourly if needed
+         toast({
+            variant: 'destructive',
+            title: 'Modelo de pago no configurado',
+            description: 'La empresa no tiene un modelo de pago por producción activo.',
+        });
+        return;
     }
+
 
     setIsSaving(true);
     
@@ -470,42 +450,28 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     );
   }
 
-  const payrollCycleText = settings.payrollCycle === 'monthly' ? 'Mensual' : 'Quincenal';
-
-  const renderBreakdownRow = (label: string, hours: number, payment: number) => {
-    if (hours === 0 && payment === 0) return null;
-    return (
-        <div className="flex justify-between items-center text-sm">
-            <span className="text-muted-foreground">{label} ({hours.toFixed(2)}h)</span>
-            <span className="font-mono">{formatCurrency(payment)}</span>
-        </div>
-    );
-  };
-  
-    const renderSummaryRow = (label: string, value: number, isPositive: boolean = true) => {
-        if (value === 0) return null;
-        return (
-            <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">{label}</span>
-                <span className={`font-mono ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-                    {isPositive ? '+' : '-'} {formatCurrency(value)}
-                </span>
-            </div>
-        );
-    };
-    
     const renderFullBreakdown = (summary: PayrollSummary) => (
         <div className="space-y-2 pt-2">
             <h4 className="font-semibold text-sm mb-1">Ingresos</h4>
-            {renderSummaryRow("Pago base (horas/producción)", summary.totalBasePayment)}
-             <Separator className="my-2" />
-             <div className="flex justify-between font-bold text-lg">
+            {renderSummaryRow("Pago base (producción)", summary.totalBasePayment)}
+             <div className="flex justify-between font-bold text-lg mt-4">
                 <span>Neto a Pagar</span>
                 <span>{formatCurrency(summary.netPay)}</span>
             </div>
         </div>
     );
 
+    const renderSummaryRow = (label: string, value: number, isPositive: boolean = true) => {
+        if (value === 0) return null;
+        return (
+            <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">{label}</span>
+                <span className={`font-mono ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                    {isPositive ? '' : '- '} {formatCurrency(Math.abs(value))}
+                </span>
+            </div>
+        );
+    };
 
 
   return (
@@ -583,18 +549,18 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
 
         <main>
-           <Tabs defaultValue="pagos" className="w-full">
+           <Tabs defaultValue="registro" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="pagos">Registro y Pagos</TabsTrigger>
+                <TabsTrigger value="registro">Registro de Producción</TabsTrigger>
                 <TabsTrigger value="historial">Historial</TabsTrigger>
               </TabsList>
-              <TabsContent value="pagos" className="space-y-8 mt-8">
+              <TabsContent value="registro" className="space-y-8 mt-8">
                  <Card className="relative">
                     <CardHeader>
-                    <CardTitle>Registrar o Editar Día</CardTitle>
-                    <CardDescription>Selecciona la fecha y completa los datos. Si ya existe un registro, se actualizará.</CardDescription>
+                    <CardTitle>Registrar o Editar Producción</CardTitle>
+                    <CardDescription>Selecciona la fecha y completa los datos. Si ya existe un registro para ese día, se actualizará.</CardDescription>
                         {shiftForSelectedDay && (
-                            <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar turno" className="absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                            <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar registro" className="absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                                 <Trash2 className="h-5 w-5" />
                             </Button>
                         )}
@@ -602,39 +568,31 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     <CardContent className="flex flex-col items-center gap-6">
                         <DatePicker date={date} setDate={setDate} />
                         
-                        {paymentModel === 'hourly' ? (
-                            <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-                                <TimeInput label="Hora de Entrada" value={startTime} onChange={setStartTime} />
-                                <span className="text-muted-foreground">a</span>
-                                <TimeInput label="Hora de Salida" value={endTime} onChange={setEndTime} />
+                        <div className="grid sm:grid-cols-2 gap-6 w-full max-w-md">
+                            <div className="grid gap-2">
+                                <Label htmlFor="production-item">Ítem de Producción</Label>
+                                <Select value={selectedItemId} onValueChange={setSelectedItemId}>
+                                    <SelectTrigger id="production-item">
+                                        <SelectValue placeholder="Selecciona un ítem..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {companyItems.map(item => (
+                                            <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
-                        ) : (
-                            <div className="grid sm:grid-cols-2 gap-6 w-full max-w-md">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="production-item">Ítem de Producción</Label>
-                                    <Select value={selectedItemId} onValueChange={setSelectedItemId}>
-                                        <SelectTrigger id="production-item">
-                                            <SelectValue placeholder="Selecciona un ítem..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {companyItems.map(item => (
-                                                <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="quantity">Cantidad</Label>
-                                    <Input 
-                                        id="quantity" 
-                                        type="number" 
-                                        placeholder="0" 
-                                        value={quantity}
-                                        onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
-                                    />
-                                </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="quantity">Cantidad</Label>
+                                <Input 
+                                    id="quantity" 
+                                    type="number" 
+                                    placeholder="0" 
+                                    value={quantity}
+                                    onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+                                />
                             </div>
-                        )}
+                        </div>
                     </CardContent>
                     <CardFooter className="flex justify-center gap-4">
                         <Button onClick={handleSave} disabled={isSaving}>
@@ -644,80 +602,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </CardFooter>
                 </Card>
 
-                <div className="grid md:grid-cols-2 gap-8">
-                    <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-lg font-medium">
-                        Resumen del Día ({date ? format(date, 'PPP', { locale: es }) : 'N/A'})
-                        </CardTitle>
-                        <CalendarCheck className="h-6 w-6 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        {!shiftForSelectedDay ? (
-                            <p className="text-sm text-muted-foreground pt-4">
-                                No hay registros para este día.
-                            </p>
-                        ) : (
-                            <div className="mt-4 space-y-4">
-                            <div className="flex justify-between pt-2">
-                                <span className="font-bold">Total del día:</span> 
-                                <strong className="text-xl">{formatCurrency(dailySummary?.totalPayment)}</strong>
-                                </div>
-                                
-                                {paymentModel === 'hourly' && dailySummary && dailySummary.totalHours > 0 && (
-                                    <div className="flex justify-between text-muted-foreground text-sm">
-                                        <span>Horas totales del día:</span>
-                                        <strong>{dailySummary?.totalHours.toFixed(2)}</strong>
-                                    </div>
-                                )}
-
-                                {paymentModel === 'hourly' && dailySummary && dailySummary.totalHours > 0 && (
-                                     <Accordion type="single" collapsible className="w-full">
-                                        <AccordionItem value="item-1">
-                                            <AccordionTrigger className="text-sm py-2">Ver desglose de horas</AccordionTrigger>
-                                            <AccordionContent className="space-y-2 pt-2">
-                                            {renderBreakdownRow("Horas Diurnas", dailySummary.dayHours, dailySummary.dayHours * (settings.dayRate || 0))}
-                                            {renderBreakdownRow("Horas Nocturnas", dailySummary.nightHours, dailySummary.nightHours * (settings.nightRate || 0))}
-                                            {renderBreakdownRow("Extras Diurnas", dailySummary.dayOvertimeHours, dailySummary.dayOvertimeHours * (settings.dayOvertimeRate || 0))}
-                                            {renderBreakdownRow("Extras Nocturnas", dailySummary.nightOvertimeHours, dailySummary.nightOvertimeHours * (settings.nightOvertimeRate || 0))}
-                                            
-                                            {(dailySummary.isHoliday) && <Separator className="my-2" />}
-
-                                            {renderBreakdownRow("Festivas Diurnas", dailySummary.holidayDayHours, dailySummary.holidayDayHours * (settings.holidayDayRate || 0))}
-                                            {renderBreakdownRow("Festivas Nocturnas", dailySummary.holidayNightHours, dailySummary.holidayNightHours * (settings.holidayNightRate || 0))}
-                                            {renderBreakdownRow("Extras Festivas Diurnas", dailySummary.holidayDayOvertimeHours, dailySummary.holidayDayOvertimeHours * (settings.holidayDayOvertimeRate || 0))}
-                                            {renderBreakdownRow("Extras Festivas Nocturnas", dailySummary.holidayNightOvertimeHours, dailySummary.holidayNightOvertimeHours * (settings.holidayNightOvertimeRate || 0))}
-                                            </AccordionContent>
-                                        </AccordionItem>
-                                    </Accordion>
-                                )}
-                            </div>
-                        )}
-                    </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-lg font-medium">
-                            Acumulado {payrollCycleText}
-                            </CardTitle>
-                            <Wallet className="h-6 w-6 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4 mt-4">
-                                <div className="flex justify-between items-baseline">
-                                    <span className="text-sm text-muted-foreground">Pago total acumulado:</span>
-                                    <strong className="text-2xl font-bold">{formatCurrency(payrollSummary.netPay)}</strong>
-                                </div>
-                                
-                                <p className="text-xs text-muted-foreground pt-1">
-                                    Acumulado del periodo de pago actual.
-                                    {paymentModel === 'hourly' && ` (${payrollSummary.totalHours.toFixed(2)} horas).`}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
               </TabsContent>
               <TabsContent value="historial" className="space-y-8 mt-8">
                  <Card>
@@ -779,3 +663,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
 
 
+
+
+    
