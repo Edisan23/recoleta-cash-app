@@ -545,7 +545,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               <TabsContent value="registro" className="space-y-8 mt-8">
                  <Card className="relative">
                     <CardHeader>
-                    <CardTitle>Registrar Producción para Hoy</CardTitle>
                     <CardDescription>Completa los datos de producción. El registro se guardará con la fecha de hoy, {format(new Date(), 'PPP', { locale: es })}.</CardDescription>
                         {shiftForSelectedDay && (
                             <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar registro" className="absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
