@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { DatePicker } from './DatePicker';
 import { LogOut, Loader2, PlusCircle, Trash2, Settings, History } from 'lucide-react';
 import type { User, Company, CompanySettings, Shift, OperatorDeductions, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
@@ -110,10 +109,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [operatorDeductions, setOperatorDeductions] = useState<Partial<OperatorDeductions>>({});
   const [enabledDeductions, setEnabledDeductions] = useState<EnabledDeductionFields>({});
   
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const date = new Date();
   
   // Production model state
-  const [selectedItemId, setSelectedItemId] = useState<string | undefined>();
   const [quantity, setQuantity] = useState<number | ''>('');
 
   
@@ -158,10 +156,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setShiftForSelectedDay(dayShift);
         
         if (dayShift) {
-            setSelectedItemId(dayShift.itemId);
             setQuantity(dayShift.quantity || '');
         } else {
-            setSelectedItemId(undefined);
             setQuantity('');
         }
 
@@ -229,9 +225,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
         setEnabledDeductions(initialEnabled);
 
-        if(date) {
-            refreshAllData(date);
-        }
+        refreshAllData(date);
 
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
@@ -242,21 +236,22 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
 
   const handleSave = () => {
-    if (!date || !company || !settings) return;
+    if (!company || !settings || !date) return;
 
     let shiftData: Partial<Shift> = {};
+    const selectedItemId = companyItems[0]?.id;
 
     if (paymentModel === 'production') {
         if (!selectedItemId || !quantity || quantity <= 0) {
             toast({
                 variant: 'destructive',
                 title: 'Datos incompletos',
-                description: 'Por favor, selecciona un ítem y una cantidad mayor a cero.',
+                description: 'Por favor, introduce una cantidad mayor a cero. Si no hay ítems configurados, contacta al administrador.',
             });
             return;
         }
-        shiftData = { itemId: selectedItemId, quantity, startTime: undefined, endTime: undefined };
-    } else { // fallback for hourly
+        shiftData = { itemId: selectedItemId, quantity };
+    } else {
          toast({
             variant: 'destructive',
             title: 'Modelo de pago no configurado',
@@ -559,30 +554,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         )}
                     </CardHeader>
                     <CardContent className="flex flex-col items-center gap-6 pt-6">
-                        <div className="grid sm:grid-cols-2 gap-6 w-full max-w-md">
-                            <div className="grid gap-2">
-                                <Label htmlFor="production-item">Ítem de Producción</Label>
-                                <Select value={selectedItemId} onValueChange={setSelectedItemId}>
-                                    <SelectTrigger id="production-item">
-                                        <SelectValue placeholder="Selecciona un ítem..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {companyItems.map(item => (
-                                            <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="quantity">Cantidad</Label>
-                                <Input 
-                                    id="quantity" 
-                                    type="number" 
-                                    placeholder="0" 
-                                    value={quantity}
-                                    onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
-                                />
-                            </div>
+                        <div className="grid w-full max-w-xs gap-2">
+                            <Label htmlFor="quantity">Cantidad</Label>
+                            <Input 
+                                id="quantity" 
+                                type="number" 
+                                placeholder="0" 
+                                value={quantity}
+                                onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
+                            />
                         </div>
                     </CardContent>
                     <CardFooter className="flex justify-center gap-4">
