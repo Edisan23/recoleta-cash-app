@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2, Save } from 'lucide-react';
+import { LogOut, Loader2, Save, Settings } from 'lucide-react';
 import type { User, Company, CompanySettings, Shift, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,6 +15,8 @@ import { es } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { calculateShiftDetails, type ShiftCalculationResult } from '@/lib/payroll-calculator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 
 // --- FAKE DATA & KEYS ---
@@ -67,6 +69,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
 
   const [todaysShiftId, setTodaysShiftId] = useState<string | null>(null);
+  const [shiftCalculation, setShiftCalculation] = useState<ShiftCalculationResult | null>(null);
 
 
   const loadDataForDay = useCallback((currentDate: Date) => {
@@ -95,8 +98,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             const allItems: {[key: string]: CompanyItem[]} = storedItems ? JSON.parse(storedItems) : {};
             const items = allItems[companyId] || [];
             setCompanyItems(items);
-            if (items.length > 0 && !selectedItemId) {
-                setSelectedItemId(items[0].id);
+            if (items.length > 0) {
+                setSelectedItemId(prevId => prevId || items[0].id);
             }
         }
 
@@ -120,8 +123,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             setTodaysShiftId(null);
             setStartTime('');
             setEndTime('');
-            setSelectedItemId(companyItems.length > 0 ? companyItems[0].id : '');
             setQuantity('');
+             if (companySettings.paymentModel === 'production' && companyItems.length > 0) {
+              setSelectedItemId(companyItems[0].id);
+            }
         }
 
     } catch(e) {
@@ -130,12 +135,36 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, toast]);
+  }, [companyId, router, user.uid, toast, companyItems]);
 
   // Initial load
   useEffect(() => {
     loadDataForDay(date);
   }, [date, loadDataForDay]);
+
+    // Recalculate shift details when times change
+  useEffect(() => {
+    if (settings.paymentModel === 'hourly' && startTime && endTime) {
+      const shift: Shift = {
+        id: todaysShiftId || '',
+        userId: user.uid,
+        companyId: companyId,
+        date: format(date, 'yyyy-MM-dd'),
+        startTime: startTime,
+        endTime: endTime,
+      };
+
+      const result = calculateShiftDetails({
+        shift: shift,
+        rates: settings,
+        items: [],
+      });
+      setShiftCalculation(result);
+    } else {
+      setShiftCalculation(null);
+    }
+  }, [startTime, endTime, settings, todaysShiftId, user.uid, companyId, date]);
+
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -156,12 +185,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             shiftData = { startTime, endTime };
         } else {
             const numQuantity = parseFloat(quantity);
-             if (!selectedItemId || isNaN(numQuantity) || numQuantity <= 0) {
+            const firstItem = companyItems.length > 0 ? companyItems[0] : null;
+            const currentItemId = selectedItemId || (firstItem ? firstItem.id : '');
+
+             if (!currentItemId || isNaN(numQuantity) || numQuantity <= 0) {
                 toast({ title: 'Datos incompletos', description: 'Por favor, selecciona un ítem y una cantidad válida.', variant: 'destructive' });
                 setIsSaving(false);
                 return;
             }
-            shiftData = { itemId: selectedItemId, quantity: numQuantity };
+            shiftData = { itemId: currentItemId, quantity: numQuantity };
         }
 
 
@@ -262,7 +294,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </div>
         </header>
 
-        <main>
+        <main className="space-y-8">
            <Card>
                 <CardHeader>
                     <CardTitle>Registrar Actividad de Hoy</CardTitle>
@@ -324,6 +356,46 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </Button>
                 </CardFooter>
            </Card>
+
+            {isHourly && shiftCalculation && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Cómputo de Horas del Turno</CardTitle>
+                  <CardDescription>
+                    Resumen de las horas calculadas para el turno actual. El pago final se reflejará en la nómina.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tipo de Hora</TableHead>
+                          <TableHead className="text-right">Horas</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {shiftCalculation.isHoliday && <TableRow className="bg-blue-50 dark:bg-blue-900/20"><TableCell colSpan={2} className="font-bold text-center text-blue-800 dark:text-blue-300">Día Festivo</TableCell></TableRow>}
+                        {shiftCalculation.dayHours > 0 && <TableRow><TableCell>Diurnas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.dayHours.toFixed(2)}</TableCell></TableRow>}
+                        {shiftCalculation.nightHours > 0 && <TableRow><TableCell>Nocturnas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightHours.toFixed(2)}</TableCell></TableRow>}
+                        {shiftCalculation.dayOvertimeHours > 0 && <TableRow><TableCell>Diurnas Extra</TableCell><TableCell className="text-right font-mono">{shiftCalculation.dayOvertimeHours.toFixed(2)}</TableCell></TableRow>}
+                        {shiftCalculation.nightOvertimeHours > 0 && <TableRow><TableCell>Nocturnas Extra</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightOvertimeHours.toFixed(2)}</TableCell></TableRow>}
+
+                        {shiftCalculation.holidayDayHours > 0 && <TableRow><TableCell>Diurnas Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayDayHours.toFixed(2)}</TableCell></TableRow>}
+                        {shiftCalculation.holidayNightHours > 0 && <TableRow><TableCell>Nocturnas Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayNightHours.toFixed(2)}</TableCell></TableRow>}
+                        {shiftCalculation.holidayDayOvertimeHours > 0 && <TableRow><TableCell>Diurnas Extra Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayDayOvertimeHours.toFixed(2)}</TableCell></TableRow>}
+                        {shiftCalculation.holidayNightOvertimeHours > 0 && <TableRow><TableCell>Nocturnas Extra Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayNightOvertimeHours.toFixed(2)}</TableCell></TableRow>}
+
+                        <TableRow className="bg-muted/50 font-bold">
+                            <TableCell>Total Horas Turno</TableCell>
+                            <TableCell className="text-right font-mono">{shiftCalculation.totalHours.toFixed(2)}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
         </main>
       </div>
     </div>

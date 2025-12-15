@@ -137,6 +137,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
 
         result.totalHours = workedHoursOnDay;
         
+        // Payment is not calculated here for hourly model, just the hours.
         result.totalPayment = 0;
 
         return result;
