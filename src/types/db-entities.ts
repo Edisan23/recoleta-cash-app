@@ -21,22 +21,6 @@ export type User = {
   export type CompanySettings = {
     id: string;
     paymentModel?: "hourly" | "production"; // The payment model for the company.
-    dayRate?: number;
-    nightRate?: number;
-    dayOvertimeRate?: number;
-    nightOvertimeRate?: number;
-    holidayDayRate?: number;
-    holidayNightRate?: number;
-    holidayDayOvertimeRate?: number;
-    holidayNightOvertimeRate?: number;
-    transportSubsidy?: number; // Fixed amount for transport subsidy.
-    otherSubsidies?: number;
-    healthDeduction?: number; // Percentage for health deduction (e.g., 4 for 4%).
-    pensionDeduction?: number; // Percentage for pension deduction (e.g., 4 for 4%).
-    arlDeduction?: number; // Percentage for ARL deduction.
-    familyCompensationDeduction?: number; // Percentage for Family Compensation Fund deduction (e.g., 4 for 4%).
-    taxWithholding?: number; // Percentage for tax withholding.
-    solidarityFundDeduction?: number; // Percentage for solidarity pension fund.
     payrollCycle?: "monthly" | "fortnightly"; // Defines the company's payroll payment cycle.
     nightShiftStart?: string; // The time when the night shift begins (e.g., '21:00').
   };
@@ -84,4 +68,3 @@ export type User = {
   };
   
     
-

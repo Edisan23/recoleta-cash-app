@@ -32,29 +32,6 @@ import {
 const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
 const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
 
-type EnabledFields = {
-    [K in keyof Omit<CompanySettings, 'id' | 'payrollCycle' | 'nightShiftStart' | 'paymentModel'>]?: boolean;
-};
-
-const settingLabels: { [key in keyof EnabledFields]: string } = {
-    dayRate: 'Hora Diurna',
-    nightRate: 'Hora Nocturna',
-    dayOvertimeRate: 'Hora Extra Diurna',
-    nightOvertimeRate: 'Hora Extra Nocturna',
-    holidayDayRate: 'Hora Festiva Diurna',
-    holidayNightRate: 'Hora Festiva Nocturna',
-    holidayDayOvertimeRate: 'Hora Extra Festiva Diurna',
-    holidayNightOvertimeRate: 'Hora Extra Festiva Nocturna',
-    transportSubsidy: 'Subsidio de Transporte',
-    otherSubsidies: 'Otros Subsidios',
-    healthDeduction: 'Salud (%)',
-    pensionDeduction: 'Pensión (%)',
-    arlDeduction: 'ARL (%)',
-    familyCompensationDeduction: 'Caja Compensación (%)',
-    taxWithholding: 'Retención en la Fuente (%)',
-    solidarityFundDeduction: 'Fondo de Solidaridad (%)',
-};
-
 
 export default function CompanySettingsPage() {
   const router = useRouter();
@@ -64,7 +41,6 @@ export default function CompanySettingsPage() {
 
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<Partial<CompanySettings>>({});
-  const [enabledFields, setEnabledFields] = useState<EnabledFields>({});
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -88,22 +64,6 @@ export default function CompanySettingsPage() {
 
         if (companySettings) {
             setSettings(companySettings);
-            
-            const initialEnabled: EnabledFields = {};
-            for (const key in settingLabels) {
-                if (Object.prototype.hasOwnProperty.call(settingLabels, key)) {
-                    const settingKey = key as keyof EnabledFields;
-                    initialEnabled[settingKey] = companySettings[settingKey] != null;
-                }
-            }
-            setEnabledFields(initialEnabled);
-        } else {
-             // If no settings, enable all by default
-            const allEnabled: EnabledFields = {};
-            for (const key in settingLabels) {
-                allEnabled[key as keyof EnabledFields] = true;
-            }
-            setEnabledFields(allEnabled);
         }
 
     } catch (error) {
@@ -124,23 +84,6 @@ export default function CompanySettingsPage() {
       reader.readAsDataURL(file);
     }
   };
-  
-  const handleSwitchChange = (field: keyof EnabledFields, checked: boolean) => {
-    setEnabledFields(prev => ({ ...prev, [field]: checked }));
-    if (!checked) {
-      setSettings(prev => {
-        const newSettings = { ...prev };
-        newSettings[field] = undefined; 
-        return newSettings;
-      });
-    }
-  };
-
-
-  const handleSettingChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setSettings(prev => ({ ...prev, [name]: value === '' ? undefined : parseFloat(value) }));
-  }
 
   const handleStringSettingChange = (name: keyof CompanySettings, value: string) => {
     setSettings(prev => ({ ...prev, [name]: value }));
@@ -181,17 +124,6 @@ export default function CompanySettingsPage() {
             nightShiftStart: settings.nightShiftStart,
             paymentModel: settings.paymentModel || 'hourly'
         };
-
-        for (const key in enabledFields) {
-            const settingKey = key as keyof EnabledFields;
-            if (enabledFields[settingKey]) {
-                if (settings[settingKey] !== undefined) {
-                    (activeSettings as any)[settingKey] = settings[settingKey];
-                }
-            } else {
-                (activeSettings as any)[settingKey] = null;
-            }
-        }
         
         allSettings[companyId] = activeSettings;
         localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(allSettings));
@@ -219,40 +151,6 @@ export default function CompanySettingsPage() {
     }
   }
 
-  const renderSettingInput = (key: keyof EnabledFields, tooltip?: string) => {
-    const label = settingLabels[key];
-    return (
-      <div key={key} className="grid gap-3">
-        <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-                 <Label htmlFor={key} className={!enabledFields[key] ? 'text-muted-foreground' : ''}>{label}</Label>
-                 {tooltip && (
-                    <Tooltip>
-                        <TooltipTrigger><Info className="w-4 h-4 text-muted-foreground"/></TooltipTrigger>
-                        <TooltipContent><p>{tooltip}</p></TooltipContent>
-                    </Tooltip>
-                 )}
-            </div>
-            <Switch
-                id={`switch-${key}`}
-                checked={enabledFields[key] || false}
-                onCheckedChange={(checked) => handleSwitchChange(key, checked)}
-            />
-        </div>
-        <Input
-          id={key}
-          name={key}
-          type="number"
-          placeholder="0.00"
-          value={settings[key] || ''}
-          onChange={handleSettingChange}
-          disabled={!enabledFields[key]}
-          className="transition-opacity"
-        />
-      </div>
-    );
-  };
-  
   const paymentModel = settings.paymentModel || 'hourly';
 
   if (isLoading) {
@@ -326,32 +224,6 @@ export default function CompanySettingsPage() {
                     </RadioGroup>
                 </CardContent>
             </Card>
-
-
-            {paymentModel === 'hourly' && (
-                 <Card>
-                    <CardHeader>
-                        <CardTitle>Tarifas de Pago por Hora</CardTitle>
-                        <CardDescription>Activa y define los valores por hora para los diferentes tipos de turno.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <fieldset className="space-y-6 p-4 border rounded-lg">
-                            <legend className="text-lg font-medium px-1 mb-4">Horario Normal</legend>
-                            {renderSettingInput('dayRate')}
-                            {renderSettingInput('nightRate')}
-                            {renderSettingInput('dayOvertimeRate')}
-                            {renderSettingInput('nightOvertimeRate')}
-                        </fieldset>
-                        <fieldset className="space-y-6 p-4 border rounded-lg">
-                            <legend className="text-lg font-medium px-1 mb-4">Horario Festivo</legend>
-                            {renderSettingInput('holidayDayRate')}
-                            {renderSettingInput('holidayNightRate')}
-                            {renderSettingInput('holidayDayOvertimeRate')}
-                            {renderSettingInput('holidayNightOvertimeRate')}
-                        </fieldset>
-                    </CardContent>
-                </Card>
-            )}
 
             <Card>
                 <CardHeader>
@@ -449,5 +321,3 @@ export default function CompanySettingsPage() {
     </TooltipProvider>
   );
 }
-
-    
