@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { CompanyTable } from '@/components/admin/CompanyTable';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { CalendarDays, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
 
@@ -74,6 +74,10 @@ export default function AdminPage() {
           <p className="text-muted-foreground">Bienvenido, {user.displayName || 'Admin'}.</p>
         </div>
         <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => router.push('/admin/holidays')}>
+            <CalendarDays className="mr-2" />
+            Gestionar Feriados
+          </Button>
           <CreateCompanyDialog onCompanyCreated={addCompany} />
           <Button variant="ghost" onClick={handleSignOut}>
             <LogOut className="mr-2" />

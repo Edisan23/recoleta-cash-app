@@ -1,7 +1,7 @@
 
 
 import { CompanySettings, Shift, CompanyItem } from "@/types/db-entities";
-import { parse, addDays, getDay, isSameDay, lastDayOfMonth } from 'date-fns';
+import { parse, addDays, getDay, isSameDay, lastDayOfMonth, startOfDay } from 'date-fns';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
@@ -15,6 +15,22 @@ const COLOMBIAN_HOLIDAYS_2024 = [
     '2024-11-11', '2024-12-08', '2024-12-25'
 ].map(d => parse(d, 'yyyy-MM-dd', new Date()));
 
+const HOLIDAYS_DB_KEY = 'fake_holidays_db';
+
+const getManualHolidays = (): Date[] => {
+    try {
+        const storedHolidays = localStorage.getItem(HOLIDAYS_DB_KEY);
+        if (storedHolidays) {
+            const holidayStrings: string[] = JSON.parse(storedHolidays);
+            return holidayStrings.map(dateString => new Date(dateString));
+        }
+    } catch (e) {
+        console.error("Failed to load manual holidays from localStorage", e);
+    }
+    return [];
+};
+
+
 const isHoliday = (date: Date): boolean => {
     const dayOfWeek = getDay(date); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
@@ -25,7 +41,18 @@ const isHoliday = (date: Date): boolean => {
 
     // A Monday is a holiday only if it's in the official list
     if (dayOfWeek === 1) {
-        return COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(date, holiday));
+        const isOfficialHoliday = COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(date, holiday));
+        if (isOfficialHoliday) {
+            return true;
+        }
+    }
+
+    // Check against manually added holidays
+    const manualHolidays = getManualHolidays();
+    const today = startOfDay(date);
+    const isManualHoliday = manualHolidays.some(manualHoliday => isSameDay(today, startOfDay(manualHoliday)));
+    if (isManualHoliday) {
+        return true;
     }
     
     // Other days are not considered holidays based on the new rule
