@@ -8,15 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { LogOut, Loader2, PlusCircle, Trash2, Settings, History } from 'lucide-react';
+import { LogOut, Loader2, Settings, History } from 'lucide-react';
 import type { User, Company, CompanySettings, Shift, OperatorDeductions, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { calculatePayrollForPeriod, getPeriodKey, getPeriodDescription, PayrollSummary } from '@/lib/payroll-calculator';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
 import {
   Accordion,
   AccordionContent,
@@ -24,32 +22,14 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 
 
 // --- FAKE DATA & KEYS ---
@@ -109,31 +89,17 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [operatorDeductions, setOperatorDeductions] = useState<Partial<OperatorDeductions>>({});
   const [enabledDeductions, setEnabledDeductions] = useState<EnabledDeductionFields>({});
   
-  const date = new Date();
-  
-  // Production model state
-  const [quantity, setQuantity] = useState<number | ''>('');
-
-  
-  const [shiftForSelectedDay, setShiftForSelectedDay] = useState<Shift | null>(null);
-  
   const [historicalPayroll, setHistoricalPayroll] = useState<HistoricalPayroll>({});
 
-
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isSavingDeductions, setIsSavingDeductions] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDeductionsDialog, setShowDeductionsDialog] = useState(false);
   
   const SHIFTS_DB_KEY = useMemo(() => `${SHIFTS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
   const DEDUCTIONS_DB_KEY = useMemo(() => `${DEDUCTIONS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
   const ITEMS_DB_KEY = useMemo(() => `${ITEMS_DB_KEY_PREFIX}${companyId}`, [companyId]);
   
-  const paymentModel = settings.paymentModel || 'hourly';
-
-  const refreshAllData = useCallback((currentDate: Date) => {
-    if (!currentDate) return;
+  const refreshAllData = useCallback(() => {
     try {
         const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
         const allSettings: { [key: string]: CompanySettings } = storedSettings ? JSON.parse(storedSettings) : {};
@@ -149,19 +115,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const currentDeductions: Partial<OperatorDeductions> = JSON.parse(localStorage.getItem(DEDUCTIONS_DB_KEY) || '{}');
         const allItems: CompanyItem[] = JSON.parse(localStorage.getItem(ITEMS_DB_KEY) || '[]');
 
-        // --- Daily Summary ---
-        const currentDateStr = format(currentDate, 'yyyy-MM-dd');
-        const dayShift = allShifts.find(s => s.date.substring(0, 10) === currentDateStr) || null;
-        
-        setShiftForSelectedDay(dayShift);
-        
-        if (dayShift) {
-            setQuantity(dayShift.quantity || '');
-        } else {
-            setQuantity('');
-        }
-
         // --- Current Period & History ---
+        const currentDate = new Date();
         const currentPeriodKey = getPeriodKey(currentDate, currentSettings.payrollCycle);
         
         const groupedByPeriod = allShifts.reduce((acc, shift) => {
@@ -194,7 +149,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [SHIFTS_DB_KEY, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY, companyId]);
 
-  // Initial load and on date change
+  // Initial load
   useEffect(() => {
     setIsLoading(true);
     try {
@@ -225,119 +180,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
         setEnabledDeductions(initialEnabled);
 
-        refreshAllData(date);
+        refreshAllData();
 
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY, date, refreshAllData]);
-
-
-  const handleSave = () => {
-    if (!company || !settings || !date) return;
-
-    let shiftData: Partial<Shift> = {};
-    const selectedItemId = companyItems[0]?.id;
-
-    if (paymentModel === 'production') {
-        if (!selectedItemId || !quantity || quantity <= 0) {
-            toast({
-                variant: 'destructive',
-                title: 'Datos incompletos',
-                description: 'Por favor, introduce una cantidad mayor a cero. Si no hay ítems configurados, contacta al administrador.',
-            });
-            return;
-        }
-        shiftData = { itemId: selectedItemId, quantity };
-    } else {
-         toast({
-            variant: 'destructive',
-            title: 'Modelo de pago no configurado',
-            description: 'La empresa no tiene un modelo de pago por producción activo.',
-        });
-        return;
-    }
-
-
-    setIsSaving(true);
-    
-    try {
-        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-        let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-        
-        const currentDateStr = format(date, 'yyyy-MM-dd');
-        const existingShiftIndex = allShifts.findIndex(s => s.date.substring(0, 10) === currentDateStr);
-
-        const baseShiftData = {
-            userId: user.uid,
-            companyId: company.id,
-            date: date.toISOString(),
-        };
-
-        if (existingShiftIndex > -1) {
-            const existingShift = allShifts[existingShiftIndex];
-            allShifts[existingShiftIndex] = { ...existingShift, ...shiftData };
-        } else {
-            const newShift: Shift = {
-                id: `shift_${Date.now()}`,
-                ...baseShiftData,
-                ...shiftData,
-            } as Shift;
-            allShifts.push(newShift);
-        }
-        
-        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
-        
-        refreshAllData(date);
-
-        toast({
-            title: existingShiftIndex > -1 ? 'Registro Actualizado' : 'Registro Guardado',
-            description: `Registro del ${format(date, 'PPP', { locale: es })} guardado.`,
-        });
-
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Error al Guardar',
-            description: error.message,
-        });
-    } finally {
-        setIsSaving(false);
-    }
-  };
-
-  const handleDelete = () => {
-    if (!date) return;
-
-    setIsSaving(true);
-    try {
-        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-        let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-        const currentDateStr = format(date, 'yyyy-MM-dd');
-        const updatedShifts = allShifts.filter(s => s.date.substring(0, 10) !== currentDateStr);
-        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
-
-        refreshAllData(date);
-        
-        setShowDeleteConfirm(false);
-
-        toast({
-            title: 'Registro Eliminado',
-            description: `El registro para el ${format(date, 'PPP', { locale: es })} ha sido eliminado.`,
-        });
-    } catch (error) {
-        console.error('Failed to delete shift', error);
-         toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'No se pudo eliminar el registro.',
-        });
-    } finally {
-        setIsSaving(false);
-    }
-  };
+  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY, refreshAllData]);
 
   const handleSignOut = () => {
     try {
@@ -380,9 +230,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
         localStorage.setItem(DEDUCTIONS_DB_KEY, JSON.stringify(activeDeductions));
         
-        if(date) {
-            refreshAllData(date);
-        }
+        refreshAllData();
         
         toast({
             title: 'Deducciones Guardadas',
@@ -537,96 +385,39 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
 
         <main>
-           <Tabs defaultValue="registro" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="registro">Registro de Producción</TabsTrigger>
-                <TabsTrigger value="historial">Historial</TabsTrigger>
-              </TabsList>
-              <TabsContent value="registro" className="space-y-8 mt-8">
-                 <Card className="relative">
-                    <CardHeader>
-                    <CardDescription>Completa los datos de producción. El registro se guardará con la fecha de hoy, {format(new Date(), 'PPP', { locale: es })}.</CardDescription>
-                        {shiftForSelectedDay && (
-                            <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar registro" className="absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
-                                <Trash2 className="h-5 w-5" />
-                            </Button>
-                        )}
-                    </CardHeader>
-                    <CardContent className="flex flex-col items-center gap-6 pt-6">
-                        <div className="grid w-full max-w-xs gap-2">
-                            <Label htmlFor="quantity">Cantidad</Label>
-                            <Input 
-                                id="quantity" 
-                                type="number" 
-                                placeholder="0" 
-                                value={quantity}
-                                onChange={(e) => setQuantity(e.target.value === '' ? '' : Number(e.target.value))}
-                            />
-                        </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-center gap-4">
-                        <Button onClick={handleSave} disabled={isSaving}>
-                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PlusCircle className="mr-2 h-4 w-4" />}
-                            {shiftForSelectedDay ? 'Actualizar Registro' : 'Guardar Registro'}
-                        </Button>
-                    </CardFooter>
-                </Card>
-
-              </TabsContent>
-              <TabsContent value="historial" className="space-y-8 mt-8">
-                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-lg font-medium">
-                            Historial de Pagos
-                        </CardTitle>
-                        <History className="h-6 w-6 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <Accordion type="single" collapsible className="w-full">
-                            {Object.keys(historicalPayroll).length > 0 ? (
-                                Object.entries(historicalPayroll)
-                                .sort(([keyA], [keyB]) => keyB.localeCompare(keyA))
-                                .map(([periodKey, summary]) => (
-                                    <AccordionItem value={periodKey} key={periodKey}>
-                                        <AccordionTrigger>
-                                            <div className="flex justify-between w-full pr-4">
-                                                <span>{getPeriodDescription(periodKey, settings.payrollCycle)}</span>
-                                                <span className="font-bold">{formatCurrency(summary.netPay)}</span>
-                                            </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent>
-                                            {renderFullBreakdown(summary)}
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                ))
-                            ) : (
-                                <p className="text-sm text-muted-foreground pt-4">No hay periodos de pago anteriores.</p>
-                            )}
-                        </Accordion>
-                    </CardContent>
-                </Card>
-              </TabsContent>
-           </Tabs>
+            <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-medium">
+                    Historial de Pagos
+                </CardTitle>
+                <History className="h-6 w-6 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <Accordion type="single" collapsible className="w-full">
+                    {Object.keys(historicalPayroll).length > 0 ? (
+                        Object.entries(historicalPayroll)
+                        .sort(([keyA], [keyB]) => keyB.localeCompare(keyA))
+                        .map(([periodKey, summary]) => (
+                            <AccordionItem value={periodKey} key={periodKey}>
+                                <AccordionTrigger>
+                                    <div className="flex justify-between w-full pr-4">
+                                        <span>{getPeriodDescription(periodKey, settings.payrollCycle)}</span>
+                                        <span className="font-bold">{formatCurrency(summary.netPay)}</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    {renderFullBreakdown(summary)}
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))
+                    ) : (
+                        <p className="text-sm text-muted-foreground pt-4">No hay periodos de pago anteriores.</p>
+                    )}
+                </Accordion>
+            </CardContent>
+        </Card>
         </main>
       </div>
-
-       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará permanentemente el registro del día {date ? format(date, 'PPP', { locale: es }) : ''}. No se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Sí, eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
     </div>
   );
 }
