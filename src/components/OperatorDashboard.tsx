@@ -15,7 +15,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { calculateShiftDetails, calculatePayrollForPeriod, getPeriodKey, getPeriodDescription, PayrollSummary } from '@/lib/payroll-calculator';
+import { calculatePayrollForPeriod, getPeriodKey, getPeriodDescription, PayrollSummary } from '@/lib/payroll-calculator';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
@@ -97,13 +97,6 @@ const formatCurrency = (value: number = 0) => {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
 
-const EMPTY_PAYROLL_SUMMARY: PayrollSummary = {
-    grossPay: 0, netPay: 0, totalHours: 0, totalBasePayment: 0,
-    legalDeductions: { health: 0, pension: 0, arl: 0, familyCompensation: 0, solidarityFund: 0, taxWithholding: 0 },
-    voluntaryDeductions: { union: 0, cooperative: 0, loan: 0 },
-    subsidies: { transport: 0 },
-};
-
 // --- COMPONENT ---
 export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
@@ -117,8 +110,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [operatorDeductions, setOperatorDeductions] = useState<Partial<OperatorDeductions>>({});
   const [enabledDeductions, setEnabledDeductions] = useState<EnabledDeductionFields>({});
   
-  const initialDate = useMemo(() => new Date(), []);
-  const [date, setDate] = useState<Date | undefined>(initialDate);
+  const [date, setDate] = useState<Date | undefined>(new Date());
   
   // Production model state
   const [selectedItemId, setSelectedItemId] = useState<string | undefined>();
@@ -264,7 +256,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             return;
         }
         shiftData = { itemId: selectedItemId, quantity, startTime: undefined, endTime: undefined };
-    } else { // fallback for hourly if needed
+    } else { // fallback for hourly
          toast({
             variant: 'destructive',
             title: 'Modelo de pago no configurado',
@@ -558,17 +550,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               <TabsContent value="registro" className="space-y-8 mt-8">
                  <Card className="relative">
                     <CardHeader>
-                    <CardTitle>Registrar o Editar Producción</CardTitle>
-                    <CardDescription>Selecciona la fecha y completa los datos. Si ya existe un registro para ese día, se actualizará.</CardDescription>
+                    <CardTitle>Registrar Producción para Hoy</CardTitle>
+                    <CardDescription>Completa los datos de producción. El registro se guardará con la fecha de hoy, {format(new Date(), 'PPP', { locale: es })}.</CardDescription>
                         {shiftForSelectedDay && (
                             <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} disabled={isSaving} aria-label="Eliminar registro" className="absolute top-4 right-4 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                                 <Trash2 className="h-5 w-5" />
                             </Button>
                         )}
                     </CardHeader>
-                    <CardContent className="flex flex-col items-center gap-6">
-                        <DatePicker date={date} setDate={setDate} />
-                        
+                    <CardContent className="flex flex-col items-center gap-6 pt-6">
                         <div className="grid sm:grid-cols-2 gap-6 w-full max-w-md">
                             <div className="grid gap-2">
                                 <Label htmlFor="production-item">Ítem de Producción</Label>
@@ -661,9 +651,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-
-
-
-
-    
