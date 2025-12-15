@@ -5,7 +5,7 @@ import { parse, addDays, getDay, isSameDay, lastDayOfMonth } from 'date-fns';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
-const NORMAL_WORK_HOURS_PER_DAY = 8;
+const DEFAULT_NORMAL_WORK_HOURS_PER_DAY = 8;
 
 // Source: https://www.festivos.com.co/2024
 const COLOMBIAN_HOLIDAYS_2024 = [
@@ -90,6 +90,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
         }
         
         const nightStartHour = rates.nightShiftStart ? parseInt(rates.nightShiftStart.split(':')[0], 10) : 21;
+        const normalWorkHours = rates.normalWorkHours || DEFAULT_NORMAL_WORK_HOURS_PER_DAY;
         const shiftIsHoliday = isHoliday(shiftDate);
         result.isHoliday = shiftIsHoliday;
 
@@ -110,7 +111,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
         while (currentMinute < endDateTime) {
             const hour = currentMinute.getHours();
             const isNightHour = hour >= nightStartHour || hour < NIGHT_END_HOUR;
-            const isOvertime = workedHoursOnDay >= NORMAL_WORK_HOURS_PER_DAY;
+            const isOvertime = workedHoursOnDay >= normalWorkHours;
             const increment = 1 / 60; 
 
             if (shiftIsHoliday) {

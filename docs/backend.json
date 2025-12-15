@@ -92,6 +92,10 @@
           "type": "string",
           "description": "The time when the night shift begins (e.g., '21:00')."
         },
+        "normalWorkHours": {
+          "type": "number",
+          "description": "The number of hours after which overtime starts."
+        },
         "dayRate": { "type": "number" },
         "nightRate": { "type": "number" },
         "dayOvertimeRate": { "type": "number" },

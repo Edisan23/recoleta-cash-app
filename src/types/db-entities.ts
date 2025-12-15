@@ -24,6 +24,7 @@ export type User = {
     paymentModel?: "hourly" | "production"; // The payment model for the company.
     payrollCycle?: "monthly" | "fortnightly"; // Defines the company's payroll payment cycle.
     nightShiftStart?: string; // The time when the night shift begins (e.g., '21:00').
+    normalWorkHours?: number; // The number of hours after which overtime starts.
     dayRate?: number;
     nightRate?: number;
     dayOvertimeRate?: number;

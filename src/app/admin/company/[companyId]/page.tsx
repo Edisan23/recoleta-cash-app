@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowLeft, Loader2, Upload, Info, Package } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, Info, Package, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import type { Company, CompanySettings } from '@/types/db-entities';
@@ -129,6 +129,7 @@ export default function CompanySettingsPage() {
             id: companyId, 
             payrollCycle: settings.payrollCycle, 
             nightShiftStart: settings.nightShiftStart,
+            normalWorkHours: settings.normalWorkHours,
             paymentModel: settings.paymentModel || 'hourly',
             dayRate: settings.dayRate,
             nightRate: settings.nightRate,
@@ -270,17 +271,29 @@ export default function CompanySettingsPage() {
                     {paymentModel === 'hourly' && (
                         <>
                         <Separator />
-                        <div className='grid gap-2'>
-                            <Label>Inicio de Horario Nocturno</Label>
-                            <div className='flex items-center gap-4'>
-                            <TimeInput 
-                            label="Inicio de Horario Nocturno"
-                            value={settings.nightShiftStart || '21:00'}
-                            onChange={(value) => handleStringSettingChange('nightShiftStart', value)}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                                Hora a partir de la cual se considera turno nocturno (formato 24h). Por defecto 21:00.
-                            </p>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <div className='grid gap-2'>
+                                <Label>Inicio de Horario Nocturno</Label>
+                                <div className='flex items-center gap-4'>
+                                <TimeInput 
+                                label="Inicio de Horario Nocturno"
+                                value={settings.nightShiftStart || '21:00'}
+                                onChange={(value) => handleStringSettingChange('nightShiftStart', value)}
+                                />
+                                </div>
+                            </div>
+                             <div className='grid gap-2'>
+                                <Label htmlFor="normal-work-hours">Inicio de Horas Extras (después de...)</Label>
+                                <div className='flex items-center gap-2'>
+                                <Input 
+                                    id="normal-work-hours"
+                                    type="number"
+                                    value={settings.normalWorkHours || 8}
+                                    onChange={(e) => handleNumericSettingChange('normalWorkHours', parseFloat(e.target.value) || undefined)}
+                                    className="max-w-[80px]"
+                                    />
+                                    <span className="text-sm text-muted-foreground">horas</span>
+                                </div>
                             </div>
                         </div>
                         </>
@@ -324,7 +337,7 @@ export default function CompanySettingsPage() {
                          <RateInput 
                             label="Hora Nocturna Festiva"
                             value={settings.holidayNightRate}
-                            onValueちゃん-all(value) => handleNumericSettingChange('holidayNightRate', value)}
+                            onValueChange={(value) => handleNumericSettingChange('holidayNightRate', value)}
                         />
                          <RateInput 
                             label="Hora Extra Diurna Festiva"
