@@ -28,6 +28,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { RateInput } from './RateInput';
 
 
 const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
@@ -89,6 +90,10 @@ export default function CompanySettingsPage() {
   const handleStringSettingChange = (name: keyof CompanySettings, value: string) => {
     setSettings(prev => ({ ...prev, [name]: value }));
   }
+
+  const handleNumericSettingChange = (name: keyof CompanySettings, value: number | undefined) => {
+    setSettings(prev => ({...prev, [name]: value }))
+  }
   
   const handleRadioGroupChange = (name: keyof CompanySettings, value: string) => {
     setSettings(prev => ({ ...prev, [name]: value }));
@@ -119,14 +124,23 @@ export default function CompanySettingsPage() {
         const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
         let allSettings: { [key: string]: Partial<CompanySettings> } = storedSettings ? JSON.parse(storedSettings) : {};
         
-        const activeSettings: Partial<CompanySettings> = { 
+        // Ensure all settings are included
+        const updatedSettings: Partial<CompanySettings> = { 
             id: companyId, 
             payrollCycle: settings.payrollCycle, 
             nightShiftStart: settings.nightShiftStart,
-            paymentModel: settings.paymentModel || 'hourly'
+            paymentModel: settings.paymentModel || 'hourly',
+            dayRate: settings.dayRate,
+            nightRate: settings.nightRate,
+            dayOvertimeRate: settings.dayOvertimeRate,
+            nightOvertimeRate: settings.nightOvertimeRate,
+            holidayDayRate: settings.holidayDayRate,
+            holidayNightRate: settings.holidayNightRate,
+            holidayDayOvertimeRate: settings.holidayDayOvertimeRate,
+            holidayNightOvertimeRate: settings.holidayNightOvertimeRate,
         };
         
-        allSettings[companyId] = activeSettings;
+        allSettings[companyId] = updatedSettings;
         localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(allSettings));
 
         toast({
@@ -273,6 +287,58 @@ export default function CompanySettingsPage() {
                     )}
                 </CardContent>
             </Card>
+
+             {paymentModel === 'hourly' && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Tarifas de Pago por Hora</CardTitle>
+                        <CardDescription>Define el valor a pagar por cada tipo de hora trabajada.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        <RateInput 
+                            label="Hora Diurna"
+                            value={settings.dayRate}
+                            onValueChange={(value) => handleNumericSettingChange('dayRate', value)}
+                        />
+                        <RateInput 
+                            label="Hora Nocturna"
+                            value={settings.nightRate}
+                            onValueChange={(value) => handleNumericSettingChange('nightRate', value)}
+                        />
+                        <RateInput 
+                            label="Hora Extra Diurna"
+                            value={settings.dayOvertimeRate}
+                            onValueChange={(value) => handleNumericSettingChange('dayOvertimeRate', value)}
+                        />
+                        <RateInput 
+                            label="Hora Extra Nocturna"
+                            value={settings.nightOvertimeRate}
+                            onValueChange={(value) => handleNumericSettingChange('nightOvertimeRate', value)}
+                        />
+                        <Separator className="md:col-span-2 my-2"/>
+                         <RateInput 
+                            label="Hora Diurna Festiva"
+                            value={settings.holidayDayRate}
+                            onValueChange={(value) => handleNumericSettingChange('holidayDayRate', value)}
+                        />
+                         <RateInput 
+                            label="Hora Nocturna Festiva"
+                            value={settings.holidayNightRate}
+                            onValueちゃん-all(value) => handleNumericSettingChange('holidayNightRate', value)}
+                        />
+                         <RateInput 
+                            label="Hora Extra Diurna Festiva"
+                            value={settings.holidayDayOvertimeRate}
+                            onValueChange={(value) => handleNumericSettingChange('holidayDayOvertimeRate', value)}
+                        />
+                         <RateInput 
+                            label="Hora Extra Nocturna Festiva"
+                            value={settings.holidayNightOvertimeRate}
+                            onValueChange={(value) => handleNumericSettingChange('holidayNightOvertimeRate', value)}
+                        />
+                    </CardContent>
+                </Card>
+             )}
             
             {paymentModel === 'production' && (
                  <Card>
@@ -340,5 +406,3 @@ export default function CompanySettingsPage() {
     </TooltipProvider>
   );
 }
-
-    

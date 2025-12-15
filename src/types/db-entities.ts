@@ -1,3 +1,4 @@
+
 // This file is auto-generated, do not edit.
 
 export type User = {
@@ -23,6 +24,14 @@ export type User = {
     paymentModel?: "hourly" | "production"; // The payment model for the company.
     payrollCycle?: "monthly" | "fortnightly"; // Defines the company's payroll payment cycle.
     nightShiftStart?: string; // The time when the night shift begins (e.g., '21:00').
+    dayRate?: number;
+    nightRate?: number;
+    dayOvertimeRate?: number;
+    nightOvertimeRate?: number;
+    holidayDayRate?: number;
+    holidayNightRate?: number;
+    holidayDayOvertimeRate?: number;
+    holidayNightOvertimeRate?: number;
   };
   
   export type CompanyItem = {

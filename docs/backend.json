@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -90,7 +91,15 @@
         "nightShiftStart": {
           "type": "string",
           "description": "The time when the night shift begins (e.g., '21:00')."
-        }
+        },
+        "dayRate": { "type": "number" },
+        "nightRate": { "type": "number" },
+        "dayOvertimeRate": { "type": "number" },
+        "nightOvertimeRate": { "type": "number" },
+        "holidayDayRate": { "type": "number" },
+        "holidayNightRate": { "type": "number" },
+        "holidayDayOvertimeRate": { "type": "number" },
+        "holidayNightOvertimeRate": { "type": "number" }
       }
     },
     "CompanyItem": {
