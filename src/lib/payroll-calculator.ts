@@ -16,10 +16,20 @@ const COLOMBIAN_HOLIDAYS_2024 = [
 ].map(d => parse(d, 'yyyy-MM-dd', new Date()));
 
 const isHoliday = (date: Date): boolean => {
-    // Sunday is a holiday by law
-    if (getDay(date) === 0) return true;
-    // Check against the list of official holidays
-    return COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(date, holiday));
+    const dayOfWeek = getDay(date); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+    // Sunday is always a holiday
+    if (dayOfWeek === 0) {
+        return true;
+    }
+
+    // A Monday is a holiday only if it's in the official list
+    if (dayOfWeek === 1) {
+        return COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(date, holiday));
+    }
+    
+    // Other days are not considered holidays based on the new rule
+    return false;
 };
 
 
