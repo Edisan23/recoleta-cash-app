@@ -11,6 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { TimeInput } from '@/components/TimeInput';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
 
 // --- FAKE DATA & KEYS ---
 const FAKE_OPERATOR_USER = {
@@ -218,7 +220,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 <CardHeader>
                     <CardTitle>Registrar Turno de Hoy</CardTitle>
                     <CardDescription>
-                        Ingresa tus horas de entrada y salida para el día {format(date, 'PPP', { locale: { code: 'es' }})}.
+                        Ingresa tus horas de entrada y salida para el día {format(date, 'PPP', { locale: es })}.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
