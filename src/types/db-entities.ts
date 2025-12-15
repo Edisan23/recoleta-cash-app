@@ -24,13 +24,6 @@ export type User = {
     payrollCycle?: "monthly" | "fortnightly"; // Defines the company's payroll payment cycle.
     nightShiftStart?: string; // The time when the night shift begins (e.g., '21:00').
   };
-
-  export type OperatorDeductions = {
-    userId: string;
-    unionFeeDeduction?: number | null; // Fixed amount for union fees.
-    cooperativeDeduction?: number | null; // Fixed amount for cooperative contributions.
-    loanDeduction?: number | null; // Fixed amount for loan payments.
-  }
   
   export type CompanyItem = {
     id: string;

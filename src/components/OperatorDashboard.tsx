@@ -1,15 +1,10 @@
-
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { LogOut, Loader2, Settings, History } from 'lucide-react';
-import type { User, Company, CompanySettings, Shift, OperatorDeductions, CompanyItem } from '@/types/db-entities';
+import { LogOut, Loader2, History } from 'lucide-react';
+import type { User, Company, CompanySettings, Shift, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -21,15 +16,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 
 
 // --- FAKE DATA & KEYS ---
@@ -45,23 +31,11 @@ const SETTINGS_DB_KEY = 'fake_company_settings_db';
 const ITEMS_DB_KEY_PREFIX = 'fake_company_items_db_'; // Assuming items are stored per company
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 const SHIFTS_DB_KEY_PREFIX = 'fake_shifts_db_';
-const DEDUCTIONS_DB_KEY_PREFIX = 'fake_deductions_db_';
 
-type EnabledDeductionFields = {
-    [K in keyof Omit<OperatorDeductions, 'userId'>]?: boolean;
-};
 
 interface HistoricalPayroll {
     [periodKey: string]: PayrollSummary;
 }
-
-
-const deductionLabels: { [key in keyof EnabledDeductionFields]: string } = {
-    unionFeeDeduction: 'Cuota Sindical',
-    cooperativeDeduction: 'Aporte a Cooperativa',
-    loanDeduction: 'Cuota de Préstamo',
-};
-
 
 // --- HELPER FUNCTIONS ---
 function getInitials(name: string) {
@@ -86,17 +60,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<Partial<CompanySettings>>({});
   const [companyItems, setCompanyItems] = useState<CompanyItem[]>([]);
-  const [operatorDeductions, setOperatorDeductions] = useState<Partial<OperatorDeductions>>({});
-  const [enabledDeductions, setEnabledDeductions] = useState<EnabledDeductionFields>({});
   
   const [historicalPayroll, setHistoricalPayroll] = useState<HistoricalPayroll>({});
 
   const [isLoading, setIsLoading] = useState(true);
-  const [isSavingDeductions, setIsSavingDeductions] = useState(false);
-  const [showDeductionsDialog, setShowDeductionsDialog] = useState(false);
   
   const SHIFTS_DB_KEY = useMemo(() => `${SHIFTS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
-  const DEDUCTIONS_DB_KEY = useMemo(() => `${DEDUCTIONS_DB_KEY_PREFIX}${companyId}_${user.uid}`, [companyId, user.uid]);
   const ITEMS_DB_KEY = useMemo(() => `${ITEMS_DB_KEY_PREFIX}${companyId}`, [companyId]);
   
   const refreshAllData = useCallback(() => {
@@ -112,7 +81,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
 
         const allShifts: Shift[] = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
-        const currentDeductions: Partial<OperatorDeductions> = JSON.parse(localStorage.getItem(DEDUCTIONS_DB_KEY) || '{}');
         const allItems: CompanyItem[] = JSON.parse(localStorage.getItem(ITEMS_DB_KEY) || '[]');
 
         // --- Current Period & History ---
@@ -134,7 +102,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             const summary = calculatePayrollForPeriod({
                 shifts: groupedByPeriod[periodKey],
                 periodSettings: currentSettings,
-                periodDeductions: currentDeductions,
                 items: allItems,
             });
             if (periodKey !== currentPeriodKey) {
@@ -147,7 +114,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } catch (e) {
         console.error("Error refreshing data:", e);
     }
-  }, [SHIFTS_DB_KEY, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY, companyId]);
+  }, [SHIFTS_DB_KEY, ITEMS_DB_KEY, companyId]);
 
   // Initial load
   useEffect(() => {
@@ -169,17 +136,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const companyItemsData : CompanyItem[] = storedItems ? JSON.parse(storedItems) : [];
         setCompanyItems(companyItemsData);
 
-        const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
-        const operatorDeductionsData : OperatorDeductions = storedDeductions ? JSON.parse(storedDeductions) : { userId: user.uid };
-        setOperatorDeductions(operatorDeductionsData);
-
-        const initialEnabled: EnabledDeductionFields = {};
-        for (const key in deductionLabels) {
-            const deductionKey = key as keyof EnabledDeductionFields;
-            initialEnabled[deductionKey] = operatorDeductionsData[deductionKey] != null;
-        }
-        setEnabledDeductions(initialEnabled);
-
         refreshAllData();
 
     } catch(e) {
@@ -187,7 +143,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, DEDUCTIONS_DB_KEY, ITEMS_DB_KEY, refreshAllData]);
+  }, [companyId, router, user.uid, ITEMS_DB_KEY, refreshAllData]);
 
   const handleSignOut = () => {
     try {
@@ -197,86 +153,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
     router.push('/'); 
   };
-
-  const handleDeductionSwitchChange = (field: keyof EnabledDeductionFields, checked: boolean) => {
-    setEnabledDeductions(prev => ({ ...prev, [field]: checked }));
-    if (!checked) {
-      setOperatorDeductions(prev => {
-        const newDeductions = { ...prev };
-        newDeductions[field] = null; 
-        return newDeductions;
-      });
-    }
-  };
-
-  const handleDeductionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setOperatorDeductions(prev => ({ ...prev, [name]: value === '' ? undefined : parseFloat(value) }));
-  }
-
-  const handleSaveDeductions = () => {
-    setIsSavingDeductions(true);
-    try {
-        const activeDeductions: Partial<OperatorDeductions> = { userId: user.uid };
-        for (const key in enabledDeductions) {
-            const deductionKey = key as keyof EnabledDeductionFields;
-            if (enabledDeductions[deductionKey]) {
-                 if (operatorDeductions[deductionKey] !== undefined) {
-                    (activeDeductions as any)[deductionKey] = operatorDeductions[deductionKey];
-                }
-            } else {
-                 (activeDeductions as any)[deductionKey] = null;
-            }
-        }
-        localStorage.setItem(DEDUCTIONS_DB_KEY, JSON.stringify(activeDeductions));
-        
-        refreshAllData();
-        
-        toast({
-            title: 'Deducciones Guardadas',
-            description: 'Tus deducciones voluntarias han sido actualizadas.',
-        });
-        setShowDeductionsDialog(false);
-    } catch (e) {
-        console.error("Failed to save deductions", e);
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'No se pudieron guardar tus deducciones.',
-        });
-    } finally {
-        setIsSavingDeductions(false);
-    }
-  }
-
-    const renderDeductionInput = (key: keyof EnabledDeductionFields) => {
-        const label = deductionLabels[key];
-        return (
-        <div key={key} className="space-y-2">
-            <div className="flex items-center justify-between">
-                <Label htmlFor={key} className={!enabledDeductions[key] ? 'text-muted-foreground' : ''}>
-                    {label}
-                </Label>
-                <Switch
-                    id={`switch-${key}`}
-                    checked={enabledDeductions[key] || false}
-                    onCheckedChange={(checked) => handleDeductionSwitchChange(key, checked)}
-                />
-            </div>
-            <Input
-            id={key}
-            name={key}
-            type="number"
-            placeholder="0.00"
-            value={operatorDeductions[key] || ''}
-            onChange={handleDeductionChange}
-            disabled={!enabledDeductions[key]}
-            className="transition-opacity"
-            />
-        </div>
-        );
-    };
-
   
   if (isLoading || !company) {
     return (
@@ -347,34 +223,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </div>
                 )}
                 <div className="flex items-center gap-2">
-                    <Dialog open={showDeductionsDialog} onOpenChange={setShowDeductionsDialog}>
-                        <DialogTrigger asChild>
-                             <Button variant="ghost" size="icon" aria-label="Configurar deducciones">
-                                <Settings className="h-5 w-5" />
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Mis Deducciones Voluntarias</DialogTitle>
-                                <DialogDescription>
-                                    Activa y define los montos fijos para tus aportes y pagos personales. Se descontarán en cada periodo de pago.
-                                </DialogDescription>
-                            </DialogHeader>
-                            <div className="grid grid-cols-1 gap-6 py-4">
-                                {renderDeductionInput('unionFeeDeduction')}
-                                {renderDeductionInput('cooperativeDeduction')}
-                                {renderDeductionInput('loanDeduction')}
-                            </div>
-                            <DialogFooter>
-                                <Button variant="outline" onClick={() => setShowDeductionsDialog(false)}>Cancelar</Button>
-                                <Button onClick={handleSaveDeductions} disabled={isSavingDeductions}>
-                                    {isSavingDeductions ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                    Guardar Deducciones
-                                </Button>
-                            </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-
                     <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
                         <LogOut className="mr-2 h-5 w-5" />
                         Salir

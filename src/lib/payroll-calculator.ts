@@ -1,6 +1,6 @@
 
 
-import { CompanySettings, Shift, CompanyItem, OperatorDeductions } from "@/types/db-entities";
+import { CompanySettings, Shift, CompanyItem } from "@/types/db-entities";
 import { parse, addDays, getDay, isSameDay, lastDayOfMonth } from 'date-fns';
 
 // --- CONFIGURATIONS ---
@@ -49,28 +49,11 @@ export interface PayrollSummary {
     netPay: number;
     totalHours: number;
     totalBasePayment: number;
-    legalDeductions: {
-        health: number;
-        pension: number;
-        arl: number;
-        familyCompensation: number;
-        solidarityFund: number;
-        taxWithholding: number;
-    },
-    voluntaryDeductions: {
-        union: number;
-        cooperative: number;
-        loan: number;
-    },
-    subsidies: {
-        transport: number;
-    },
 }
 
 interface PayrollInput {
     shifts: Shift[];
     periodSettings: Partial<CompanySettings>;
-    periodDeductions: Partial<OperatorDeductions>;
     items: CompanyItem[];
 }
 
@@ -154,15 +137,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
 
         result.totalHours = workedHoursOnDay;
         
-        result.totalPayment =
-            (result.dayHours * (rates.dayRate || 0)) +
-            (result.nightHours * (rates.nightRate || 0)) +
-            (result.dayOvertimeHours * (rates.dayOvertimeRate || 0)) +
-            (result.nightOvertimeHours * (rates.nightOvertimeRate || 0)) +
-            (result.holidayDayHours * (rates.holidayDayRate || 0)) +
-            (result.holidayNightHours * (rates.holidayNightRate || 0)) +
-            (result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0)) +
-            (result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0));
+        result.totalPayment = 0;
 
         return result;
     }
@@ -175,7 +150,7 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
  * Calculates the full payroll summary for a given period.
  */
 export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary => {
-    const { shifts, periodSettings, periodDeductions, items } = input;
+    const { shifts, periodSettings, items } = input;
     
     let totalBasePayment = 0;
     let totalHoursInPeriod = 0;
@@ -186,30 +161,11 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
         totalHoursInPeriod += details.totalHours;
     }
     
-    // Subsidies and deductions are no longer calculated.
-    // Gross Pay and Net Pay are the same as the base payment.
-
     return {
         grossPay: totalBasePayment,
         netPay: totalBasePayment,
         totalHours: totalHoursInPeriod,
         totalBasePayment,
-        legalDeductions: {
-            health: 0,
-            pension: 0,
-            arl: 0,
-            familyCompensation: 0,
-            solidarityFund: 0,
-            taxWithholding: 0,
-        },
-        voluntaryDeductions: {
-            union: 0,
-            cooperative: 0,
-            loan: 0,
-        },
-        subsidies: {
-            transport: 0,
-        },
     };
 };
 
@@ -252,6 +208,3 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16-${lastDay} de ${monthName} ${year}`;
     }
 };
-
-
-

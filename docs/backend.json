@@ -93,18 +93,6 @@
         }
       }
     },
-    "OperatorDeductions": {
-        "title": "Operator Deductions",
-        "description": "Defines voluntary deductions for a specific operator.",
-        "type": "object",
-        "properties": {
-            "userId": { "type": "string" },
-            "unionFeeDeduction": { "type": "number", "description": "Fixed amount for union fees." },
-            "cooperativeDeduction": { "type": "number", "description": "Fixed amount for cooperative contributions." },
-            "loanDeduction": { "type": "number", "description": "Fixed amount for loan payments." }
-        },
-        "required": ["userId"]
-    },
     "CompanyItem": {
       "title": "Company Item",
       "description": "Represents an item for production-based payment (e.g., 'bulto movido') or a special condition for hourly payment.",
@@ -196,13 +184,6 @@
                 "definition": {
                     "schema": { "$ref": "#/entities/Payroll" },
                     "description": "All payrolls for all users in the company."
-                }
-            },
-            {
-                "path": "operatorDeductions/{userId}",
-                "definition": {
-                    "schema": { "$ref": "#/entities/OperatorDeductions" },
-                    "description": "Voluntary deductions for a specific operator."
                 }
             }
         ]
