@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { calculateShiftDetails, type ShiftCalculationResult } from '@/lib/payroll-calculator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DatePicker } from '@/components/DatePicker';
 
 
 // --- FAKE DATA & KEYS ---
@@ -57,7 +58,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
-  const date = useMemo(() => new Date(), []);
+  const [date, setDate] = useState<Date | undefined>(new Date());
 
   // Hourly state
   const [startTime, setStartTime] = useState('');
@@ -136,16 +137,18 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, toast]);
+  }, [companyId, router, user.uid, toast, companyItems]);
 
-  // Initial load
+  // Initial load and when date changes
   useEffect(() => {
-    loadDataForDay(date);
+    if (date) {
+        loadDataForDay(date);
+    }
   }, [date, loadDataForDay]);
 
     // Recalculate shift details when times change
   useEffect(() => {
-    if (settings.paymentModel === 'hourly' && startTime && endTime) {
+    if (settings.paymentModel === 'hourly' && startTime && endTime && date) {
       const shift: Shift = {
         id: todaysShiftId || '',
         userId: user.uid,
@@ -168,6 +171,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
 
   const handleSave = async () => {
+    if (!date) {
+        toast({ title: 'Error', description: 'Por favor, selecciona una fecha.', variant: 'destructive' });
+        return;
+    }
     setIsSaving(true);
     
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate save
@@ -176,7 +183,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
         let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
         
-        const todayString = format(date, 'yyyy-MM-dd');
+        const dateString = format(date, 'yyyy-MM-dd');
         
         const shiftIndex = allShifts.findIndex(s => s.id === todaysShiftId);
 
@@ -210,7 +217,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 id: `shift_${Date.now()}`,
                 userId: user.uid,
                 companyId: companyId,
-                date: todayString,
+                date: dateString,
                 ...shiftData,
             };
             allShifts.push(newShift);
@@ -302,10 +309,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         <main className="space-y-8">
            <Card>
                 <CardHeader>
-                    <CardTitle>Registrar Actividad de Hoy</CardTitle>
+                    <CardTitle>Registrar Actividad</CardTitle>
                     <CardDescription>
-                        Ingresa tu actividad para el día {format(date, 'PPP', { locale: es })}.
+                       Selecciona un día y registra tu actividad.
                     </CardDescription>
+                    <div className="pt-4">
+                        <DatePicker date={date} setDate={setDate} />
+                    </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {isHourly && (
@@ -410,4 +420,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
