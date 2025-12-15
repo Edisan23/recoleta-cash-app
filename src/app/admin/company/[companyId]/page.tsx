@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -15,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowLeft, Loader2, Upload, Info } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, Info, Package } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import type { Company, CompanySettings } from '@/types/db-entities';
@@ -217,7 +218,7 @@ export default function CompanySettingsPage() {
                              <div className='grid gap-1.5'>
                                 <Label htmlFor="production" className='font-bold'>Pago por Producción</Label>
                                  <p className="text-sm text-muted-foreground">
-                                    El pago se basa en unidades de trabajo completadas (ej: bultos movidos, viajes realizados, obra terminada). Los ítems y sus valores se definen en otra sección.
+                                    El pago se basa en unidades de trabajo completadas. Debes configurar los ítems de producción y sus valores.
                                 </p>
                             </div>
                         </div>
@@ -272,6 +273,24 @@ export default function CompanySettingsPage() {
                     )}
                 </CardContent>
             </Card>
+            
+            {paymentModel === 'production' && (
+                 <Card>
+                    <CardHeader>
+                        <CardTitle>Ítems de Producción</CardTitle>
+                        <CardDescription>Define los productos o servicios que los operadores pueden registrar.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Link href={`/admin/company/${companyId}/items`} passHref>
+                            <Button variant="outline">
+                                <Package className="mr-2" />
+                                Gestionar Ítems
+                            </Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+            )}
+
         </div>
 
         <div className="space-y-8">
@@ -321,3 +340,5 @@ export default function CompanySettingsPage() {
     </TooltipProvider>
   );
 }
+
+    

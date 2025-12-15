@@ -12,6 +12,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { TimeInput } from '@/components/TimeInput';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 
 // --- FAKE DATA & KEYS ---
@@ -26,6 +29,7 @@ const COMPANIES_DB_KEY = 'fake_companies_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 const SHIFTS_DB_KEY = 'fake_shifts_db';
 const SETTINGS_DB_KEY = 'fake_company_settings_db';
+const ITEMS_DB_KEY = 'fake_company_items_db';
 
 
 // --- HELPER FUNCTIONS ---
@@ -49,10 +53,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [settings, setSettings] = useState<Partial<CompanySettings>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  const date = useMemo(() => new Date(), []);
 
-  const [date, setDate] = useState(new Date());
+  // Hourly state
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
+  
+  // Production state
+  const [companyItems, setCompanyItems] = useState<CompanyItem[]>([]);
+  const [selectedItemId, setSelectedItemId] = useState<string>('');
+  const [quantity, setQuantity] = useState<string>('');
+
+
   const [todaysShiftId, setTodaysShiftId] = useState<string | null>(null);
 
 
@@ -73,7 +86,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
         const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
         const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
-        setSettings(allSettings[companyId] || {});
+        const companySettings = allSettings[companyId] || {};
+        setSettings(companySettings);
+
+        // Load items for production model
+        if (companySettings.paymentModel === 'production') {
+            const storedItems = localStorage.getItem(ITEMS_DB_KEY);
+            const allItems: {[key: string]: CompanyItem[]} = storedItems ? JSON.parse(storedItems) : {};
+            const items = allItems[companyId] || [];
+            setCompanyItems(items);
+            if (items.length > 0 && !selectedItemId) {
+                setSelectedItemId(items[0].id);
+            }
+        }
 
         const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
         const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
@@ -82,13 +107,21 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const shiftForDay = allShifts.find(s => s.userId === user.uid && s.companyId === companyId && s.date.startsWith(todayString));
 
         if (shiftForDay) {
-            setStartTime(shiftForDay.startTime || '');
-            setEndTime(shiftForDay.endTime || '');
             setTodaysShiftId(shiftForDay.id);
+            if (companySettings.paymentModel === 'hourly') {
+                setStartTime(shiftForDay.startTime || '');
+                setEndTime(shiftForDay.endTime || '');
+            } else {
+                setSelectedItemId(shiftForDay.itemId || (companyItems.length > 0 ? companyItems[0].id : ''));
+                setQuantity(String(shiftForDay.quantity || ''));
+            }
         } else {
+            // Reset fields for new shift
+            setTodaysShiftId(null);
             setStartTime('');
             setEndTime('');
-            setTodaysShiftId(null);
+            setSelectedItemId(companyItems.length > 0 ? companyItems[0].id : '');
+            setQuantity('');
         }
 
     } catch(e) {
@@ -97,7 +130,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, toast]);
+  }, [companyId, router, user.uid, toast, companyItems]);
 
   // Initial load
   useEffect(() => {
@@ -117,12 +150,26 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         
         const shiftIndex = allShifts.findIndex(s => s.id === todaysShiftId);
 
+        let shiftData: Partial<Shift> = {};
+
+        if (settings.paymentModel === 'hourly') {
+            shiftData = { startTime, endTime };
+        } else {
+            const numQuantity = parseFloat(quantity);
+             if (!selectedItemId || isNaN(numQuantity) || numQuantity <= 0) {
+                toast({ title: 'Datos incompletos', description: 'Por favor, selecciona un ítem y una cantidad válida.', variant: 'destructive' });
+                setIsSaving(false);
+                return;
+            }
+            shiftData = { itemId: selectedItemId, quantity: numQuantity };
+        }
+
+
         if (shiftIndex > -1) {
             // Update existing shift
             allShifts[shiftIndex] = {
                 ...allShifts[shiftIndex],
-                startTime,
-                endTime,
+                ...shiftData,
             };
         } else {
             // Create new shift
@@ -131,19 +178,18 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 userId: user.uid,
                 companyId: companyId,
                 date: todayString,
-                startTime,
-                endTime,
+                ...shiftData,
             };
             allShifts.push(newShift);
             setTodaysShiftId(newShift.id);
         }
 
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
-        toast({ title: '¡Guardado!', description: 'Tu turno ha sido actualizado.' });
+        toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
 
     } catch (e) {
         console.error("Failed to save shift to localStorage", e);
-        toast({ title: 'Error', description: 'No se pudo guardar el turno.', variant: 'destructive' });
+        toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
     } finally {
         setIsSaving(false);
     }
@@ -168,6 +214,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }
 
   const isHourly = settings.paymentModel === 'hourly';
+  const isProduction = settings.paymentModel === 'production';
 
 
   return (
@@ -218,28 +265,62 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         <main>
            <Card>
                 <CardHeader>
-                    <CardTitle>Registrar Turno de Hoy</CardTitle>
+                    <CardTitle>Registrar Actividad de Hoy</CardTitle>
                     <CardDescription>
-                        Ingresa tus horas de entrada y salida para el día {format(date, 'PPP', { locale: es })}.
+                        Ingresa tu actividad para el día {format(date, 'PPP', { locale: es })}.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                     <div className="flex flex-col sm:flex-row gap-8 items-center justify-around">
-                        <div className="grid gap-2 text-center">
-                            <h3 className="font-semibold">Hora de Entrada</h3>
-                            <TimeInput label="Hora de entrada" value={startTime} onChange={setStartTime} />
-                        </div>
+                    {isHourly && (
+                        <div className="flex flex-col sm:flex-row gap-8 items-center justify-around">
+                            <div className="grid gap-2 text-center">
+                                <h3 className="font-semibold">Hora de Entrada</h3>
+                                <TimeInput label="Hora de entrada" value={startTime} onChange={setStartTime} />
+                            </div>
 
-                         <div className="grid gap-2 text-center">
-                            <h3 className="font-semibold">Hora de Salida</h3>
-                            <TimeInput label="Hora de salida" value={endTime} onChange={setEndTime} />
+                            <div className="grid gap-2 text-center">
+                                <h3 className="font-semibold">Hora de Salida</h3>
+                                <TimeInput label="Hora de salida" value={endTime} onChange={setEndTime} />
+                            </div>
                         </div>
-                    </div>
+                    )}
+                    {isProduction && (
+                         <div className="flex flex-col sm:flex-row gap-8 items-end justify-around">
+                            <div className="grid gap-2 text-left w-full sm:w-auto">
+                                <Label htmlFor="item-select">Ítem de Producción</Label>
+                                <Select value={selectedItemId} onValueChange={setSelectedItemId}>
+                                    <SelectTrigger id="item-select" className="w-full sm:w-[280px]">
+                                        <SelectValue placeholder="Selecciona un ítem" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {companyItems.length > 0 ? (
+                                            companyItems.map(item => (
+                                                <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="no-items" disabled>No hay ítems configurados</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2 text-left w-full sm:w-auto">
+                                <Label htmlFor="quantity-input">Cantidad</Label>
+                                <Input
+                                    id="quantity-input"
+                                    type="number"
+                                    placeholder="Ej: 100"
+                                    value={quantity}
+                                    onChange={(e) => setQuantity(e.target.value)}
+                                    className="w-full sm:w-24 text-center text-lg"
+                                />
+                            </div>
+                         </div>
+                    )}
                 </CardContent>
                 <CardFooter className="flex justify-end">
                     <Button onClick={handleSave} disabled={isSaving || isLoading}>
                         {isSaving ? <Loader2 className="mr-2 animate-spin"/> : <Save className="mr-2"/>}
-                        Guardar Turno
+                        Guardar Registro
                     </Button>
                 </CardFooter>
            </Card>
@@ -248,3 +329,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
