@@ -130,7 +130,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, toast, companyItems, selectedItemId]);
+  }, [companyId, router, user.uid, toast]);
 
   // Initial load
   useEffect(() => {
