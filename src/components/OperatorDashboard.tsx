@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2, Save, Settings } from 'lucide-react';
+import { LogOut, Loader2, Save, Settings, Trash2 } from 'lucide-react';
 import type { User, Company, CompanySettings, Shift, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,6 +19,17 @@ import { Label } from '@/components/ui/label';
 import { calculateShiftDetails, type ShiftCalculationResult } from '@/lib/payroll-calculator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DatePicker } from '@/components/DatePicker';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 
 // --- FAKE DATA & KEYS ---
@@ -93,16 +104,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
         const companySettings = allSettings[companyId] || {};
         setSettings(companySettings);
-
+        
+        let items: CompanyItem[] = [];
         // Load items for production model
         if (companySettings.paymentModel === 'production') {
             const storedItems = localStorage.getItem(ITEMS_DB_KEY);
             const allItems: {[key: string]: CompanyItem[]} = storedItems ? JSON.parse(storedItems) : {};
-            const items = allItems[companyId] || [];
+            items = allItems[companyId] || [];
             setCompanyItems(items);
-            if (items.length > 0 && !selectedItemId) {
-                setSelectedItemId(items[0].id);
-            }
         }
 
         const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
@@ -117,7 +126,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 setStartTime(shiftForDay.startTime || '');
                 setEndTime(shiftForDay.endTime || '');
             } else {
-                setSelectedItemId(shiftForDay.itemId || (companyItems.length > 0 ? companyItems[0].id : ''));
+                setSelectedItemId(shiftForDay.itemId || (items.length > 0 ? items[0].id : ''));
                 setQuantity(String(shiftForDay.quantity || ''));
             }
         } else {
@@ -126,9 +135,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             setStartTime('');
             setEndTime('');
             setQuantity('');
-             if (companySettings.paymentModel === 'production' && companyItems.length > 0) {
-              setSelectedItemId(companyItems[0].id);
-            }
+            setSelectedItemId(items.length > 0 ? items[0].id : '');
         }
 
     } catch(e) {
@@ -137,7 +144,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, toast, companyItems]);
+  }, [companyId, router, user.uid, toast]);
 
   // Initial load and when date changes
   useEffect(() => {
@@ -234,6 +241,36 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setIsSaving(false);
     }
   };
+
+  const handleDelete = async () => {
+    if (!todaysShiftId) return;
+
+    setIsSaving(true);
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delete
+
+    try {
+      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+      let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+      
+      const updatedShifts = allShifts.filter(s => s.id !== todaysShiftId);
+
+      localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
+      
+      // Reset state
+      setTodaysShiftId(null);
+      setStartTime('');
+      setEndTime('');
+      setQuantity('');
+      setShiftCalculation(null);
+
+      toast({ title: "¡Eliminado!", description: "El registro del turno ha sido eliminado." });
+    } catch (e) {
+      console.error("Failed to delete shift from localStorage", e);
+      toast({ title: 'Error', description: 'No se pudo eliminar el registro.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
 
   const handleSignOut = () => {
@@ -364,7 +401,29 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                          </div>
                     )}
                 </CardContent>
-                <CardFooter className="flex justify-end">
+                <CardFooter className="flex justify-end gap-2">
+                    {todaysShiftId && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive" disabled={isSaving || isLoading}>
+                                    <Trash2 className="mr-2" />
+                                    Eliminar
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Se eliminará permanentemente el registro de este turno.
+                                </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDelete}>Continuar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                     <Button onClick={handleSave} disabled={isSaving || isLoading}>
                         {isSaving ? <Loader2 className="mr-2 animate-spin"/> : <Save className="mr-2"/>}
                         Guardar Registro
