@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2, Save, Settings, Trash2 } from 'lucide-react';
+import { LogOut, Loader2, Save, Settings, Trash2, ChevronDown } from 'lucide-react';
 import type { User, Company, CompanySettings, Shift, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -30,6 +30,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion"
 
 
 // --- FAKE DATA & KEYS ---
@@ -126,7 +132,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 setStartTime(shiftForDay.startTime || '');
                 setEndTime(shiftForDay.endTime || '');
             } else {
-                setSelectedItemId(shiftForDay.itemId || (items.length > 0 ? items[0].id : ''));
+                setSelectedItemId(shiftForDay.itemId || '');
                 setQuantity(String(shiftForDay.quantity || ''));
             }
         } else {
@@ -431,49 +437,59 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </CardFooter>
            </Card>
 
-            {isHourly && shiftCalculation && shiftCalculation.totalHours > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cómputo de Horas del Turno</CardTitle>
-                  <CardDescription>
-                    Resumen de las horas y el pago calculado para el turno actual.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Tipo de Hora</TableHead>
-                          <TableHead className="text-right">Horas</TableHead>
-                          <TableHead className="text-right">Valor</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {shiftCalculation.isHoliday && <TableRow className="bg-blue-50 dark:bg-blue-900/20"><TableCell colSpan={4} className="font-bold text-center text-blue-800 dark:text-blue-300">Día Festivo</TableCell></TableRow>}
-                        
-                        {shiftCalculation.dayHours > 0 && <TableRow><TableCell>Diurnas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.dayHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.dayRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayPayment)}</TableCell></TableRow>}
-                        {shiftCalculation.nightHours > 0 && <TableRow><TableCell>Nocturnas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.nightRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightPayment)}</TableCell></TableRow>}
-                        {shiftCalculation.dayOvertimeHours > 0 && <TableRow><TableCell>Diurnas Extra</TableCell><TableCell className="text-right font-mono">{shiftCalculation.dayOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.dayOvertimeRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayOvertimePayment)}</TableCell></TableRow>}
-                        {shiftCalculation.nightOvertimeHours > 0 && <TableRow><TableCell>Nocturnas Extra</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.nightOvertimeRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightOvertimePayment)}</TableCell></TableRow>}
+           {isHourly && shiftCalculation && shiftCalculation.totalHours > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Resumen del Turno</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Accordion type="single" collapsible className="w-full">
+                            <AccordionItem value="item-1">
+                                <AccordionTrigger className="hover:no-underline">
+                                    <div className="flex justify-between items-center w-full pr-4">
+                                        <div className="text-left">
+                                            <p className="text-sm text-muted-foreground">Total Horas Turno</p>
+                                            <p className="font-bold text-2xl">{shiftCalculation.totalHours.toFixed(2)}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-sm text-muted-foreground">Pago Total Turno</p>
+                                            <p className="font-bold text-2xl text-green-600">{formatCurrency(shiftCalculation.totalPayment)}</p>
+                                        </div>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="border rounded-lg mt-4">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Tipo de Hora</TableHead>
+                                                    <TableHead className="text-right">Horas</TableHead>
+                                                    <TableHead className="text-right">Valor</TableHead>
+                                                    <TableHead className="text-right">Total</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {shiftCalculation.isHoliday && <TableRow className="bg-blue-50 dark:bg-blue-900/20"><TableCell colSpan={4} className="font-bold text-center text-blue-800 dark:text-blue-300">Día Festivo</TableCell></TableRow>}
+                                                
+                                                {shiftCalculation.dayHours > 0 && <TableRow><TableCell>Diurnas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.dayHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.dayRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayPayment)}</TableCell></TableRow>}
+                                                {shiftCalculation.nightHours > 0 && <TableRow><TableCell>Nocturnas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.nightRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightPayment)}</TableCell></TableRow>}
+                                                {shiftCalculation.dayOvertimeHours > 0 && <TableRow><TableCell>Diurnas Extra</TableCell><TableCell className="text-right font-mono">{shiftCalculation.dayOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.dayOvertimeRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayOvertimePayment)}</TableCell></TableRow>}
+                                                {shiftCalculation.nightOvertimeHours > 0 && <TableRow><TableCell>Nocturnas Extra</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.nightOvertimeRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightOvertimePayment)}</TableCell></TableRow>}
 
-                        {shiftCalculation.holidayDayHours > 0 && <TableRow><TableCell>Diurnas Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayDayHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.holidayDayRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.holidayDayPayment)}</TableCell></TableRow>}
-                        {shiftCalculation.holidayNightHours > 0 && <TableRow><TableCell>Nocturnas Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayNightHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.holidayNightRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.holidayNightPayment)}</TableCell></TableRow>}
-                        {shiftCalculation.holidayDayOvertimeHours > 0 && <TableRow><TableCell>Diurnas Extra Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayDayOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.holidayDayOvertimeRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.holidayDayOvertimePayment)}</TableCell></TableRow>}
-                        {shiftCalculation.holidayNightOvertimeHours > 0 && <TableRow><TableCell>Nocturnas Extra Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayNightOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.holidayNightOvertimeRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.holidayNightOvertimePayment)}</TableCell></TableRow>}
-
-                        <TableRow className="bg-muted/50 font-bold">
-                            <TableCell>Total Horas Turno</TableCell>
-                            <TableCell className="text-right font-mono">{shiftCalculation.totalHours.toFixed(2)}</TableCell>
-                            <TableCell colSpan={2} className="text-right font-mono text-lg">{formatCurrency(shiftCalculation.totalPayment)}</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+                                                {shiftCalculation.holidayDayHours > 0 && <TableRow><TableCell>Diurnas Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayDayHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.holidayDayRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.holidayDayPayment)}</TableCell></TableRow>}
+                                                {shiftCalculation.holidayNightHours > 0 && <TableRow><TableCell>Nocturnas Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayNightHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.holidayNightRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.holidayNightPayment)}</TableCell></TableRow>}
+                                                {shiftCalculation.holidayDayOvertimeHours > 0 && <TableRow><TableCell>Diurnas Extra Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayDayOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.holidayDayOvertimeRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.holidayDayOvertimePayment)}</TableCell></TableRow>}
+                                                {shiftCalculation.holidayNightOvertimeHours > 0 && <TableRow><TableCell>Nocturnas Extra Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayNightOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.holidayNightOvertimeRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.holidayNightOvertimePayment)}</TableCell></TableRow>}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    </CardContent>
+                </Card>
             )}
+
         </main>
       </div>
     </div>
