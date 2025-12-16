@@ -18,36 +18,7 @@ export type User = {
     isActive: boolean; // Whether the company is active or not.
     themeColor?: string; // A hex color code for the company's theme.
   };
-  
-  export type CompanySettings = {
-    id: string;
-    paymentModel?: "hourly" | "production"; // The payment model for the company.
-    payrollCycle?: "monthly" | "bi-weekly"; // The payroll payment frequency.
-    nightShiftStart?: string; // The time when the night shift begins (e.g., '21:00').
-    normalWorkHours?: number; // The number of hours after which overtime starts.
-    dayRate?: number;
-    nightRate?: number;
-    dayOvertimeRate?: number;
-    nightOvertimeRate?: number;
-    holidayDayRate?: number;
-    holidayNightRate?: number;
-    holidayDayOvertimeRate?: number;
-    holidayNightOvertimeRate?: number;
-  };
-  
-  export type CompanyItem = {
-    id: string;
-    name: string;
-    description?: string;
-    // For production model
-    value?: number; // Value per unit
-    // For hourly model (legacy or future use)
-    affectsPayment?: boolean;
-    paymentMultiplier?: number;
-    extraPerHour?: number;
-    requiresSupervisor?: boolean;
-  };
-  
+    
   export type Shift = {
     id: string;
     userId: string;

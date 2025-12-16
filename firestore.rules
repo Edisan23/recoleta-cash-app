@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -30,17 +31,6 @@ service cloud.firestore {
     match /companies/{companyId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
-
-      // Company subcollections can be managed by admins.
-      // Operators who are members of the company can read settings and items.
-      match /settings/{settingsId} {
-          allow read: if isSignedIn() && isCompanyMember(companyId);
-          allow write: if isAdmin();
-      }
-      match /items/{itemId} {
-          allow read: if isSignedIn() && isCompanyMember(companyId);
-          allow write: if isAdmin();
-      }
 
       // Shifts can be created by company members (operators) for themselves.
       // Admins can read all shifts.
