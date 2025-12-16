@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { TimeInput } from '@/components/TimeInput';
-import { format, isWithinInterval, startOfDay, endOfDay, isSameMonth, isSameDay } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -77,8 +77,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [isSaving, setIsSaving] = useState(false);
   
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [allUserShifts, setAllUserShifts] = useState<Shift[]>([]);
-
+  
   // Hourly state
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
@@ -93,7 +92,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [periodSummary, setPeriodSummary] = useState<{ totalHours: number; totalPayment: number; title: string } | null>(null);
   
   const paymentModel = settings.paymentModel;
-
 
  const loadAndCalculate = useCallback(async (currentDate: Date) => {
     if (!currentDate || !companyId) {
@@ -134,7 +132,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setCompany(foundCompany);
         setSettings(companySettings);
         setCompanyItems(items);
-        setAllUserShifts(userShifts);
 
         // --- 3. Process data for the *selected day* ---
         const shiftForDay = userShifts.find(s => isSameDay(new Date(s.date), startOfDay(currentDate)));
@@ -181,9 +178,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
         let summaryTitle = 'Resumen del Periodo';
         if (companySettings.payrollCycle === 'monthly') {
-            summaryTitle = `Resumen del Mes (${format(payPeriod.start, 'd MMM')} - ${format(payPeriod.end, 'd MMM')})`;
+            summaryTitle = `Resumen del Mes (${format(payPeriod.start, 'd MMM', { locale: es })} - ${format(payPeriod.end, 'd MMM', { locale: es })})`;
         } else if (companySettings.payrollCycle === 'bi-weekly') {
-            summaryTitle = `Resumen de la Quincena (${format(payPeriod.start, 'd MMM')} - ${format(payPeriod.end, 'd MMM')})`;
+            summaryTitle = `Resumen de la Quincena (${format(payPeriod.start, 'd MMM', { locale: es })} - ${format(payPeriod.end, 'd MMM', { locale: es })})`;
         }
             
         setPeriodSummary({ totalHours, totalPayment, title: summaryTitle });
@@ -252,52 +249,57 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         return;
     }
     setIsSaving(true);
-    
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate save
 
     try {
         const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
         let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-        
-        const dateString = format(date, 'yyyy-MM-dd');
-        
-        const shiftIndex = allShifts.findIndex(s => s.id === todaysShiftId);
 
-        let shiftData: Partial<Shift> = {};
+        let shiftData: Partial<Omit<Shift, 'id' | 'userId' | 'companyId'>> = {};
 
+        // 1. Validate and prepare data based on payment model
         if (settings.paymentModel === 'hourly') {
+            if (!startTime || !endTime) {
+                toast({ title: 'Datos incompletos', description: 'Por favor, introduce la hora de entrada y salida.', variant: 'destructive' });
+                setIsSaving(false);
+                return;
+            }
             shiftData = { startTime, endTime };
-        } else {
+        } else { // production
             const numQuantity = parseFloat(quantity);
-            const firstItem = companyItems.length > 0 ? companyItems[0] : null;
-            const currentItemId = selectedItemId || (firstItem ? firstItem.id : '');
-
-             if (!currentItemId || isNaN(numQuantity) || numQuantity <= 0) {
+            if (!selectedItemId || isNaN(numQuantity) || numQuantity <= 0) {
                 toast({ title: 'Datos incompletos', description: 'Por favor, selecciona un ítem y una cantidad válida.', variant: 'destructive' });
                 setIsSaving(false);
                 return;
             }
-            shiftData = { itemId: currentItemId, quantity: numQuantity };
+            shiftData = { itemId: selectedItemId, quantity: numQuantity };
         }
 
+        // 2. Find if a shift already exists for this day
+        const shiftIndex = allShifts.findIndex(s => s.id === todaysShiftId);
 
+        // 3. Update or create the shift
         if (shiftIndex > -1) {
+            // Update existing shift
             allShifts[shiftIndex] = {
                 ...allShifts[shiftIndex],
                 ...shiftData,
             };
         } else {
+            // Create new shift
             const newShift: Shift = {
                 id: `shift_${Date.now()}`,
                 userId: user.uid,
                 companyId: companyId,
-                date: dateString,
+                date: format(date, 'yyyy-MM-dd'),
                 ...shiftData,
             };
             allShifts.push(newShift);
-            setTodaysShiftId(newShift.id);
+            // CRITICAL: Update state with the new shift's ID
+            setTodaysShiftId(newShift.id); 
         }
 
+        // 4. Save to localStorage
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
         toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
 
@@ -306,6 +308,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
     } finally {
         setIsSaving(false);
+        // Reload all data and recalculate summary after saving
         loadAndCalculate(date);
     }
   };
