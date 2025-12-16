@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { TimeInput } from '@/components/TimeInput';
-import { format, isWithinInterval, startOfDay, endOfDay, isSameDay } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, isSameDay, getMonth, getYear } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -136,8 +136,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         // --- 3. Process data for the *selected day* ---
         const shiftForDay = userShifts.find(s => isSameDay(new Date(s.date), startOfDay(currentDate)));
 
+        setTodaysShiftId(shiftForDay?.id || null);
         if (shiftForDay) {
-            setTodaysShiftId(shiftForDay.id);
             if (companySettings.paymentModel === 'hourly') {
                 setStartTime(shiftForDay.startTime || '');
                 setEndTime(shiftForDay.endTime || '');
@@ -147,12 +147,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             }
         } else {
             // Reset fields if no shift for the selected day
-            setTodaysShiftId(null);
             setStartTime('');
             setEndTime('');
             setQuantity('');
             setSelectedItemId(items.length > 0 ? items[0].id : '');
-            setShiftCalculation(null);
         }
         
         // --- 4. Calculate period summary ---
@@ -195,7 +193,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
 
   useEffect(() => {
-    if (date) {
+    if (date && companyId) {
         loadAndCalculate(date);
     }
   }, [date, companyId, loadAndCalculate]);
@@ -208,35 +206,39 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         return;
     }
 
+    // Create a temporary shift object for calculation based on current inputs
+    let tempShift: Shift | null = null;
+
     if (paymentModel === 'hourly' && startTime && endTime) {
-      const shift: Shift = {
-        id: todaysShiftId || '',
+      tempShift = {
+        id: todaysShiftId || 'temp',
         userId: user.uid,
         companyId: companyId,
         date: format(date, 'yyyy-MM-dd'),
         startTime: startTime,
         endTime: endTime,
       };
-
-      const result = calculateShiftDetails({
-        shift: shift,
-        rates: settings,
-        items: [],
-      });
-      setShiftCalculation(result);
     } else if (paymentModel === 'production' && selectedItemId && quantity) {
-        const item = companyItems.find(i => i.id === selectedItemId);
         const numQuantity = parseFloat(quantity);
-        if (item && numQuantity > 0 && !isNaN(numQuantity)) {
-            setShiftCalculation({
-                ...calculateShiftDetails({
-                    shift: {id: '', userId: '', companyId: '', date: ''}, rates: {}, items: []
-                }),
-                totalPayment: item.value! * numQuantity,
-            });
-        } else {
-            setShiftCalculation(null);
+         if (!isNaN(numQuantity) && numQuantity > 0) {
+            tempShift = {
+                id: todaysShiftId || 'temp',
+                userId: user.uid,
+                companyId: companyId,
+                date: format(date, 'yyyy-MM-dd'),
+                itemId: selectedItemId,
+                quantity: numQuantity
+            };
         }
+    }
+    
+    if (tempShift) {
+        const result = calculateShiftDetails({
+            shift: tempShift,
+            rates: settings,
+            items: companyItems,
+        });
+        setShiftCalculation(result);
     } else {
       setShiftCalculation(null);
     }
@@ -245,71 +247,74 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const handleSave = async () => {
     if (!date) {
-        toast({ title: 'Error', description: 'Por favor, selecciona una fecha.', variant: 'destructive' });
-        return;
+      toast({ title: 'Error', description: 'Por favor, selecciona una fecha.', variant: 'destructive' });
+      return;
     }
+  
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate save
-
+  
     try {
-        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-        let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-
-        let shiftData: Partial<Omit<Shift, 'id' | 'userId' | 'companyId'>> = {};
-
-        // 1. Validate and prepare data based on payment model
-        if (settings.paymentModel === 'hourly') {
-            if (!startTime || !endTime) {
-                toast({ title: 'Datos incompletos', description: 'Por favor, introduce la hora de entrada y salida.', variant: 'destructive' });
-                setIsSaving(false);
-                return;
-            }
-            shiftData = { startTime, endTime };
-        } else { // production
-            const numQuantity = parseFloat(quantity);
-            if (!selectedItemId || isNaN(numQuantity) || numQuantity <= 0) {
-                toast({ title: 'Datos incompletos', description: 'Por favor, selecciona un ítem y una cantidad válida.', variant: 'destructive' });
-                setIsSaving(false);
-                return;
-            }
-            shiftData = { itemId: selectedItemId, quantity: numQuantity };
+      // 1. Validate inputs based on payment model
+      if (paymentModel === 'hourly') {
+        if (!startTime || !endTime) {
+          toast({ title: 'Datos incompletos', description: 'Por favor, introduce la hora de entrada y salida.', variant: 'destructive' });
+          setIsSaving(false);
+          return;
         }
-
-        // 2. Find if a shift already exists for this day
-        const shiftIndex = allShifts.findIndex(s => s.id === todaysShiftId);
-
-        // 3. Update or create the shift
-        if (shiftIndex > -1) {
-            // Update existing shift
-            allShifts[shiftIndex] = {
-                ...allShifts[shiftIndex],
-                ...shiftData,
-            };
-        } else {
-            // Create new shift
-            const newShift: Shift = {
-                id: `shift_${Date.now()}`,
-                userId: user.uid,
-                companyId: companyId,
-                date: format(date, 'yyyy-MM-dd'),
-                ...shiftData,
-            };
-            allShifts.push(newShift);
-            // CRITICAL: Update state with the new shift's ID
-            setTodaysShiftId(newShift.id); 
+      } else { // production
+        const numQuantity = parseFloat(quantity);
+        if (!selectedItemId || isNaN(numQuantity) || numQuantity <= 0) {
+          toast({ title: 'Datos incompletos', description: 'Por favor, selecciona un ítem y una cantidad válida.', variant: 'destructive' });
+          setIsSaving(false);
+          return;
         }
+      }
+  
+      // 2. Read existing shifts
+      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+      let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+  
+      // 3. Find if a shift for the current user/company/date already exists
+      const shiftIndex = allShifts.findIndex(s => 
+        s.userId === user.uid && 
+        s.companyId === companyId && 
+        isSameDay(new Date(s.date), date)
+      );
+  
+      let shiftData: Partial<Shift> = {};
+      if (paymentModel === 'hourly') {
+        shiftData = { startTime, endTime };
+      } else {
+        shiftData = { itemId: selectedItemId, quantity: parseFloat(quantity) };
+      }
 
-        // 4. Save to localStorage
-        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
-        toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
-
+      if (shiftIndex > -1) {
+        // 4a. Update existing shift
+        allShifts[shiftIndex] = { ...allShifts[shiftIndex], ...shiftData };
+      } else {
+        // 4b. Create new shift
+        const newShift: Shift = {
+          id: `shift_${Date.now()}`,
+          userId: user.uid,
+          companyId: companyId,
+          date: format(date, 'yyyy-MM-dd'),
+          ...shiftData,
+        };
+        allShifts.push(newShift);
+      }
+  
+      // 5. Save back to localStorage
+      localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
+      
+      toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
+  
     } catch (e) {
-        console.error("Failed to save shift to localStorage", e);
-        toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
+      console.error("Failed to save shift to localStorage", e);
+      toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
     } finally {
-        setIsSaving(false);
-        // Reload all data and recalculate summary after saving
-        loadAndCalculate(date);
+      // 6. Reload all data and recalculate summary after saving
+      await loadAndCalculate(date);
+      setIsSaving(false);
     }
   };
 
@@ -327,6 +332,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
       localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
       
+      // Clear the form state
       setTodaysShiftId(null);
       setStartTime('');
       setEndTime('');
@@ -339,8 +345,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       console.error("Failed to delete shift from localStorage", e);
       toast({ title: 'Error', description: 'No se pudo eliminar el registro.', variant: 'destructive' });
     } finally {
+      await loadAndCalculate(date);
       setIsSaving(false);
-      loadAndCalculate(date);
     }
   }
 
@@ -608,3 +614,4 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
