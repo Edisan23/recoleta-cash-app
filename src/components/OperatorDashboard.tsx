@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { TimeInput } from '@/components/TimeInput';
-import { format, isWithinInterval, startOfDay, endOfDay, isSameDay, getMonth, getYear } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, isSameDay, getMonth, getYear, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -245,7 +245,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }, [startTime, endTime, date, settings, todaysShiftId, user.uid, companyId, paymentModel, selectedItemId, quantity, companyItems]);
 
 
-  const handleSave = async () => {
+ const handleSave = async () => {
     if (!date) {
       toast({ title: 'Error', description: 'Por favor, selecciona una fecha.', variant: 'destructive' });
       return;
@@ -254,14 +254,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     setIsSaving(true);
   
     try {
-      // 1. Validate inputs based on payment model
       if (paymentModel === 'hourly') {
         if (!startTime || !endTime) {
           toast({ title: 'Datos incompletos', description: 'Por favor, introduce la hora de entrada y salida.', variant: 'destructive' });
           setIsSaving(false);
           return;
         }
-      } else { // production
+      } else { 
         const numQuantity = parseFloat(quantity);
         if (!selectedItemId || isNaN(numQuantity) || numQuantity <= 0) {
           toast({ title: 'Datos incompletos', description: 'Por favor, selecciona un ítem y una cantidad válida.', variant: 'destructive' });
@@ -270,11 +269,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
       }
   
-      // 2. Read existing shifts
       const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
       let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
   
-      // 3. Find if a shift for the current user/company/date already exists
       const shiftIndex = allShifts.findIndex(s => 
         s.userId === user.uid && 
         s.companyId === companyId && 
@@ -289,10 +286,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       }
 
       if (shiftIndex > -1) {
-        // 4a. Update existing shift
         allShifts[shiftIndex] = { ...allShifts[shiftIndex], ...shiftData };
       } else {
-        // 4b. Create new shift
         const newShift: Shift = {
           id: `shift_${Date.now()}`,
           userId: user.uid,
@@ -301,19 +296,18 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           ...shiftData,
         };
         allShifts.push(newShift);
+        setTodaysShiftId(newShift.id); 
       }
   
-      // 5. Save back to localStorage
       localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
       
       toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
   
+      await loadAndCalculate(date);
     } catch (e) {
       console.error("Failed to save shift to localStorage", e);
       toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
     } finally {
-      // 6. Reload all data and recalculate summary after saving
-      await loadAndCalculate(date);
       setIsSaving(false);
     }
   };
@@ -614,4 +608,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
