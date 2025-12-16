@@ -211,10 +211,23 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         items: [],
       });
       setShiftCalculation(result);
+    } else if (paymentModel === 'production' && selectedItemId && quantity && date) {
+        const item = companyItems.find(i => i.id === selectedItemId);
+        const numQuantity = parseFloat(quantity);
+        if (item && !isNaN(numQuantity)) {
+            setShiftCalculation({
+                ...calculateShiftDetails({ // Use initial structure
+                    shift: {id: '', userId: '', companyId: '', date: ''}, rates: {}, items: []
+                }),
+                totalPayment: item.value! * numQuantity,
+            });
+        } else {
+            setShiftCalculation(null);
+        }
     } else {
       setShiftCalculation(null);
     }
-  }, [startTime, endTime, date, settings, todaysShiftId, user.uid, companyId, paymentModel]);
+  }, [startTime, endTime, date, settings, todaysShiftId, user.uid, companyId, paymentModel, selectedItemId, quantity, companyItems]);
 
 
   const handleSave = async () => {
@@ -480,7 +493,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </CardFooter>
            </Card>
 
-           {isHourly && shiftCalculation && shiftCalculation.totalHours > 0 && (
+           {shiftCalculation && (shiftCalculation.totalHours > 0 || shiftCalculation.totalPayment > 0) && (
                 <Card>
                     <CardHeader>
                         <CardTitle>Resumen del Turno</CardTitle>
@@ -490,16 +503,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                             <AccordionItem value="item-1">
                                 <AccordionTrigger className="hover:no-underline font-normal">
                                     <div className="flex justify-between items-center w-full pr-4">
-                                        <div className="text-left">
-                                            <p className="text-sm text-muted-foreground">Total Horas Turno</p>
-                                            <p className="font-bold text-2xl">{shiftCalculation.totalHours.toFixed(2)}</p>
-                                        </div>
-                                        <div className="text-right">
+                                        {isHourly && (
+                                            <div className="text-left">
+                                                <p className="text-sm text-muted-foreground">Total Horas Turno</p>
+                                                <p className="font-bold text-2xl">{shiftCalculation.totalHours.toFixed(2)}</p>
+                                            </div>
+                                        )}
+                                        <div className={`text-right ${!isHourly && 'w-full'}`}>
                                             <p className="text-sm text-muted-foreground">Pago Total Turno</p>
                                             <p className="font-bold text-2xl text-green-600">{formatCurrency(shiftCalculation.totalPayment)}</p>
                                         </div>
                                     </div>
                                 </AccordionTrigger>
+                                {isHourly && (
                                 <AccordionContent>
                                     <div className="border rounded-lg mt-4">
                                         <Table>
@@ -548,6 +564,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                         </Table>
                                     </div>
                                 </AccordionContent>
+                                )}
                             </AccordionItem>
                         </Accordion>
                     </CardContent>
@@ -582,5 +599,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
+
 
     
