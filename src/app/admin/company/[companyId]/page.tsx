@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowLeft, Loader2, Upload, Info, Package, Clock } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload, Info, Package, Clock, CalendarDays } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import type { Company, CompanySettings } from '@/types/db-entities';
@@ -67,7 +67,11 @@ export default function CompanySettingsPage() {
 
         if (companySettings) {
             setSettings(companySettings);
+        } else {
+            // Set default values for new companies
+            setSettings({ payrollCycle: 'monthly', paymentModel: 'hourly' });
         }
+
 
     } catch (error) {
         console.error("Could not access localStorage:", error);
@@ -127,10 +131,11 @@ export default function CompanySettingsPage() {
         
         // Ensure all settings are included
         const updatedSettings: Partial<CompanySettings> = { 
-            id: companyId, 
+            id: companyId,
+            payrollCycle: settings.payrollCycle || 'monthly',
+            paymentModel: settings.paymentModel || 'hourly',
             nightShiftStart: settings.nightShiftStart,
             normalWorkHours: settings.normalWorkHours,
-            paymentModel: settings.paymentModel || 'hourly',
             dayRate: settings.dayRate,
             nightRate: settings.nightRate,
             dayOvertimeRate: settings.dayOvertimeRate,
@@ -168,6 +173,7 @@ export default function CompanySettingsPage() {
   }
 
   const paymentModel = settings.paymentModel || 'hourly';
+  const payrollCycle = settings.payrollCycle || 'monthly';
 
   if (isLoading) {
     return (
@@ -209,35 +215,62 @@ export default function CompanySettingsPage() {
 
       <main className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
+
              <Card>
                 <CardHeader>
-                    <CardTitle>Modelo de Pago</CardTitle>
-                    <CardDescription>Define cómo se calcularán los pagos para los operadores de esta empresa.</CardDescription>
+                    <CardTitle>Configuración General</CardTitle>
+                    <CardDescription>Define las reglas principales de pago y nómina para esta empresa.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <RadioGroup 
-                        value={paymentModel} 
-                        onValueChange={(value) => handleRadioGroupChange('paymentModel', value)}
-                    >
-                        <div className="flex items-start space-x-2">
-                            <RadioGroupItem value="hourly" id="hourly" />
-                            <div className='grid gap-1.5'>
-                                <Label htmlFor="hourly" className='font-bold'>Pago por Hora</Label>
-                                <p className="text-sm text-muted-foreground">
-                                    El pago se basa en las horas trabajadas (diurnas, nocturnas, extras, festivas). Ideal para roles de vigilancia, servicios generales, etc.
-                                </p>
+                <CardContent className="space-y-6">
+                     <div>
+                        <Label className="text-base font-semibold">Modelo de Pago</Label>
+                        <p className="text-sm text-muted-foreground mb-4">Define cómo se calcularán los pagos para los operadores.</p>
+                        <RadioGroup 
+                            value={paymentModel} 
+                            onValueChange={(value) => handleRadioGroupChange('paymentModel', value)}
+                        >
+                            <div className="flex items-start space-x-2">
+                                <RadioGroupItem value="hourly" id="hourly" />
+                                <div className='grid gap-1.5'>
+                                    <Label htmlFor="hourly" className='font-bold'>Pago por Hora</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        El pago se basa en las horas trabajadas (diurnas, nocturnas, extras, festivas).
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex items-start space-x-2 mt-4">
-                            <RadioGroupItem value="production" id="production" />
-                             <div className='grid gap-1.5'>
-                                <Label htmlFor="production" className='font-bold'>Pago por Producción</Label>
-                                 <p className="text-sm text-muted-foreground">
-                                    El pago se basa en unidades de trabajo completadas. Debes configurar los ítems de producción y sus valores.
-                                </p>
+                            <div className="flex items-start space-x-2 mt-4">
+                                <RadioGroupItem value="production" id="production" />
+                                <div className='grid gap-1.5'>
+                                    <Label htmlFor="production" className='font-bold'>Pago por Producción</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        El pago se basa en unidades de trabajo completadas (ítems).
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    </RadioGroup>
+                        </RadioGroup>
+                    </div>
+                    <Separator/>
+                     <div>
+                        <Label className="text-base font-semibold">Frecuencia de Pago</Label>
+                        <p className="text-sm text-muted-foreground mb-4">Establece si el ciclo de pago es mensual o quincenal.</p>
+                        <RadioGroup 
+                            value={payrollCycle} 
+                            onValueChange={(value) => handleRadioGroupChange('payrollCycle', value)}
+                        >
+                            <div className="flex items-start space-x-2">
+                                <RadioGroupItem value="monthly" id="monthly" />
+                                <div className='grid gap-1.5'>
+                                    <Label htmlFor="monthly" className='font-bold'>Mensual</Label>
+                                </div>
+                            </div>
+                            <div className="flex items-start space-x-2 mt-4">
+                                <RadioGroupItem value="bi-weekly" id="bi-weekly" />
+                                <div className='grid gap-1.5'>
+                                    <Label htmlFor="bi-weekly" className='font-bold'>Quincenal</Label>
+                                </div>
+                            </div>
+                        </RadioGroup>
+                    </div>
                 </CardContent>
             </Card>
             
@@ -395,5 +428,3 @@ export default function CompanySettingsPage() {
     </TooltipProvider>
   );
 }
-
-

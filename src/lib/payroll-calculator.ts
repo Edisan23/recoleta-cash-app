@@ -1,7 +1,7 @@
 
 
 import { CompanySettings, Shift, CompanyItem } from "@/types/db-entities";
-import { parse, addDays, getDay, isSameDay } from 'date-fns';
+import { parse, addDays, getDay, isSameDay, startOfMonth, endOfMonth, getDate } from 'date-fns';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
@@ -69,19 +69,6 @@ export interface ShiftCalculationResult {
     nightPayment: number;
     dayOvertimePayment: number;
     nightOvertimePayment: number;
-}
-
-export interface PayrollSummary {
-    grossPay: number;
-    netPay: number;
-    totalHours: number;
-    totalBasePayment: number;
-}
-
-interface PayrollInput {
-    shifts: Shift[];
-    periodSettings: Partial<CompanySettings>;
-    items: CompanyItem[];
 }
 
 
@@ -172,28 +159,31 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     return result;
 };
 
-
 /**
- * Calculates the full payroll summary for a given period.
+ * Determines the start and end dates of a pay period for a given date.
  */
-export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary => {
-    const { shifts, periodSettings, items } = input;
-    
-    let totalBasePayment = 0;
-    let totalHoursInPeriod = 0;
-
-    for (const shift of shifts) {
-        const details = calculateShiftDetails({ shift, rates: periodSettings, items });
-        totalBasePayment += details.totalPayment;
-        totalHoursInPeriod += details.totalHours;
+export const getPayPeriod = (date: Date, cycle: 'monthly' | 'bi-weekly'): { start: Date; end: Date } => {
+    if (cycle === 'monthly') {
+        return {
+            start: startOfMonth(date),
+            end: endOfMonth(date),
+        };
+    } else { // bi-weekly
+        const dayOfMonth = getDate(date);
+        if (dayOfMonth <= 15) {
+            // First bi-weekly period (1-15)
+            return {
+                start: startOfMonth(date),
+                end: new Date(date.getFullYear(), date.getMonth(), 15, 23, 59, 59, 999),
+            };
+        } else {
+            // Second bi-weekly period (16-end of month)
+            return {
+                start: new Date(date.getFullYear(), date.getMonth(), 16),
+                end: endOfMonth(date),
+            };
+        }
     }
-    
-    return {
-        grossPay: totalBasePayment,
-        netPay: totalBasePayment,
-        totalHours: totalHoursInPeriod,
-        totalBasePayment,
-    };
 };
 
 
@@ -205,5 +195,3 @@ const parseTime = (date: Date, time: string): Date => {
     newDate.setHours(hours, minutes, 0, 0);
     return newDate;
 };
-
-    
