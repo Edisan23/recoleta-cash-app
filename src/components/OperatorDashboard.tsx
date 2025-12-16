@@ -579,15 +579,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex justify-around items-center">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {isHourly && (
-                        <div className="text-center">
-                            <p className="text-sm text-muted-foreground flex items-center gap-2"><CalendarClock/> Total Horas del Mes</p>
+                        <div className="text-center sm:text-left">
+                            <p className="text-sm text-muted-foreground flex items-center justify-center sm:justify-start gap-2"><CalendarClock/> Total Horas del Mes</p>
                             <p className="font-bold text-3xl">{monthlySummary.totalHours.toFixed(2)}</p>
                         </div>
                         )}
-                        <div className="text-center">
-                            <p className="text-sm text-muted-foreground flex items-center gap-2"><Coins/> Pago Total del Mes</p>
+                        <div className={`text-center sm:text-left ${!isHourly && 'col-span-1 sm:col-span-2 sm:text-center'}`}>
+                            <p className="text-sm text-muted-foreground flex items-center justify-center sm:justify-start gap-2"><Coins/> Pago Total del Mes</p>
                             <p className="font-bold text-3xl text-green-600">{formatCurrency(monthlySummary.totalPayment)}</p>
                         </div>
                     </div>
