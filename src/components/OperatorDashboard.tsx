@@ -2,9 +2,9 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2, Save, Settings, Trash2, ChevronDown, CalendarClock, Coins } from 'lucide-react';
+import { LogOut, Loader2, Save, Trash2, ChevronDown, CalendarClock, Coins } from 'lucide-react';
 import type { User, Company, CompanySettings, Shift, CompanyItem, PayrollSummary } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -94,10 +94,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [payrollSummary, setPayrollSummary] = useState<PayrollSummary | null>(null);
   const [currentPeriodDescription, setCurrentPeriodDescription] = useState<string>('');
 
-
   const { paymentModel, payrollCycle } = settings;
 
-   const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentItems: CompanyItem[]) => {
+  const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentItems: CompanyItem[]) => {
     const cycle = currentSettings.payrollCycle;
     if (!cycle) return;
 
@@ -124,7 +123,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } catch (e) {
         console.error("Failed to calculate payroll summary", e);
     }
-
   }, [companyId, user.uid]);
 
   const loadDataForDay = useCallback((currentDate: Date) => {
@@ -188,7 +186,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [companyId, router, user.uid, toast, updatePayrollSummary]);
 
-  // Initial load and when date changes
+
   useEffect(() => {
     if (date) {
         loadDataForDay(date);
@@ -216,7 +214,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } else {
       setShiftCalculation(null);
     }
-  }, [startTime, endTime, settings, todaysShiftId, user.uid, companyId, date]);
+  }, [startTime, endTime, date, settings, todaysShiftId, user.uid, companyId]);
 
 
   const handleSave = async () => {
@@ -275,7 +273,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
 
         // After saving, update the summary
-        updatePayrollSummary(date, settings, companyItems);
+        if (date) {
+          updatePayrollSummary(date, settings, companyItems);
+        }
 
     } catch (e) {
         console.error("Failed to save shift to localStorage", e);
@@ -307,7 +307,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
       toast({ title: "¡Eliminado!", description: "El registro del turno ha sido eliminado." });
       
-      updatePayrollSummary(date, settings, companyItems);
+      if(date) {
+        updatePayrollSummary(date, settings, companyItems);
+      }
 
     } catch (e) {
       console.error("Failed to delete shift from localStorage", e);
@@ -390,31 +392,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         </header>
 
         <main className="space-y-8">
-
-           {payrollSummary && payrollCycle && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{payrollCycleTitle}</CardTitle>
-                        <CardDescription>{currentPeriodDescription}</CardDescription>
-                    </CardHeader>
-                    <CardContent className='grid grid-cols-2 gap-4'>
-                         <div className="flex items-center gap-4">
-                            <CalendarClock className="h-8 w-8 text-muted-foreground" />
-                            <div>
-                                <p className="text-sm text-muted-foreground">Total Horas</p>
-                                <p className="text-2xl font-bold">{payrollSummary.totalHours.toFixed(2)}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <Coins className="h-8 w-8 text-muted-foreground" />
-                            <div>
-                                <p className="text-sm text-muted-foreground">Pago Bruto</p>
-                                <p className="text-2xl font-bold">{formatCurrency(payrollSummary.grossPay)}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-           )}
 
            <Card>
                 <CardHeader>
@@ -551,9 +528,33 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </Card>
             )}
 
+            {payrollSummary && payrollCycle && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{payrollCycleTitle}</CardTitle>
+                        <CardDescription>{currentPeriodDescription}</CardDescription>
+                    </CardHeader>
+                    <CardContent className='grid grid-cols-2 gap-4'>
+                         <div className="flex items-center gap-4">
+                            <CalendarClock className="h-8 w-8 text-muted-foreground" />
+                            <div>
+                                <p className="text-sm text-muted-foreground">Total Horas</p>
+                                <p className="text-2xl font-bold">{payrollSummary.totalHours.toFixed(2)}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <Coins className="h-8 w-8 text-muted-foreground" />
+                            <div>
+                                <p className="text-sm text-muted-foreground">Pago Bruto</p>
+                                <p className="text-2xl font-bold">{formatCurrency(payrollSummary.grossPay)}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+           )}
+
         </main>
       </div>
     </div>
   );
 }
-
