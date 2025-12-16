@@ -238,7 +238,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } else {
       setShiftCalculation(null);
     }
-  }, [startTime, endTime, date, settings, allShifts, user.uid, companyId, paymentModel, selectedItemId, quantity, companyItems]);
+  }, [date, startTime, endTime, selectedItemId, quantity, allShifts, user.uid, companyId, paymentModel, settings, companyItems]);
 
 
  const handleSave = async () => {
@@ -268,17 +268,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         ? { startTime, endTime }
         : { itemId: selectedItemId, quantity: parseFloat(quantity) };
 
-    const shiftIndex = allShifts.findIndex(s => isSameDay(new Date(s.date), date));
     
     let updatedShifts: Shift[];
+    
+    // Create a mutable copy of the state
+    const currentShifts = [...allShifts];
+    const shiftIndex = currentShifts.findIndex(s => isSameDay(new Date(s.date), date));
+
 
     if (shiftIndex > -1) {
         // Update existing shift
-        const existingShift = allShifts[shiftIndex];
-        const updatedShift = { ...existingShift, ...shiftDataForDay };
-        updatedShifts = allShifts.map((shift, index) => 
-            index === shiftIndex ? updatedShift : shift
-        );
+        const existingShift = currentShifts[shiftIndex];
+        currentShifts[shiftIndex] = { ...existingShift, ...shiftDataForDay };
+        updatedShifts = currentShifts;
     } else {
         // Create new shift
         const newShift: Shift = {
@@ -288,16 +290,16 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           date: format(date, 'yyyy-MM-dd'),
           ...shiftDataForDay,
         };
-        updatedShifts = [...allShifts, newShift];
+        updatedShifts = [...currentShifts, newShift];
     }
   
     try {
-        // --- THIS IS THE KEY: UPDATE THE REACT STATE FIRST ---
+        // --- Update the React state first ---
         setAllShifts(updatedShifts);
         
-        // --- THEN, PERSIST THE ENTIRE DB TO LOCALSTORAGE ---
+        // --- Then, persist the entire DB of ALL shifts to localStorage ---
         const allStoredShifts = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
-        // Remove all old shifts for this user/company to avoid duplicates
+        // Remove all old shifts for this user/company to avoid duplicates and keep other users' data
         const otherUsersShifts = allStoredShifts.filter((s: Shift) => s.userId !== user.uid || s.companyId !== companyId);
         const finalShiftsToStore = [...otherUsersShifts, ...updatedShifts];
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(finalShiftsToStore));
@@ -307,7 +309,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } catch (e) {
       console.error("Failed to save shift to localStorage", e);
       toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
-      // NOTE: No need to revert state, as the change is already reflected in the UI
+      // Revert state on failure if needed (though optimistic UI is often fine here)
     } finally {
       setIsSaving(false);
     }
@@ -589,7 +591,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         <CardTitle>{periodSummary.title}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             {isHourly && (
                             <div className="text-center sm:text-left">
                                 <p className="text-sm text-muted-foreground flex items-center justify-center sm:justify-start gap-2"><CalendarClock/> Total Horas</p>
