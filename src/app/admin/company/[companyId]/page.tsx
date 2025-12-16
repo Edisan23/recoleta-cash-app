@@ -69,7 +69,7 @@ export default function CompanySettingsPage() {
             setSettings(companySettings);
         } else {
             // Set default values for new companies
-            setSettings({ payrollCycle: 'monthly', paymentModel: 'hourly' });
+            setSettings({ payrollCycle: 'monthly', paymentModel: 'hourly', payrollCycleType: 'automatic' });
         }
 
 
@@ -133,6 +133,13 @@ export default function CompanySettingsPage() {
         const updatedSettings: Partial<CompanySettings> = { 
             id: companyId,
             payrollCycle: settings.payrollCycle || 'monthly',
+            payrollCycleType: settings.payrollCycleType || 'automatic',
+            monthlyStartDay: settings.monthlyStartDay,
+            monthlyEndDay: settings.monthlyEndDay,
+            biweeklyFirstStartDay: settings.biweeklyFirstStartDay,
+            biweeklyFirstEndDay: settings.biweeklyFirstEndDay,
+            biweeklySecondStartDay: settings.biweeklySecondStartDay,
+            biweeklySecondEndDay: settings.biweeklySecondEndDay,
             paymentModel: settings.paymentModel || 'hourly',
             nightShiftStart: settings.nightShiftStart,
             normalWorkHours: settings.normalWorkHours,
@@ -174,6 +181,7 @@ export default function CompanySettingsPage() {
 
   const paymentModel = settings.paymentModel || 'hourly';
   const payrollCycle = settings.payrollCycle || 'monthly';
+  const payrollCycleType = settings.payrollCycleType || 'automatic';
 
   if (isLoading) {
     return (
@@ -219,7 +227,7 @@ export default function CompanySettingsPage() {
              <Card>
                 <CardHeader>
                     <CardTitle>Configuración General</CardTitle>
-                    <CardDescription>Define las reglas principales de pago y nómina para esta empresa.</CardDescription>
+                    <CardDescription>Define la regla principal de pago para esta empresa.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                      <div>
@@ -249,28 +257,92 @@ export default function CompanySettingsPage() {
                             </div>
                         </RadioGroup>
                     </div>
-                    <Separator/>
-                     <div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Configuración de Nómina</CardTitle>
+                    <CardDescription>Establece los períodos de pago para el cálculo de la nómina.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div>
                         <Label className="text-base font-semibold">Frecuencia de Pago</Label>
                         <p className="text-sm text-muted-foreground mb-4">Establece si el ciclo de pago es mensual o quincenal.</p>
                         <RadioGroup 
                             value={payrollCycle} 
                             onValueChange={(value) => handleRadioGroupChange('payrollCycle', value)}
                         >
-                            <div className="flex items-start space-x-2">
+                            <div className="flex items-center space-x-2">
                                 <RadioGroupItem value="monthly" id="monthly" />
-                                <div className='grid gap-1.5'>
-                                    <Label htmlFor="monthly" className='font-bold'>Mensual</Label>
-                                </div>
+                                <Label htmlFor="monthly">Mensual</Label>
                             </div>
-                            <div className="flex items-start space-x-2 mt-4">
+                            <div className="flex items-center space-x-2 mt-2">
                                 <RadioGroupItem value="bi-weekly" id="bi-weekly" />
-                                <div className='grid gap-1.5'>
-                                    <Label htmlFor="bi-weekly" className='font-bold'>Quincenal</Label>
-                                </div>
+                                <Label htmlFor="bi-weekly">Quincenal</Label>
                             </div>
                         </RadioGroup>
                     </div>
+                    <Separator/>
+                    <div>
+                        <Label className="text-base font-semibold">Definición del Ciclo</Label>
+                        <p className="text-sm text-muted-foreground mb-4">Define cómo se determinan los días de inicio y fin del período.</p>
+                        <RadioGroup 
+                            value={payrollCycleType} 
+                            onValueChange={(value) => handleRadioGroupChange('payrollCycleType', value)}
+                        >
+                            <div className="flex items-center space-x-2">
+                                <RadioGroupItem value="automatic" id="automatic" />
+                                <Label htmlFor="automatic">Automático</Label>
+                            </div>
+                            <div className="flex items-center space-x-2 mt-2">
+                                <RadioGroupItem value="manual" id="manual" />
+                                <Label htmlFor="manual">Manual</Label>
+                            </div>
+                        </RadioGroup>
+                    </div>
+
+                    {payrollCycleType === 'manual' && payrollCycle === 'monthly' && (
+                        <div className="grid grid-cols-2 gap-4 border p-4 rounded-md">
+                            <h4 className="col-span-2 font-semibold text-sm mb-2">Período Mensual Manual</h4>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="monthlyStartDay">Día de Inicio</Label>
+                                <Input id="monthlyStartDay" type="number" min="1" max="31" value={settings.monthlyStartDay || ''} onChange={(e) => handleNumericSettingChange('monthlyStartDay', parseInt(e.target.value))} />
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="monthlyEndDay">Día de Fin</Label>
+                                <Input id="monthlyEndDay" type="number" min="1" max="31" value={settings.monthlyEndDay || ''} onChange={(e) => handleNumericSettingChange('monthlyEndDay', parseInt(e.target.value))} />
+                            </div>
+                        </div>
+                    )}
+
+                    {payrollCycleType === 'manual' && payrollCycle === 'bi-weekly' && (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-md">
+                                <h4 className="col-span-2 font-semibold text-sm mb-2">Primera Quincena</h4>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="biweeklyFirstStartDay">Día de Inicio</Label>
+                                    <Input id="biweeklyFirstStartDay" type="number" min="1" max="31" value={settings.biweeklyFirstStartDay || ''} onChange={(e) => handleNumericSettingChange('biweeklyFirstStartDay', parseInt(e.target.value))} />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="biweeklyFirstEndDay">Día de Fin</Label>
+                                    <Input id="biweeklyFirstEndDay" type="number" min="1" max="31" value={settings.biweeklyFirstEndDay || ''} onChange={(e) => handleNumericSettingChange('biweeklyFirstEndDay', parseInt(e.target.value))} />
+                                </div>
+                            </div>
+                             <div className="grid grid-cols-2 gap-4 border p-4 rounded-md">
+                                <h4 className="col-span-2 font-semibold text-sm mb-2">Segunda Quincena</h4>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="biweeklySecondStartDay">Día de Inicio</Label>
+                                    <Input id="biweeklySecondStartDay" type="number" min="1" max="31" value={settings.biweeklySecondStartDay || ''} onChange={(e) => handleNumericSettingChange('biweeklySecondStartDay', parseInt(e.target.value))} />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="biweeklySecondEndDay">Día de Fin</Label>
+                                    <Input id="biweeklySecondEndDay" type="number" min="1" max="31" value={settings.biweeklySecondEndDay || ''} onChange={(e) => handleNumericSettingChange('biweeklySecondEndDay', parseInt(e.target.value))} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                 </CardContent>
             </Card>
             

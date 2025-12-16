@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -11,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { TimeInput } from '@/components/TimeInput';
-import { format, startOfMonth, endOfMonth, isWithinInterval, startOfDay, endOfDay, getDate } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay, isSameMonth, isSameDay } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -76,6 +77,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [isSaving, setIsSaving] = useState(false);
   
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [allUserShifts, setAllUserShifts] = useState<Shift[]>([]);
 
   // Hourly state
   const [startTime, setStartTime] = useState('');
@@ -88,12 +90,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const [todaysShiftId, setTodaysShiftId] = useState<string | null>(null);
   const [shiftCalculation, setShiftCalculation] = useState<ShiftCalculationResult | null>(null);
-  const [periodSummary, setPeriodSummary] = useState({ totalHours: 0, totalPayment: 0, title: 'Resumen' });
+  const [periodSummary, setPeriodSummary] = useState<{ totalHours: number; totalPayment: number; title: string } | null>(null);
   
   const paymentModel = settings.paymentModel;
 
 
-  const loadAndCalculate = useCallback(async (currentDate: Date) => {
+ const loadAndCalculate = useCallback(async (currentDate: Date) => {
     if (!currentDate || !companyId) {
         setIsLoading(false);
         return;
@@ -132,10 +134,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setCompany(foundCompany);
         setSettings(companySettings);
         setCompanyItems(items);
+        setAllUserShifts(userShifts);
 
         // --- 3. Process data for the *selected day* ---
-        const todayString = format(currentDate, 'yyyy-MM-dd');
-        const shiftForDay = userShifts.find(s => s.date.startsWith(todayString));
+        const shiftForDay = userShifts.find(s => isSameDay(new Date(s.date), startOfDay(currentDate)));
 
         if (shiftForDay) {
             setTodaysShiftId(shiftForDay.id);
@@ -157,12 +159,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
         
         // --- 4. Calculate period summary ---
-        const payrollCycle = companySettings.payrollCycle || 'monthly';
-        const payPeriod = getPayPeriod(currentDate, payrollCycle);
+        const payPeriod = getPayPeriod(currentDate, companySettings);
         
         const shiftsInPeriod = userShifts.filter(shift => {
              const shiftDate = new Date(shift.date);
-             return isWithinInterval(shiftDate, payPeriod);
+             return isWithinInterval(shiftDate, { start: startOfDay(payPeriod.start), end: endOfDay(payPeriod.end) });
         });
 
         let totalHours = 0;
@@ -178,9 +179,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             totalPayment += details.totalPayment;
         }
 
-        const summaryTitle = payrollCycle === 'bi-weekly' 
-            ? `Resumen de la Quincena (${format(payPeriod.start, 'd MMM')} - ${format(payPeriod.end, 'd MMM')})`
-            : `Resumen del Mes de ${format(currentDate, 'MMMM', { locale: es })}`;
+        let summaryTitle = 'Resumen del Periodo';
+        if (companySettings.payrollCycle === 'monthly') {
+            summaryTitle = `Resumen del Mes (${format(payPeriod.start, 'd MMM')} - ${format(payPeriod.end, 'd MMM')})`;
+        } else if (companySettings.payrollCycle === 'bi-weekly') {
+            summaryTitle = `Resumen de la Quincena (${format(payPeriod.start, 'd MMM')} - ${format(payPeriod.end, 'd MMM')})`;
+        }
             
         setPeriodSummary({ totalHours, totalPayment, title: summaryTitle });
 
@@ -191,6 +195,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setIsLoading(false);
     }
   }, [companyId, user.uid, router, toast]);
+
 
   useEffect(() => {
     if (date) {
@@ -573,25 +578,27 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </Card>
             )}
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>{periodSummary.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {isHourly && (
-                        <div className="text-center sm:text-left">
-                            <p className="text-sm text-muted-foreground flex items-center justify-center sm:justify-start gap-2"><CalendarClock/> Total Horas</p>
-                            <p className="font-bold text-3xl">{periodSummary.totalHours.toFixed(2)}</p>
+            {periodSummary && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{periodSummary.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {isHourly && (
+                            <div className="text-center sm:text-left">
+                                <p className="text-sm text-muted-foreground flex items-center justify-center sm:justify-start gap-2"><CalendarClock/> Total Horas</p>
+                                <p className="font-bold text-3xl">{periodSummary.totalHours.toFixed(2)}</p>
+                            </div>
+                            )}
+                            <div className={`text-center sm:text-left ${!isHourly && 'col-span-1 sm:col-span-2 sm:text-center'}`}>
+                                <p className="text-sm text-muted-foreground flex items-center justify-center sm:justify-start gap-2"><Coins/> Pago Total</p>
+                                <p className="font-bold text-3xl text-green-600">{formatCurrency(periodSummary.totalPayment)}</p>
+                            </div>
                         </div>
-                        )}
-                         <div className={`text-center sm:text-left ${!isHourly && 'col-span-1 sm:col-span-2 sm:text-center'}`}>
-                            <p className="text-sm text-muted-foreground flex items-center justify-center sm:justify-start gap-2"><Coins/> Pago Total</p>
-                            <p className="font-bold text-3xl text-green-600">{formatCurrency(periodSummary.totalPayment)}</p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            )}
 
         </main>
       </div>

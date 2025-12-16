@@ -23,6 +23,13 @@ export type User = {
     id: string;
     paymentModel?: "hourly" | "production"; // The payment model for the company.
     payrollCycle?: "monthly" | "bi-weekly"; // The payroll payment frequency.
+    payrollCycleType?: "automatic" | "manual"; // Determines if payroll periods are calculated automatically or set manually.
+    monthlyStartDay?: number;
+    monthlyEndDay?: number;
+    biweeklyFirstStartDay?: number;
+    biweeklyFirstEndDay?: number;
+    biweeklySecondStartDay?: number;
+    biweeklySecondEndDay?: number;
     nightShiftStart?: string; // The time when the night shift begins (e.g., '21:00').
     normalWorkHours?: number; // The number of hours after which overtime starts.
     dayRate?: number;

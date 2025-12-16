@@ -88,6 +88,17 @@
             "enum": ["monthly", "bi-weekly"],
             "description": "The payroll payment frequency."
         },
+        "payrollCycleType": {
+          "type": "string",
+          "enum": ["automatic", "manual"],
+          "description": "Determines if payroll periods are calculated automatically or set manually."
+        },
+        "monthlyStartDay": { "type": "number" },
+        "monthlyEndDay": { "type": "number" },
+        "biweeklyFirstStartDay": { "type": "number" },
+        "biweeklyFirstEndDay": { "type": "number" },
+        "biweeklySecondStartDay": { "type": "number" },
+        "biweeklySecondEndDay": { "type": "number" },
         "nightShiftStart": {
           "type": "string",
           "description": "The time when the night shift begins (e.g., '21:00')."
