@@ -1,7 +1,7 @@
 
 
 import { CompanySettings, Shift, CompanyItem } from "@/types/db-entities";
-import { parse, addDays, getDay, isSameDay, startOfMonth, endOfMonth, getDate, getYear, getMonth, setDate, lastDayOfMonth } from 'date-fns';
+import { parse, addDays, getDay, isSameDay, startOfMonth, endOfMonth, getDate, setDate, lastDayOfMonth } from 'date-fns';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
@@ -164,43 +164,8 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
  */
 export const getPayPeriod = (date: Date, settings: Partial<CompanySettings>): { start: Date; end: Date } => {
     const cycle = settings.payrollCycle || 'monthly';
-    const cycleType = settings.payrollCycleType || 'automatic';
-
-    const year = getYear(date);
-    const month = getMonth(date);
     const day = getDate(date);
-
-    if (cycleType === 'manual' && cycle === 'monthly' && settings.monthlyStartDay && settings.monthlyEndDay) {
-        const { monthlyStartDay, monthlyEndDay } = settings;
-        
-        let startDate = setDate(date, monthlyStartDay!);
-        let endDate = setDate(date, monthlyEndDay!);
-
-        if (monthlyStartDay! > monthlyEndDay!) { // Cycle crosses over a month end
-            if (day >= monthlyStartDay!) {
-                // We are in the start of the period (e.g. current month's 21st)
-                endDate = setDate(addDays(date, 30), monthlyEndDay!); // End is next month
-            } else {
-                // We are in the end of the period (e.g. next month's 20th)
-                startDate = setDate(addDays(date, -30), monthlyStartDay!); // Start was last month
-            }
-        }
-         return { start: startDate, end: endDate };
-    }
-
-    if (cycleType === 'manual' && cycle === 'bi-weekly' && settings.biweeklyFirstStartDay && settings.biweeklyFirstEndDay && settings.biweeklySecondStartDay && settings.biweeklySecondEndDay) {
-        const { biweeklyFirstStartDay, biweeklyFirstEndDay, biweeklySecondStartDay, biweeklySecondEndDay } = settings;
-        
-        if (day >= biweeklyFirstStartDay! && day <= biweeklyFirstEndDay!) {
-             return { start: setDate(date, biweeklyFirstStartDay!), end: setDate(date, biweeklyFirstEndDay!) };
-        }
-        if (day >= biweeklySecondStartDay! && day <= biweeklySecondEndDay!) {
-            return { start: setDate(date, biweeklySecondStartDay!), end: setDate(date, biweeklySecondEndDay!) };
-        }
-        // Fallback to automatic if date is outside manual ranges
-    }
     
-    // --- Automatic calculation logic ---
     if (cycle === 'monthly') {
         return {
             start: startOfMonth(date),
