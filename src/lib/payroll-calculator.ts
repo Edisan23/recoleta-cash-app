@@ -1,7 +1,7 @@
 
 
 import { CompanySettings, Shift, CompanyItem } from "@/types/db-entities";
-import { parse, addDays, getDay, isSameDay, lastDayOfMonth, startOfDay } from 'date-fns';
+import { parse, addDays, getDay, isSameDay } from 'date-fns';
 
 // --- CONFIGURATIONS ---
 const NIGHT_END_HOUR = 6;   // 6 AM
@@ -34,7 +34,7 @@ const getManualHolidays = (): Date[] => {
 
 const isHoliday = (date: Date): boolean => {
     const dayOfWeek = getDay(date); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    const today = startOfDay(date);
+    const today = new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
     // Sundays are holidays
     if (dayOfWeek === 0) {
@@ -43,7 +43,7 @@ const isHoliday = (date: Date): boolean => {
     
     const allOfficialHolidays = [...COLOMBIAN_HOLIDAYS_2024, ...getManualHolidays()];
 
-    const isOfficialHoliday = allOfficialHolidays.some(holiday => isSameDay(today, startOfDay(holiday)));
+    const isOfficialHoliday = allOfficialHolidays.some(holiday => isSameDay(today, holiday));
     
     return isOfficialHoliday;
 };
@@ -205,3 +205,5 @@ const parseTime = (date: Date, time: string): Date => {
     newDate.setHours(hours, minutes, 0, 0);
     return newDate;
 };
+
+    

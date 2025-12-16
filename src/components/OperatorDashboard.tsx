@@ -3,15 +3,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2, Save, Trash2, ChevronDown, CalendarClock, Coins } from 'lucide-react';
-import type { User, Company, CompanySettings, Shift, CompanyItem, PayrollSummary } from '@/types/db-entities';
+import { LogOut, Loader2, Save, Trash2, CalendarClock, Coins } from 'lucide-react';
+import type { User, Company, CompanySettings, Shift, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { TimeInput } from '@/components/TimeInput';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -89,6 +89,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const [todaysShiftId, setTodaysShiftId] = useState<string | null>(null);
   const [shiftCalculation, setShiftCalculation] = useState<ShiftCalculationResult | null>(null);
+  const [monthlySummary, setMonthlySummary] = useState({ totalHours: 0, totalPayment: 0 });
   
   const paymentModel = settings.paymentModel;
 
@@ -155,6 +156,30 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             setSelectedItemId(items.length > 0 ? items[0].id : '');
             setShiftCalculation(null);
         }
+        
+        // --- 4. Calculate monthly summary ---
+        const monthStart = startOfMonth(currentDate);
+        const monthEnd = endOfMonth(currentDate);
+        
+        const shiftsInMonth = userShifts.filter(shift => {
+             const shiftDate = new Date(shift.date);
+             return isWithinInterval(shiftDate, { start: monthStart, end: monthEnd });
+        });
+
+        let totalHours = 0;
+        let totalPayment = 0;
+        
+        for (const shift of shiftsInMonth) {
+            const details = calculateShiftDetails({
+                shift: shift,
+                rates: companySettings,
+                items: items,
+            });
+            totalHours += details.totalHours;
+            totalPayment += details.totalPayment;
+        }
+
+        setMonthlySummary({ totalHours, totalPayment });
 
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
@@ -546,8 +571,33 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </Card>
             )}
 
+            <Card>
+                <CardHeader>
+                    <CardTitle>Resumen del Mes</CardTitle>
+                    <CardDescription>
+                        Total acumulado para el mes de {date ? format(date, 'MMMM', { locale: es }) : ''}.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex justify-around items-center">
+                        {isHourly && (
+                        <div className="text-center">
+                            <p className="text-sm text-muted-foreground flex items-center gap-2"><CalendarClock/> Total Horas del Mes</p>
+                            <p className="font-bold text-3xl">{monthlySummary.totalHours.toFixed(2)}</p>
+                        </div>
+                        )}
+                        <div className="text-center">
+                            <p className="text-sm text-muted-foreground flex items-center gap-2"><Coins/> Pago Total del Mes</p>
+                            <p className="font-bold text-3xl text-green-600">{formatCurrency(monthlySummary.totalPayment)}</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
         </main>
       </div>
     </div>
   );
 }
+
+    
