@@ -512,7 +512,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                 {shiftCalculation.dayHours > 0 && (
+                                                {shiftCalculation.dayHours > 0 && (
                                                     <TableRow>
                                                         <TableCell>{shiftCalculation.isHoliday ? 'Diurnas Festivas' : 'Diurnas'}</TableCell>
                                                         <TableCell className="text-right font-mono">{shiftCalculation.dayHours.toFixed(2)}</TableCell>
@@ -554,30 +554,28 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </Card>
             )}
 
-            {payrollCycle && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{payrollCycleTitle}</CardTitle>
-                        <CardDescription>{currentPeriodDescription}</CardDescription>
-                    </CardHeader>
-                    <CardContent className='grid grid-cols-2 gap-4'>
-                         <div className="flex items-center gap-4">
-                            <CalendarClock className="h-8 w-8 text-muted-foreground" />
-                            <div>
-                                <p className="text-sm text-muted-foreground">Total Horas</p>
-                                <p className="text-2xl font-bold">{isHourly && payrollSummary ? payrollSummary.totalHours.toFixed(2) : '-'}</p>
-                            </div>
-                        </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>{payrollCycleTitle}</CardTitle>
+                    <CardDescription>{currentPeriodDescription}</CardDescription>
+                </CardHeader>
+                <CardContent className='grid grid-cols-2 gap-4'>
                         <div className="flex items-center gap-4">
-                            <Coins className="h-8 w-8 text-muted-foreground" />
-                            <div>
-                                <p className="text-sm text-muted-foreground">Pago Bruto</p>
-                                <p className="text-2xl font-bold">{formatCurrency(payrollSummary ? payrollSummary.grossPay : 0)}</p>
-                            </div>
+                        <CalendarClock className="h-8 w-8 text-muted-foreground" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Total Horas</p>
+                            <p className="text-2xl font-bold">{isHourly && payrollSummary ? payrollSummary.totalHours.toFixed(2) : '-'}</p>
                         </div>
-                    </CardContent>
-                </Card>
-           )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <Coins className="h-8 w-8 text-muted-foreground" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Pago Bruto</p>
+                            <p className="text-2xl font-bold">{formatCurrency(payrollSummary ? payrollSummary.grossPay : 0)}</p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
         </main>
       </div>
