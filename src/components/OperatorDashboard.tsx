@@ -16,7 +16,7 @@ import { es } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { calculateShiftDetails, type ShiftCalculationResult, getPeriodKey, getPeriodDescription, calculatePayrollForPeriod } from '@/lib/payroll-calculator';
+import { calculateShiftDetails, type ShiftCalculationResult } from '@/lib/payroll-calculator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DatePicker } from '@/components/DatePicker';
 import {
@@ -90,14 +90,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [todaysShiftId, setTodaysShiftId] = useState<string | null>(null);
   const [shiftCalculation, setShiftCalculation] = useState<ShiftCalculationResult | null>(null);
   
-  const [payrollSummary, setPayrollSummary] = useState<PayrollSummary | null>(null);
-  const [currentPeriodDescription, setCurrentPeriodDescription] = useState<string>('');
-
   const paymentModel = settings.paymentModel;
-  const payrollCycle = settings.payrollCycle;
 
-
-  const loadAndCalculate = useCallback(async (currentDate: Date) => {
+  const loadDataForDay = useCallback(async (currentDate: Date) => {
     if (!currentDate || !companyId) {
         setIsLoading(false);
         return;
@@ -160,27 +155,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             setShiftCalculation(null);
         }
 
-        // --- 4. Calculate and set the payroll summary for the period ---
-        if (companySettings.payrollCycle) {
-          const periodKey = getPeriodKey(currentDate, companySettings.payrollCycle);
-          setCurrentPeriodDescription(getPeriodDescription(periodKey, companySettings.payrollCycle));
-          
-          const shiftsInPeriod = userShifts.filter(s => {
-            const shiftDate = new Date(s.date);
-            return getPeriodKey(shiftDate, companySettings.payrollCycle!) === periodKey;
-          });
-
-          const summary = calculatePayrollForPeriod({
-            shifts: shiftsInPeriod,
-            periodSettings: companySettings,
-            items: items
-          });
-          setPayrollSummary(summary);
-        } else {
-           setPayrollSummary(null);
-           setCurrentPeriodDescription('');
-        }
-
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
         toast({ title: 'Error', description: 'No se pudieron cargar los datos.', variant: 'destructive' });
@@ -192,9 +166,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // This is the main effect that loads all data when the date changes.
   useEffect(() => {
     if (date && !isSaving) {
-        loadAndCalculate(date);
+        loadDataForDay(date);
     }
-  }, [date, companyId, loadAndCalculate, isSaving]);
+  }, [date, companyId, loadDataForDay, isSaving]);
 
 
     // Recalculate shift details for the *current day* when inputs change
@@ -299,8 +273,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
     } finally {
         setIsSaving(false);
-        // Force recalculation after saving
-        loadAndCalculate(date);
+        loadDataForDay(date);
     }
   };
 
@@ -331,8 +304,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       toast({ title: 'Error', description: 'No se pudo eliminar el registro.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
-      // Force recalculation after deleting
-      loadAndCalculate(date);
+      loadDataForDay(date);
     }
   }
 
@@ -356,8 +328,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const isHourly = paymentModel === 'hourly';
   const isProduction = paymentModel === 'production';
-  const payrollCycleTitle = payrollCycle === 'monthly' ? 'Acumulado Mensual' : 'Acumulado Quincenal';
-
+  
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
   }
@@ -574,29 +545,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </CardContent>
                 </Card>
             )}
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>{payrollCycleTitle}</CardTitle>
-                    <CardDescription>{currentPeriodDescription}</CardDescription>
-                </CardHeader>
-                <CardContent className='grid grid-cols-2 gap-4'>
-                        <div className="flex items-center gap-4">
-                        <CalendarClock className="h-8 w-8 text-muted-foreground" />
-                        <div>
-                            <p className="text-sm text-muted-foreground">Total Horas</p>
-                            <p className="text-2xl font-bold">{isHourly && payrollSummary ? payrollSummary.totalHours.toFixed(2) : '-'}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <Coins className="h-8 w-8 text-muted-foreground" />
-                        <div>
-                            <p className="text-sm text-muted-foreground">Pago Bruto</p>
-                            <p className="text-2xl font-bold">{formatCurrency(payrollSummary ? payrollSummary.grossPay : 0)}</p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
 
         </main>
       </div>
