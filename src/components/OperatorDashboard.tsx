@@ -95,34 +95,32 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const { paymentModel, payrollCycle } = settings;
 
-  const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, currentItems: CompanyItem[]) => {
-    const cycle = currentSettings.payrollCycle;
-    if (!cycle) return;
-
-    try {
-        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-        const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+  const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, allShifts: Shift[], currentItems: CompanyItem[]) => {
+      const cycle = currentSettings.payrollCycle;
+      if (!cycle) return;
+  
+      try {
         const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
         
         const periodKey = getPeriodKey(currentDate, cycle);
         setCurrentPeriodDescription(getPeriodDescription(periodKey, cycle));
-
+  
         const shiftsInPeriod = userShifts.filter(s => {
-            const shiftDate = new Date(s.date);
-            return getPeriodKey(shiftDate, cycle) === periodKey;
+          const shiftDate = new Date(s.date);
+          return getPeriodKey(shiftDate, cycle) === periodKey;
         });
-
+  
         const summary = calculatePayrollForPeriod({
-            shifts: shiftsInPeriod,
-            periodSettings: currentSettings,
-            items: currentItems
+          shifts: shiftsInPeriod,
+          periodSettings: currentSettings,
+          items: currentItems
         });
         setPayrollSummary(summary);
-
-    } catch (e) {
+  
+      } catch (e) {
         console.error("Failed to calculate payroll summary", e);
-    }
-  }, [companyId, user.uid]);
+      }
+    }, [companyId, user.uid]);
 
   const loadDataForDay = useCallback((currentDate: Date) => {
     setIsLoading(true);
@@ -176,7 +174,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             setShiftCalculation(null); // Clear previous calculation
         }
 
-        updatePayrollSummary(currentDate, companySettings, items);
+        updatePayrollSummary(currentDate, companySettings, allShifts, items);
 
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
@@ -287,7 +285,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
         // After saving, update the summary
         if (date) {
-          updatePayrollSummary(date, settings, companyItems);
+          updatePayrollSummary(date, settings, allShifts, companyItems);
         }
 
     } catch (e) {
@@ -321,7 +319,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       toast({ title: "¡Eliminado!", description: "El registro del turno ha sido eliminado." });
       
       if(date) {
-        updatePayrollSummary(date, settings, companyItems);
+        updatePayrollSummary(date, settings, updatedShifts, companyItems);
       }
 
     } catch (e) {
@@ -599,8 +597,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    
-
-
-    
