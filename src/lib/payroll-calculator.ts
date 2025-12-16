@@ -18,6 +18,7 @@ const COLOMBIAN_HOLIDAYS_2024 = [
 const HOLIDAYS_DB_KEY = 'fake_holidays_db';
 
 const getManualHolidays = (): Date[] => {
+    if (typeof window === 'undefined') return [];
     try {
         const storedHolidays = localStorage.getItem(HOLIDAYS_DB_KEY);
         if (storedHolidays) {
@@ -34,18 +35,15 @@ const getManualHolidays = (): Date[] => {
 const isHoliday = (date: Date): boolean => {
     const dayOfWeek = getDay(date); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
-    // Sunday is always a holiday
     if (dayOfWeek === 0) {
         return true;
     }
 
-    // A Monday is a holiday only if it's in the official list
     const isOfficialHoliday = COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(date, holiday));
     if (dayOfWeek === 1 && isOfficialHoliday) {
         return true;
     }
 
-    // Check against manually added holidays, regardless of the day of the week
     const manualHolidays = getManualHolidays();
     const today = startOfDay(date);
     const isManualHoliday = manualHolidays.some(manualHoliday => isSameDay(today, startOfDay(manualHoliday)));
@@ -53,7 +51,6 @@ const isHoliday = (date: Date): boolean => {
         return true;
     }
     
-    // Other official holidays that are not on Monday are also holidays
     if (dayOfWeek !== 1 && isOfficialHoliday) {
         return true;
     }
@@ -131,7 +128,6 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
     }
 
     if (paymentModel === 'hourly' && shift.startTime && shift.endTime) {
-        // Use parse to avoid timezone issues.
         const shiftDate = parse(shift.date.substring(0, 10), 'yyyy-MM-dd', new Date());
 
         if (isNaN(shiftDate.getTime())) {
@@ -271,10 +267,10 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
 
     const fortnight = parseInt(parts[2]);
     if (fortnight === 1) {
-        return `1-15 de ${monthName} ${year}`;
+        return `1-15 de ${monthName} de ${year}`;
     } else {
         const lastDay = lastDayOfMonth(date).getDate();
-        return `16-${lastDay} de ${monthName} ${year}`;
+        return `16-${lastDay} de ${monthName} de ${year}`;
     }
 };
 

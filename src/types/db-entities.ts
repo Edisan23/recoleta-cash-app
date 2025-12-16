@@ -70,4 +70,10 @@ export type User = {
     periodEnd: string;
   };
   
+  export interface PayrollSummary {
+    grossPay: number;
+    netPay: number;
+    totalHours: number;
+    totalBasePayment: number;
+  }
     

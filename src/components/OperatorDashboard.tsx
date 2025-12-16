@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2, Save, Settings, Trash2, ChevronDown } from 'lucide-react';
-import type { User, Company, CompanySettings, Shift, CompanyItem } from '@/types/db-entities';
+import { LogOut, Loader2, Save, Settings, Trash2, ChevronDown, CalendarClock, Coins } from 'lucide-react';
+import type { User, Company, CompanySettings, Shift, CompanyItem, PayrollSummary } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -16,7 +15,7 @@ import { es } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { calculateShiftDetails, type ShiftCalculationResult } from '@/lib/payroll-calculator';
+import { calculateShiftDetails, type ShiftCalculationResult, getPeriodKey, getPeriodDescription, calculatePayrollForPeriod } from '@/lib/payroll-calculator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DatePicker } from '@/components/DatePicker';
 import {
@@ -89,6 +88,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const [todaysShiftId, setTodaysShiftId] = useState<string | null>(null);
   const [shiftCalculation, setShiftCalculation] = useState<ShiftCalculationResult | null>(null);
+  
+  const [payrollSummary, setPayrollSummary] = useState<PayrollSummary | null>(null);
+  const [currentPeriodDescription, setCurrentPeriodDescription] = useState<string>('');
 
 
   const loadDataForDay = useCallback((currentDate: Date) => {
@@ -112,7 +114,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setSettings(companySettings);
         
         let items: CompanyItem[] = [];
-        // Load items for production model
         if (companySettings.paymentModel === 'production') {
             const storedItems = localStorage.getItem(ITEMS_DB_KEY);
             const allItems: {[key: string]: CompanyItem[]} = storedItems ? JSON.parse(storedItems) : {};
@@ -136,7 +137,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 setQuantity(String(shiftForDay.quantity || ''));
             }
         } else {
-            // Reset fields for new shift
             setTodaysShiftId(null);
             setStartTime('');
             setEndTime('');
@@ -152,12 +152,43 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [companyId, router, user.uid, toast]);
 
+  const updatePayrollSummary = useCallback((currentDate: Date) => {
+    if (!settings.payrollCycle) return;
+
+    try {
+        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+        const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+        const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
+        
+        const periodKey = getPeriodKey(currentDate, settings.payrollCycle);
+        setCurrentPeriodDescription(getPeriodDescription(periodKey, settings.payrollCycle));
+
+        const shiftsInPeriod = userShifts.filter(s => {
+            const shiftDate = new Date(s.date);
+            return getPeriodKey(shiftDate, settings.payrollCycle) === periodKey;
+        });
+
+        const summary = calculatePayrollForPeriod({
+            shifts: shiftsInPeriod,
+            periodSettings: settings,
+            items: companyItems
+        });
+        setPayrollSummary(summary);
+
+    } catch (e) {
+        console.error("Failed to calculate payroll summary", e);
+    }
+
+  }, [companyId, user.uid, settings, companyItems]);
+
+
   // Initial load and when date changes
   useEffect(() => {
     if (date) {
         loadDataForDay(date);
+        updatePayrollSummary(date);
     }
-  }, [date, loadDataForDay]);
+  }, [date, loadDataForDay, updatePayrollSummary]);
 
     // Recalculate shift details when times change
   useEffect(() => {
@@ -219,13 +250,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
 
         if (shiftIndex > -1) {
-            // Update existing shift
             allShifts[shiftIndex] = {
                 ...allShifts[shiftIndex],
                 ...shiftData,
             };
         } else {
-            // Create new shift
             const newShift: Shift = {
                 id: `shift_${Date.now()}`,
                 userId: user.uid,
@@ -240,6 +269,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
         toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
 
+        // After saving, update the summary
+        updatePayrollSummary(date);
+
     } catch (e) {
         console.error("Failed to save shift to localStorage", e);
         toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
@@ -249,7 +281,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   };
 
   const handleDelete = async () => {
-    if (!todaysShiftId) return;
+    if (!todaysShiftId || !date) return;
 
     setIsSaving(true);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delete
@@ -262,7 +294,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
       localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
       
-      // Reset state
       setTodaysShiftId(null);
       setStartTime('');
       setEndTime('');
@@ -270,6 +301,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       setShiftCalculation(null);
 
       toast({ title: "¡Eliminado!", description: "El registro del turno ha sido eliminado." });
+      
+      updatePayrollSummary(date);
+
     } catch (e) {
       console.error("Failed to delete shift from localStorage", e);
       toast({ title: 'Error', description: 'No se pudo eliminar el registro.', variant: 'destructive' });
@@ -298,6 +332,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const isHourly = settings.paymentModel === 'hourly';
   const isProduction = settings.paymentModel === 'production';
+  const payrollCycleTitle = settings.payrollCycle === 'monthly' ? 'Acumulado Mensual' : 'Acumulado Quincenal';
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
@@ -350,6 +385,32 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         </header>
 
         <main className="space-y-8">
+
+           {payrollSummary && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{payrollCycleTitle}</CardTitle>
+                        <CardDescription>{currentPeriodDescription}</CardDescription>
+                    </CardHeader>
+                    <CardContent className='grid grid-cols-2 gap-4'>
+                         <div className="flex items-center gap-4">
+                            <CalendarClock className="h-8 w-8 text-muted-foreground" />
+                            <div>
+                                <p className="text-sm text-muted-foreground">Total Horas</p>
+                                <p className="text-2xl font-bold">{payrollSummary.totalHours.toFixed(2)}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <Coins className="h-8 w-8 text-muted-foreground" />
+                            <div>
+                                <p className="text-sm text-muted-foreground">Pago Bruto</p>
+                                <p className="text-2xl font-bold">{formatCurrency(payrollSummary.grossPay)}</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+           )}
+
            <Card>
                 <CardHeader>
                     <CardTitle>Registrar Actividad</CardTitle>
@@ -474,7 +535,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                                 {shiftCalculation.dayHours > 0 && <TableRow><TableCell>Diurnas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.dayHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.dayRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayPayment)}</TableCell></TableRow>}
                                                 {shiftCalculation.nightHours > 0 && <TableRow><TableCell>Nocturnas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.nightRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightPayment)}</TableCell></TableRow>}
                                                 {shiftCalculation.dayOvertimeHours > 0 && <TableRow><TableCell>Diurnas Extra</TableCell><TableCell className="text-right font-mono">{shiftCalculation.dayOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.dayOvertimeRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayOvertimePayment)}</TableCell></TableRow>}
-                                                {shiftCalculation.nightOvertimeHours > 0 && <TableRow><TableCell>Nocturnas Extra</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.nightOvertimeRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightOvertimePayment)}</TableCell></TableRow>}
+                                                {shiftCalculation.nightOvertimeHours > 0 && <TableRow><TableCell>Nocturnas Extra</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.nightOvertimePayment)}</TableCell></TableRow>}
 
                                                 {shiftCalculation.holidayDayHours > 0 && <TableRow><TableCell>Diurnas Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayDayHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.holidayDayRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.holidayDayPayment)}</TableCell></TableRow>}
                                                 {shiftCalculation.holidayNightHours > 0 && <TableRow><TableCell>Nocturnas Festivas</TableCell><TableCell className="text-right font-mono">{shiftCalculation.holidayNightHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(settings.holidayNightRate || 0)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.holidayNightPayment)}</TableCell></TableRow>}
