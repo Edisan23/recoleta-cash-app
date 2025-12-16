@@ -34,24 +34,23 @@ const getManualHolidays = (): Date[] => {
 
 const isHoliday = (date: Date): boolean => {
     const dayOfWeek = getDay(date); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const today = startOfDay(date);
 
+    // Sundays are holidays
     if (dayOfWeek === 0) {
         return true;
     }
 
-    const isOfficialHoliday = COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(date, holiday));
-    if (dayOfWeek === 1 && isOfficialHoliday) {
-        return true;
-    }
-
+    // Manually added holidays
     const manualHolidays = getManualHolidays();
-    const today = startOfDay(date);
     const isManualHoliday = manualHolidays.some(manualHoliday => isSameDay(today, startOfDay(manualHoliday)));
     if (isManualHoliday) {
         return true;
     }
-    
-    if (dayOfWeek !== 1 && isOfficialHoliday) {
+
+    // Official Colombian holidays
+    const isOfficialHoliday = COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(today, holiday));
+    if (isOfficialHoliday) {
         return true;
     }
 
@@ -184,14 +183,16 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
 
         result.totalHours = workedHoursOnDay;
         
-        result.dayPayment = result.dayHours * (rates.dayRate || 0);
-        result.nightPayment = result.nightHours * (rates.nightRate || 0);
-        result.dayOvertimePayment = result.dayOvertimeHours * (rates.dayOvertimeRate || 0);
-        result.nightOvertimePayment = result.nightOvertimeHours * (rates.nightOvertimeRate || 0);
+        result.dayPayment = result.dayHours * (shiftIsHoliday ? (rates.holidayDayRate || 0) : (rates.dayRate || 0));
+        result.nightPayment = result.nightHours * (shiftIsHoliday ? (rates.holidayNightRate || 0) : (rates.nightRate || 0));
+        result.dayOvertimePayment = result.dayOvertimeHours * (shiftIsHoliday ? (rates.holidayDayOvertimeRate || 0) : (rates.dayOvertimeRate || 0));
+        result.nightOvertimePayment = result.nightOvertimeHours * (shiftIsHoliday ? (rates.holidayNightOvertimeRate || 0) : (rates.nightOvertimeRate || 0));
+        
         result.holidayDayPayment = result.holidayDayHours * (rates.holidayDayRate || 0);
         result.holidayNightPayment = result.holidayNightHours * (rates.holidayNightRate || 0);
         result.holidayDayOvertimePayment = result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
         result.holidayNightOvertimePayment = result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
+
 
         result.totalPayment = 
             result.dayPayment +
@@ -238,6 +239,7 @@ export const calculatePayrollForPeriod = (input: PayrollInput): PayrollSummary =
 // --- HELPER FUNCTIONS ---
 const parseTime = (date: Date, time: string): Date => {
     const [hours, minutes] = time.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return new Date(NaN);
     const newDate = new Date(date);
     newDate.setHours(hours, minutes, 0, 0);
     return newDate;
@@ -267,10 +269,10 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
 
     const fortnight = parseInt(parts[2]);
     if (fortnight === 1) {
-        return `1-15 de ${monthName} de ${year}`;
+        return `1 - 15 de ${monthName} de ${year}`;
     } else {
         const lastDay = lastDayOfMonth(date).getDate();
-        return `16-${lastDay} de ${monthName} de ${year}`;
+        return `16 - ${lastDay} de ${monthName} de ${year}`;
     }
 };
 
