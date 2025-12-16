@@ -96,13 +96,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const paymentModel = settings.paymentModel;
   const payrollCycle = settings.payrollCycle;
 
-  // This is the main effect that loads all data when the date changes.
-  useEffect(() => {
-    if (!date || !companyId) {
+
+  const loadAndCalculate = useCallback(async (currentDate: Date) => {
+    if (!currentDate || !companyId) {
         setIsLoading(false);
         return;
     }
-    
     setIsLoading(true);
 
     try {
@@ -133,14 +132,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
         const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
 
-
         // --- 2. Set component state based on loaded data ---
         setCompany(foundCompany);
         setSettings(companySettings);
         setCompanyItems(items);
 
         // --- 3. Process data for the *selected day* ---
-        const todayString = format(date, 'yyyy-MM-dd');
+        const todayString = format(currentDate, 'yyyy-MM-dd');
         const shiftForDay = userShifts.find(s => s.date.startsWith(todayString));
 
         if (shiftForDay) {
@@ -164,7 +162,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
         // --- 4. Calculate and set the payroll summary for the period ---
         if (companySettings.payrollCycle) {
-          const periodKey = getPeriodKey(date, companySettings.payrollCycle);
+          const periodKey = getPeriodKey(currentDate, companySettings.payrollCycle);
           setCurrentPeriodDescription(getPeriodDescription(periodKey, companySettings.payrollCycle));
           
           const shiftsInPeriod = userShifts.filter(s => {
@@ -189,7 +187,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
         setIsLoading(false);
     }
-  }, [date, companyId, router, user.uid, toast]);
+  }, [companyId, user.uid, router, toast]);
+
+  // This is the main effect that loads all data when the date changes.
+  useEffect(() => {
+    if (date && !isSaving) {
+        loadAndCalculate(date);
+    }
+  }, [date, companyId, loadAndCalculate, isSaving]);
 
 
     // Recalculate shift details for the *current day* when inputs change
@@ -289,25 +294,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
         toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
 
-        // --- Force recalculation of payroll summary after saving ---
-        if (payrollCycle) {
-          const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
-          const periodKey = getPeriodKey(date, payrollCycle);
-          const shiftsInPeriod = userShifts.filter(s => getPeriodKey(new Date(s.date), payrollCycle) === periodKey);
-          
-          const summary = calculatePayrollForPeriod({
-            shifts: shiftsInPeriod,
-            periodSettings: settings,
-            items: companyItems
-          });
-          setPayrollSummary(summary);
-        }
-
     } catch (e) {
         console.error("Failed to save shift to localStorage", e);
         toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
     } finally {
         setIsSaving(false);
+        // Force recalculation after saving
+        loadAndCalculate(date);
     }
   };
 
@@ -333,25 +326,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
       toast({ title: "¡Eliminado!", description: "El registro del turno ha sido eliminado." });
       
-      // --- Force recalculation of payroll summary after deleting ---
-      if (payrollCycle) {
-        const userShifts = updatedShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
-        const periodKey = getPeriodKey(date, payrollCycle);
-        const shiftsInPeriod = userShifts.filter(s => getPeriodKey(new Date(s.date), payrollCycle) === periodKey);
-        
-        const summary = calculatePayrollForPeriod({
-          shifts: shiftsInPeriod,
-          periodSettings: settings,
-          items: companyItems
-        });
-        setPayrollSummary(summary);
-      }
-
     } catch (e) {
       console.error("Failed to delete shift from localStorage", e);
       toast({ title: 'Error', description: 'No se pudo eliminar el registro.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
+      // Force recalculation after deleting
+      loadAndCalculate(date);
     }
   }
 
@@ -622,5 +603,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    
