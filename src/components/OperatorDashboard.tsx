@@ -71,144 +71,139 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   const user = FAKE_OPERATOR_USER;
 
-  const [company, setCompany] = useState<Company | null>(null);
-  const [settings, setSettings] = useState<Partial<CompanySettings>>({});
+  // Global state
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
+  // Data from DB
+  const [company, setCompany] = useState<Company | null>(null);
+  const [settings, setSettings] = useState<Partial<CompanySettings>>({});
+  const [companyItems, setCompanyItems] = useState<CompanyItem[]>([]);
+  const [allShifts, setAllShifts] = useState<Shift[]>([]);
+
+  // UI State
   const [date, setDate] = useState<Date | undefined>(new Date());
   
-  // Hourly state
+  // Input fields state
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
-  
-  // Production state
-  const [companyItems, setCompanyItems] = useState<CompanyItem[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [quantity, setQuantity] = useState<string>('');
 
+  // Derived state (from inputs and DB data)
   const [todaysShiftId, setTodaysShiftId] = useState<string | null>(null);
   const [shiftCalculation, setShiftCalculation] = useState<ShiftCalculationResult | null>(null);
   const [periodSummary, setPeriodSummary] = useState<{ totalHours: number; totalPayment: number; title: string } | null>(null);
   
   const paymentModel = settings.paymentModel;
 
- const loadAndCalculate = useCallback(async (currentDate: Date) => {
-    if (!currentDate || !companyId) {
-        setIsLoading(false);
-        return;
-    }
+
+  // Load all initial data from localStorage
+  useEffect(() => {
     setIsLoading(true);
-
     try {
-        // --- 1. Load all raw data from localStorage ---
-        const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
-        const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
-        const foundCompany = allCompanies.find(c => c.id === companyId);
-        
-        if (!foundCompany) {
-          console.error("Selected company not found in DB");
-          localStorage.removeItem(OPERATOR_COMPANY_KEY);
-          router.replace('/select-company');
-          return;
-        }
+      const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
+      const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
+      const foundCompany = allCompanies.find(c => c.id === companyId);
+      
+      if (!foundCompany) {
+        console.error("Selected company not found in DB");
+        localStorage.removeItem(OPERATOR_COMPANY_KEY);
+        router.replace('/select-company');
+        return;
+      }
+      setCompany(foundCompany);
 
-        const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
-        const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
-        const companySettings = allSettings[companyId] || {};
-        
-        let items: CompanyItem[] = [];
-        if (companySettings.paymentModel === 'production') {
-            const storedItems = localStorage.getItem(ITEMS_DB_KEY);
-            const allItems: {[key: string]: CompanyItem[]} = storedItems ? JSON.parse(storedItems) : {};
-            items = allItems[companyId] || [];
-        }
-        
-        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-        const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-        const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
+      const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
+      const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
+      const companySettings = allSettings[companyId] || {};
+      setSettings(companySettings);
+      
+      let items: CompanyItem[] = [];
+      if (companySettings.paymentModel === 'production') {
+        const storedItems = localStorage.getItem(ITEMS_DB_KEY);
+        const allItems: {[key: string]: CompanyItem[]} = storedItems ? JSON.parse(storedItems) : {};
+        items = allItems[companyId] || [];
+      }
+      setCompanyItems(items);
 
-        // --- 2. Set component state based on loaded data ---
-        setCompany(foundCompany);
-        setSettings(companySettings);
-        setCompanyItems(items);
-
-        // --- 3. Process data for the *selected day* ---
-        const shiftForDay = userShifts.find(s => isSameDay(new Date(s.date), startOfDay(currentDate)));
-
-        setTodaysShiftId(shiftForDay?.id || null);
-        if (shiftForDay) {
-            if (companySettings.paymentModel === 'hourly') {
-                setStartTime(shiftForDay.startTime || '');
-                setEndTime(shiftForDay.endTime || '');
-            } else {
-                setSelectedItemId(shiftForDay.itemId || '');
-                setQuantity(String(shiftForDay.quantity || ''));
-            }
-        } else {
-            // Reset fields if no shift for the selected day
-            setStartTime('');
-            setEndTime('');
-            setQuantity('');
-            setSelectedItemId(items.length > 0 ? items[0].id : '');
-        }
-        
-        // --- 4. Calculate period summary ---
-        const payPeriod = getPayPeriod(currentDate, companySettings);
-        
-        const shiftsInPeriod = userShifts.filter(shift => {
-             const shiftDate = new Date(shift.date);
-             return isWithinInterval(shiftDate, { start: startOfDay(payPeriod.start), end: endOfDay(payPeriod.end) });
-        });
-
-        let totalHours = 0;
-        let totalPayment = 0;
-        
-        for (const shift of shiftsInPeriod) {
-            const details = calculateShiftDetails({
-                shift: shift,
-                rates: companySettings,
-                items: items,
-            });
-            totalHours += details.totalHours;
-            totalPayment += details.totalPayment;
-        }
-
-        let summaryTitle = 'Resumen del Periodo';
-        if (companySettings.payrollCycle === 'monthly') {
-            summaryTitle = `Resumen del Mes (${format(payPeriod.start, 'd MMM', { locale: es })} - ${format(payPeriod.end, 'd MMM', { locale: es })})`;
-        } else if (companySettings.payrollCycle === 'bi-weekly') {
-            summaryTitle = `Resumen de la Quincena (${format(payPeriod.start, 'd MMM', { locale: es })} - ${format(payPeriod.end, 'd MMM', { locale: es })})`;
-        }
-            
-        setPeriodSummary({ totalHours, totalPayment, title: summaryTitle });
+      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+      const allShiftsData: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+      const userShifts = allShiftsData.filter(s => s.userId === user.uid && s.companyId === companyId);
+      setAllShifts(userShifts);
 
     } catch(e) {
-        console.error("Failed to load data from localStorage", e);
-        toast({ title: 'Error', description: 'No se pudieron cargar los datos.', variant: 'destructive' });
+      console.error("Failed to load initial data from localStorage", e);
+      toast({ title: 'Error', description: 'No se pudieron cargar los datos iniciales.', variant: 'destructive' });
     } finally {
-        setIsLoading(false);
+      setIsLoading(false);
     }
   }, [companyId, user.uid, router, toast]);
 
-
+  // This effect runs whenever the selected date or the core data changes.
+  // It updates the UI and calculations for the selected day and pay period.
   useEffect(() => {
-    if (date && companyId) {
-        loadAndCalculate(date);
+    if (!date || isLoading) return;
+
+    // 1. Find shift for the selected day and update form fields
+    const shiftForDay = allShifts.find(s => isSameDay(new Date(s.date), startOfDay(date)));
+    
+    setTodaysShiftId(shiftForDay?.id || null);
+    if (shiftForDay) {
+      if (settings.paymentModel === 'hourly') {
+        setStartTime(shiftForDay.startTime || '');
+        setEndTime(shiftForDay.endTime || '');
+      } else {
+        setSelectedItemId(shiftForDay.itemId || '');
+        setQuantity(String(shiftForDay.quantity || ''));
+      }
+    } else {
+      // Reset fields if no shift for the selected day
+      setStartTime('');
+      setEndTime('');
+      setQuantity('');
+      setSelectedItemId(companyItems.length > 0 ? companyItems[0].id : '');
     }
-  }, [date, companyId, loadAndCalculate]);
+
+    // 2. Calculate pay period summary
+    const payPeriod = getPayPeriod(date, settings);
+    const shiftsInPeriod = allShifts.filter(shift => {
+      const shiftDate = new Date(shift.date);
+      return isWithinInterval(shiftDate, { start: startOfDay(payPeriod.start), end: endOfDay(payPeriod.end) });
+    });
+
+    let totalHours = 0;
+    let totalPayment = 0;
+    for (const shift of shiftsInPeriod) {
+      const details = calculateShiftDetails({
+        shift: shift,
+        rates: settings,
+        items: companyItems,
+      });
+      totalHours += details.totalHours;
+      totalPayment += details.totalPayment;
+    }
+
+    let summaryTitle = `Resumen del Periodo`;
+    if (settings.payrollCycle === 'monthly') {
+        summaryTitle = `Resumen del Mes (${format(payPeriod.start, 'd MMM', { locale: es })} - ${format(payPeriod.end, 'd MMM', { locale: es })})`;
+    } else if (settings.payrollCycle === 'bi-weekly') {
+        summaryTitle = `Resumen de la Quincena (${format(payPeriod.start, 'd MMM', { locale: es })} - ${format(payPeriod.end, 'd MMM', { locale: es })})`;
+    }
+
+    setPeriodSummary({ totalHours, totalPayment, title: summaryTitle });
+
+  }, [date, allShifts, settings, companyItems, isLoading]);
 
 
-    // Recalculate shift details for the *current day* when inputs change
+  // Recalculate shift details for the *current day* when inputs change
   useEffect(() => {
     if (!date) {
-        setShiftCalculation(null);
-        return;
+      setShiftCalculation(null);
+      return;
     }
 
-    // Create a temporary shift object for calculation based on current inputs
     let tempShift: Shift | null = null;
-
     if (paymentModel === 'hourly' && startTime && endTime) {
       tempShift = {
         id: todaysShiftId || 'temp',
@@ -219,26 +214,26 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         endTime: endTime,
       };
     } else if (paymentModel === 'production' && selectedItemId && quantity) {
-        const numQuantity = parseFloat(quantity);
-         if (!isNaN(numQuantity) && numQuantity > 0) {
-            tempShift = {
-                id: todaysShiftId || 'temp',
-                userId: user.uid,
-                companyId: companyId,
-                date: format(date, 'yyyy-MM-dd'),
-                itemId: selectedItemId,
-                quantity: numQuantity
-            };
-        }
+      const numQuantity = parseFloat(quantity);
+      if (!isNaN(numQuantity) && numQuantity > 0) {
+        tempShift = {
+          id: todaysShiftId || 'temp',
+          userId: user.uid,
+          companyId: companyId,
+          date: format(date, 'yyyy-MM-dd'),
+          itemId: selectedItemId,
+          quantity: numQuantity
+        };
+      }
     }
     
     if (tempShift) {
-        const result = calculateShiftDetails({
-            shift: tempShift,
-            rates: settings,
-            items: companyItems,
-        });
-        setShiftCalculation(result);
+      const result = calculateShiftDetails({
+        shift: tempShift,
+        rates: settings,
+        items: companyItems,
+      });
+      setShiftCalculation(result);
     } else {
       setShiftCalculation(null);
     }
@@ -253,41 +248,36 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
     setIsSaving(true);
   
-    try {
-      if (paymentModel === 'hourly') {
-        if (!startTime || !endTime) {
-          toast({ title: 'Datos incompletos', description: 'Por favor, introduce la hora de entrada y salida.', variant: 'destructive' });
-          setIsSaving(false);
-          return;
-        }
-      } else { 
-        const numQuantity = parseFloat(quantity);
-        if (!selectedItemId || isNaN(numQuantity) || numQuantity <= 0) {
-          toast({ title: 'Datos incompletos', description: 'Por favor, selecciona un ítem y una cantidad válida.', variant: 'destructive' });
-          setIsSaving(false);
-          return;
-        }
+    // --- Validate inputs based on payment model ---
+    if (paymentModel === 'hourly' && (!startTime || !endTime)) {
+      toast({ title: 'Datos incompletos', description: 'Por favor, introduce la hora de entrada y salida.', variant: 'destructive' });
+      setIsSaving(false);
+      return;
+    }
+    if (paymentModel === 'production') {
+      const numQuantity = parseFloat(quantity);
+      if (!selectedItemId || isNaN(numQuantity) || numQuantity <= 0) {
+        toast({ title: 'Datos incompletos', description: 'Por favor, selecciona un ítem y una cantidad válida.', variant: 'destructive' });
+        setIsSaving(false);
+        return;
       }
-  
-      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-      let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-  
-      const shiftIndex = allShifts.findIndex(s => 
-        s.userId === user.uid && 
-        s.companyId === companyId && 
-        isSameDay(new Date(s.date), date)
-      );
-  
-      let shiftData: Partial<Shift> = {};
-      if (paymentModel === 'hourly') {
-        shiftData = { startTime, endTime };
-      } else {
-        shiftData = { itemId: selectedItemId, quantity: parseFloat(quantity) };
-      }
+    }
 
-      if (shiftIndex > -1) {
-        allShifts[shiftIndex] = { ...allShifts[shiftIndex], ...shiftData };
-      } else {
+    const shiftData: Partial<Shift> = paymentModel === 'hourly'
+        ? { startTime, endTime }
+        : { itemId: selectedItemId, quantity: parseFloat(quantity) };
+
+    const shiftIndex = allShifts.findIndex(s => isSameDay(new Date(s.date), date));
+    
+    let updatedShifts: Shift[];
+
+    if (shiftIndex > -1) {
+        // Update existing shift
+        updatedShifts = allShifts.map((shift, index) => 
+            index === shiftIndex ? { ...shift, ...shiftData } : shift
+        );
+    } else {
+        // Create new shift
         const newShift: Shift = {
           id: `shift_${Date.now()}`,
           userId: user.uid,
@@ -295,18 +285,27 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           date: format(date, 'yyyy-MM-dd'),
           ...shiftData,
         };
-        allShifts.push(newShift);
-        setTodaysShiftId(newShift.id); 
-      }
+        updatedShifts = [...allShifts, newShift];
+    }
   
-      localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(allShifts));
-      
-      toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
-  
-      await loadAndCalculate(date);
+    try {
+        // Update state first
+        setAllShifts(updatedShifts);
+        
+        // Then persist to localStorage
+        const allShiftsFromStorage = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
+        // Remove old shifts for this user/company to avoid duplicates
+        const otherUsersShifts = allShiftsFromStorage.filter((s: Shift) => s.userId !== user.uid || s.companyId !== companyId);
+        const finalShiftsToStore = [...otherUsersShifts, ...updatedShifts];
+
+        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(finalShiftsToStore));
+        toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
+
     } catch (e) {
       console.error("Failed to save shift to localStorage", e);
       toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
+      // Optional: Revert state if save fails
+      setAllShifts(allShifts);
     } finally {
       setIsSaving(false);
     }
@@ -316,30 +315,33 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     if (!todaysShiftId || !date) return;
 
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate delete
+    
+    const updatedShifts = allShifts.filter(s => s.id !== todaysShiftId);
 
     try {
-      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-      let allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-      
-      const updatedShifts = allShifts.filter(s => s.id !== todaysShiftId);
+        // Update state
+        setAllShifts(updatedShifts);
+        
+        // Persist to localStorage
+        const allShiftsFromStorage = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
+        const otherUsersShifts = allShiftsFromStorage.filter((s: Shift) => s.userId !== user.uid || s.companyId !== companyId);
+        const finalShiftsToStore = [...otherUsersShifts, ...updatedShifts];
+        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(finalShiftsToStore));
+        
+        // Clear the form state
+        setTodaysShiftId(null);
+        setStartTime('');
+        setEndTime('');
+        setQuantity('');
+        setShiftCalculation(null);
+        toast({ title: "¡Eliminado!", description: "El registro del turno ha sido eliminado." });
 
-      localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
-      
-      // Clear the form state
-      setTodaysShiftId(null);
-      setStartTime('');
-      setEndTime('');
-      setQuantity('');
-      setShiftCalculation(null);
-
-      toast({ title: "¡Eliminado!", description: "El registro del turno ha sido eliminado." });
-      
     } catch (e) {
       console.error("Failed to delete shift from localStorage", e);
       toast({ title: 'Error', description: 'No se pudo eliminar el registro.', variant: 'destructive' });
+      // Revert state
+      setAllShifts(allShifts);
     } finally {
-      await loadAndCalculate(date);
       setIsSaving(false);
     }
   }
@@ -608,3 +610,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
