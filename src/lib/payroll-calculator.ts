@@ -40,23 +40,12 @@ const isHoliday = (date: Date): boolean => {
     if (dayOfWeek === 0) {
         return true;
     }
+    
+    const allOfficialHolidays = [...COLOMBIAN_HOLIDAYS_2024, ...getManualHolidays()];
 
-    // Manually added holidays
-    const manualHolidays = getManualHolidays();
-    const isManualHoliday = manualHolidays.some(manualHoliday => isSameDay(today, startOfDay(manualHoliday)));
-    if (isManualHoliday) {
-        return true;
-    }
-
-    // Official Colombian holidays that are Mondays
-    if (dayOfWeek === 1) {
-        const isOfficialMondayHoliday = COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(today, holiday) && getDay(holiday) === 1);
-        if (isOfficialMondayHoliday) {
-            return true;
-        }
-    }
-
-    return false;
+    const isOfficialHoliday = allOfficialHolidays.some(holiday => isSameDay(today, startOfDay(holiday)));
+    
+    return isOfficialHoliday;
 };
 
 
@@ -73,10 +62,6 @@ export interface ShiftCalculationResult {
     nightHours: number;
     dayOvertimeHours: number;
     nightOvertimeHours: number;
-    holidayDayHours: number;
-    holidayNightHours: number;
-    holidayDayOvertimeHours: number;
-    holidayNightOvertimeHours: number;
     isHoliday: boolean;
     totalPayment: number;
     // Payment breakdowns
@@ -84,10 +69,6 @@ export interface ShiftCalculationResult {
     nightPayment: number;
     dayOvertimePayment: number;
     nightOvertimePayment: number;
-    holidayDayPayment: number;
-    holidayNightPayment: number;
-    holidayDayOvertimePayment: number;
-    holidayNightOvertimePayment: number;
 }
 
 export interface PayrollSummary {
@@ -115,11 +96,9 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
 
     const result: ShiftCalculationResult = {
         totalHours: 0, dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
-        holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
         isHoliday: false,
         totalPayment: 0,
         dayPayment: 0, nightPayment: 0, dayOvertimePayment: 0, nightOvertimePayment: 0,
-        holidayDayPayment: 0, holidayNightPayment: 0, holidayDayOvertimePayment: 0, holidayNightOvertimePayment: 0
     };
 
     if (paymentModel === 'production' && shift.itemId && shift.quantity) {
@@ -161,22 +140,12 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
             const isOvertime = workedHoursOnDay >= normalWorkHours;
             const increment = 1 / 60; 
 
-            if (shiftIsHoliday) {
-                if(isOvertime) {
-                    if (isNightHour) result.holidayNightOvertimeHours += increment;
-                    else result.holidayDayOvertimeHours += increment;
-                } else {
-                    if (isNightHour) result.holidayNightHours += increment;
-                    else result.holidayDayHours += increment;
-                }
+            if(isOvertime) {
+                if (isNightHour) result.nightOvertimeHours += increment;
+                else result.dayOvertimeHours += increment;
             } else {
-                 if(isOvertime) {
-                    if (isNightHour) result.nightOvertimeHours += increment;
-                    else result.dayOvertimeHours += increment;
-                } else {
-                    if (isNightHour) result.nightHours += increment;
-                    else result.dayHours += increment;
-                }
+                if (isNightHour) result.nightHours += increment;
+                else result.dayHours += increment;
             }
             
             workedHoursOnDay += increment;
@@ -185,27 +154,17 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
 
         result.totalHours = workedHoursOnDay;
         
-        result.dayPayment = result.dayHours * (rates.dayRate || 0);
-        result.nightPayment = result.nightHours * (rates.nightRate || 0);
-        result.dayOvertimePayment = result.dayOvertimeHours * (rates.dayOvertimeRate || 0);
-        result.nightOvertimePayment = result.nightOvertimeHours * (rates.nightOvertimeRate || 0);
-        
-        result.holidayDayPayment = result.holidayDayHours * (rates.holidayDayRate || 0);
-        result.holidayNightPayment = result.holidayNightHours * (rates.holidayNightRate || 0);
-        result.holidayDayOvertimePayment = result.holidayDayOvertimeHours * (rates.holidayDayOvertimeRate || 0);
-        result.holidayNightOvertimePayment = result.holidayNightOvertimeHours * (rates.holidayNightOvertimeRate || 0);
+        const dayRate = shiftIsHoliday ? (rates.holidayDayRate || 0) : (rates.dayRate || 0);
+        const nightRate = shiftIsHoliday ? (rates.holidayNightRate || 0) : (rates.nightRate || 0);
+        const dayOvertimeRate = shiftIsHoliday ? (rates.holidayDayOvertimeRate || 0) : (rates.dayOvertimeRate || 0);
+        const nightOvertimeRate = shiftIsHoliday ? (rates.holidayNightOvertimeRate || 0) : (rates.nightOvertimeRate || 0);
 
+        result.dayPayment = result.dayHours * dayRate;
+        result.nightPayment = result.nightHours * nightRate;
+        result.dayOvertimePayment = result.dayOvertimeHours * dayOvertimeRate;
+        result.nightOvertimePayment = result.nightOvertimeHours * nightOvertimeRate;
 
-        result.totalPayment = 
-            result.dayPayment +
-            result.nightPayment +
-            result.dayOvertimePayment +
-            result.nightOvertimePayment +
-            result.holidayDayPayment +
-            result.holidayNightPayment +
-            result.holidayDayOvertimePayment +
-            result.holidayNightOvertimePayment;
-
+        result.totalPayment = result.dayPayment + result.nightPayment + result.dayOvertimePayment + result.nightOvertimePayment;
 
         return result;
     }
