@@ -81,44 +81,44 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [companyItems, setCompanyItems] = useState<CompanyItem[]>([]);
   const [allShifts, setAllShifts] = useState<Shift[]>([]);
 
-  // UI State
+  // UI State for inputs
   const [date, setDate] = useState<Date | undefined>(new Date());
-  
-  // Input fields state
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [selectedItemId, setSelectedItemId] = useState<string>('');
   const [quantity, setQuantity] = useState<string>('');
 
   // Derived state (from inputs and DB data)
-  const [todaysShiftId, setTodaysShiftId] = useState<string | null>(null);
   const [shiftCalculation, setShiftCalculation] = useState<ShiftCalculationResult | null>(null);
   const [periodSummary, setPeriodSummary] = useState<{ totalHours: number; totalPayment: number; title: string } | null>(null);
   
   const paymentModel = settings.paymentModel;
 
 
-  // Load all initial data from localStorage
+  // Effect 1: Load all initial data from localStorage ONCE
   useEffect(() => {
     setIsLoading(true);
     try {
+      // Load Company
       const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
       const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
       const foundCompany = allCompanies.find(c => c.id === companyId);
       
       if (!foundCompany) {
-        console.error("Selected company not found in DB");
+        toast({ title: 'Error', description: 'Empresa no encontrada.', variant: 'destructive' });
         localStorage.removeItem(OPERATOR_COMPANY_KEY);
         router.replace('/select-company');
         return;
       }
       setCompany(foundCompany);
 
+      // Load Settings
       const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
       const allSettings: {[key: string]: CompanySettings} = storedSettings ? JSON.parse(storedSettings) : {};
       const companySettings = allSettings[companyId] || {};
       setSettings(companySettings);
       
+      // Load Items
       let items: CompanyItem[] = [];
       if (companySettings.paymentModel === 'production') {
         const storedItems = localStorage.getItem(ITEMS_DB_KEY);
@@ -127,6 +127,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       }
       setCompanyItems(items);
 
+      // Load Shifts for the current user and company
       const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
       const allShiftsData: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
       const userShifts = allShiftsData.filter(s => s.userId === user.uid && s.companyId === companyId);
@@ -140,15 +141,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [companyId, user.uid, router, toast]);
 
-  // This effect runs whenever the selected date or the core data changes.
-  // It updates the UI and calculations for the selected day and pay period.
+  // Effect 2: Update UI and calculations whenever date or main data changes
   useEffect(() => {
     if (!date || isLoading) return;
 
-    // 1. Find shift for the selected day and update form fields
+    // --- 2a. Find shift for the selected day and update form fields
     const shiftForDay = allShifts.find(s => isSameDay(new Date(s.date), startOfDay(date)));
     
-    setTodaysShiftId(shiftForDay?.id || null);
     if (shiftForDay) {
       if (settings.paymentModel === 'hourly') {
         setStartTime(shiftForDay.startTime || '');
@@ -165,7 +164,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       setSelectedItemId(companyItems.length > 0 ? companyItems[0].id : '');
     }
 
-    // 2. Calculate pay period summary
+    // --- 2b. Calculate pay period summary
     const payPeriod = getPayPeriod(date, settings);
     const shiftsInPeriod = allShifts.filter(shift => {
       const shiftDate = new Date(shift.date);
@@ -196,17 +195,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }, [date, allShifts, settings, companyItems, isLoading]);
 
 
-  // Recalculate shift details for the *current day* when inputs change
+  // Effect 3: Recalculate shift details for the *current day's inputs*
   useEffect(() => {
     if (!date) {
       setShiftCalculation(null);
       return;
     }
 
+    const shiftForDay = allShifts.find(s => isSameDay(new Date(s.date), startOfDay(date)));
+
     let tempShift: Shift | null = null;
     if (paymentModel === 'hourly' && startTime && endTime) {
       tempShift = {
-        id: todaysShiftId || 'temp',
+        id: shiftForDay?.id || 'temp',
         userId: user.uid,
         companyId: companyId,
         date: format(date, 'yyyy-MM-dd'),
@@ -217,7 +218,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       const numQuantity = parseFloat(quantity);
       if (!isNaN(numQuantity) && numQuantity > 0) {
         tempShift = {
-          id: todaysShiftId || 'temp',
+          id: shiftForDay?.id || 'temp',
           userId: user.uid,
           companyId: companyId,
           date: format(date, 'yyyy-MM-dd'),
@@ -237,7 +238,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } else {
       setShiftCalculation(null);
     }
-  }, [startTime, endTime, date, settings, todaysShiftId, user.uid, companyId, paymentModel, selectedItemId, quantity, companyItems]);
+  }, [startTime, endTime, date, settings, allShifts, user.uid, companyId, paymentModel, selectedItemId, quantity, companyItems]);
 
 
  const handleSave = async () => {
@@ -245,7 +246,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       toast({ title: 'Error', description: 'Por favor, selecciona una fecha.', variant: 'destructive' });
       return;
     }
-  
+    
     setIsSaving(true);
   
     // --- Validate inputs based on payment model ---
@@ -263,7 +264,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       }
     }
 
-    const shiftData: Partial<Shift> = paymentModel === 'hourly'
+    const shiftDataForDay: Partial<Shift> = paymentModel === 'hourly'
         ? { startTime, endTime }
         : { itemId: selectedItemId, quantity: parseFloat(quantity) };
 
@@ -273,8 +274,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
     if (shiftIndex > -1) {
         // Update existing shift
+        const existingShift = allShifts[shiftIndex];
+        const updatedShift = { ...existingShift, ...shiftDataForDay };
         updatedShifts = allShifts.map((shift, index) => 
-            index === shiftIndex ? { ...shift, ...shiftData } : shift
+            index === shiftIndex ? updatedShift : shift
         );
     } else {
         // Create new shift
@@ -283,43 +286,45 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           userId: user.uid,
           companyId: companyId,
           date: format(date, 'yyyy-MM-dd'),
-          ...shiftData,
+          ...shiftDataForDay,
         };
         updatedShifts = [...allShifts, newShift];
     }
   
     try {
-        // Update state first
+        // --- THIS IS THE KEY: UPDATE THE REACT STATE FIRST ---
         setAllShifts(updatedShifts);
         
-        // Then persist to localStorage
-        const allShiftsFromStorage = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
-        // Remove old shifts for this user/company to avoid duplicates
-        const otherUsersShifts = allShiftsFromStorage.filter((s: Shift) => s.userId !== user.uid || s.companyId !== companyId);
+        // --- THEN, PERSIST THE ENTIRE DB TO LOCALSTORAGE ---
+        const allStoredShifts = JSON.parse(localStorage.getItem(SHIFTS_DB_KEY) || '[]');
+        // Remove all old shifts for this user/company to avoid duplicates
+        const otherUsersShifts = allStoredShifts.filter((s: Shift) => s.userId !== user.uid || s.companyId !== companyId);
         const finalShiftsToStore = [...otherUsersShifts, ...updatedShifts];
-
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(finalShiftsToStore));
+        
         toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
 
     } catch (e) {
       console.error("Failed to save shift to localStorage", e);
       toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
-      // Optional: Revert state if save fails
-      setAllShifts(allShifts);
+      // NOTE: No need to revert state, as the change is already reflected in the UI
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!todaysShiftId || !date) return;
+    if (!date) return;
+
+    const shiftForDay = allShifts.find(s => isSameDay(new Date(s.date), startOfDay(date)));
+    if (!shiftForDay) return;
 
     setIsSaving(true);
     
-    const updatedShifts = allShifts.filter(s => s.id !== todaysShiftId);
+    const updatedShifts = allShifts.filter(s => s.id !== shiftForDay.id);
 
     try {
-        // Update state
+        // Update react state
         setAllShifts(updatedShifts);
         
         // Persist to localStorage
@@ -328,19 +333,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const finalShiftsToStore = [...otherUsersShifts, ...updatedShifts];
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(finalShiftsToStore));
         
-        // Clear the form state
-        setTodaysShiftId(null);
-        setStartTime('');
-        setEndTime('');
-        setQuantity('');
-        setShiftCalculation(null);
+        // Clear the form state is handled by the useEffect for the date change
         toast({ title: "¡Eliminado!", description: "El registro del turno ha sido eliminado." });
 
     } catch (e) {
       console.error("Failed to delete shift from localStorage", e);
       toast({ title: 'Error', description: 'No se pudo eliminar el registro.', variant: 'destructive' });
-      // Revert state
-      setAllShifts(allShifts);
     } finally {
       setIsSaving(false);
     }
@@ -370,6 +368,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
   }
 
+  // Check if there is a shift for the currently selected day to decide if delete button is shown
+  const shiftForSelectedDay = allShifts.find(s => isSameDay(new Date(s.date), date || new Date()));
 
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
@@ -476,7 +476,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     )}
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
-                    {todaysShiftId && (
+                    {shiftForSelectedDay && (
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button variant="destructive" disabled={isSaving || isLoading}>
@@ -610,5 +610,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    
