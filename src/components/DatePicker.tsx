@@ -26,7 +26,7 @@ export function DatePicker({ date, setDate }: DatePickerProps) {
         <Button
           variant={'outline'}
           className={cn(
-            'w-[320px] justify-start text-left font-semibold text-lg py-6',
+            'w-full sm:w-[320px] justify-start text-left font-semibold text-lg py-6',
             !date && 'text-muted-foreground font-normal'
           )}
         >
@@ -46,3 +46,5 @@ export function DatePicker({ date, setDate }: DatePickerProps) {
     </Popover>
   );
 }
+
+    
