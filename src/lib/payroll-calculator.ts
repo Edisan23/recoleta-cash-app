@@ -48,10 +48,12 @@ const isHoliday = (date: Date): boolean => {
         return true;
     }
 
-    // Official Colombian holidays
-    const isOfficialHoliday = COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(today, holiday));
-    if (isOfficialHoliday) {
-        return true;
+    // Official Colombian holidays that are Mondays
+    if (dayOfWeek === 1) {
+        const isOfficialMondayHoliday = COLOMBIAN_HOLIDAYS_2024.some(holiday => isSameDay(today, holiday) && getDay(holiday) === 1);
+        if (isOfficialMondayHoliday) {
+            return true;
+        }
     }
 
     return false;
@@ -183,10 +185,10 @@ export const calculateShiftDetails = (input: ShiftInput): ShiftCalculationResult
 
         result.totalHours = workedHoursOnDay;
         
-        result.dayPayment = result.dayHours * (shiftIsHoliday ? (rates.holidayDayRate || 0) : (rates.dayRate || 0));
-        result.nightPayment = result.nightHours * (shiftIsHoliday ? (rates.holidayNightRate || 0) : (rates.nightRate || 0));
-        result.dayOvertimePayment = result.dayOvertimeHours * (shiftIsHoliday ? (rates.holidayDayOvertimeRate || 0) : (rates.dayOvertimeRate || 0));
-        result.nightOvertimePayment = result.nightOvertimeHours * (shiftIsHoliday ? (rates.holidayNightOvertimeRate || 0) : (rates.nightOvertimeRate || 0));
+        result.dayPayment = result.dayHours * (rates.dayRate || 0);
+        result.nightPayment = result.nightHours * (rates.nightRate || 0);
+        result.dayOvertimePayment = result.dayOvertimeHours * (rates.dayOvertimeRate || 0);
+        result.nightOvertimePayment = result.nightOvertimeHours * (rates.nightOvertimeRate || 0);
         
         result.holidayDayPayment = result.holidayDayHours * (rates.holidayDayRate || 0);
         result.holidayNightPayment = result.holidayNightHours * (rates.holidayNightRate || 0);
@@ -275,4 +277,3 @@ export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fort
         return `16 - ${lastDay} de ${monthName} de ${year}`;
     }
 };
-
