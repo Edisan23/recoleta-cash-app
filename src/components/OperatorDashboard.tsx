@@ -95,33 +95,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const { paymentModel, payrollCycle } = settings;
 
-  const updatePayrollSummary = useCallback((currentDate: Date, currentSettings: Partial<CompanySettings>, allShifts: Shift[], currentItems: CompanyItem[]) => {
-      const cycle = currentSettings.payrollCycle;
-      if (!cycle) return;
-  
-      try {
-        const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
-        
-        const periodKey = getPeriodKey(currentDate, cycle);
-        setCurrentPeriodDescription(getPeriodDescription(periodKey, cycle));
-  
-        const shiftsInPeriod = userShifts.filter(s => {
-          const shiftDate = new Date(s.date);
-          return getPeriodKey(shiftDate, cycle) === periodKey;
-        });
-  
-        const summary = calculatePayrollForPeriod({
-          shifts: shiftsInPeriod,
-          periodSettings: currentSettings,
-          items: currentItems
-        });
-        setPayrollSummary(summary);
-  
-      } catch (e) {
-        console.error("Failed to calculate payroll summary", e);
-      }
-    }, [companyId, user.uid]);
-
   const loadDataForDay = useCallback((currentDate: Date) => {
     setIsLoading(true);
     try {
@@ -174,7 +147,25 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             setShiftCalculation(null); // Clear previous calculation
         }
 
-        updatePayrollSummary(currentDate, companySettings, allShifts, items);
+        // --- Payroll Summary Calculation ---
+        const cycle = companySettings.payrollCycle;
+        if (cycle) {
+          const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
+          const periodKey = getPeriodKey(currentDate, cycle);
+          setCurrentPeriodDescription(getPeriodDescription(periodKey, cycle));
+          const shiftsInPeriod = userShifts.filter(s => {
+            const shiftDate = new Date(s.date);
+            return getPeriodKey(shiftDate, cycle) === periodKey;
+          });
+          const summary = calculatePayrollForPeriod({
+            shifts: shiftsInPeriod,
+            periodSettings: companySettings,
+            items: items
+          });
+          setPayrollSummary(summary);
+        }
+        // --- End Payroll Summary Calculation ---
+
 
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
@@ -182,7 +173,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, toast, updatePayrollSummary]);
+  }, [companyId, router, user.uid, toast]);
 
 
   useEffect(() => {
@@ -284,8 +275,20 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
 
         // After saving, update the summary
-        if (date) {
-          updatePayrollSummary(date, settings, allShifts, companyItems);
+        const cycle = settings.payrollCycle;
+        if (date && cycle) {
+          const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
+          const periodKey = getPeriodKey(date, cycle);
+          const shiftsInPeriod = userShifts.filter(s => {
+            const shiftDate = new Date(s.date);
+            return getPeriodKey(shiftDate, cycle) === periodKey;
+          });
+          const summary = calculatePayrollForPeriod({
+            shifts: shiftsInPeriod,
+            periodSettings: settings,
+            items: companyItems
+          });
+          setPayrollSummary(summary);
         }
 
     } catch (e) {
@@ -318,8 +321,20 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
       toast({ title: "¡Eliminado!", description: "El registro del turno ha sido eliminado." });
       
-      if(date) {
-        updatePayrollSummary(date, settings, updatedShifts, companyItems);
+      const cycle = settings.payrollCycle;
+      if(date && cycle) {
+        const userShifts = updatedShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
+        const periodKey = getPeriodKey(date, cycle);
+        const shiftsInPeriod = userShifts.filter(s => {
+          const shiftDate = new Date(s.date);
+          return getPeriodKey(shiftDate, cycle) === periodKey;
+        });
+        const summary = calculatePayrollForPeriod({
+          shifts: shiftsInPeriod,
+          periodSettings: settings,
+          items: companyItems
+        });
+        setPayrollSummary(summary);
       }
 
     } catch (e) {
@@ -530,7 +545,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                                     <TableRow>
                                                         <TableCell>{shiftCalculation.isHoliday ? 'Diurnas Festivas' : 'Diurnas'}</TableCell>
                                                         <TableCell className="text-right font-mono">{shiftCalculation.dayHours.toFixed(2)}</TableCell>
-                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayDayRate || 0) : (settings.dayRate || 0))}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayDayRate || settings.dayRate || 0) : (settings.dayRate || 0))}</TableCell>
                                                         <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayPayment)}</TableCell>
                                                     </TableRow>
                                                 )}
@@ -538,7 +553,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                                     <TableRow>
                                                         <TableCell>{shiftCalculation.isHoliday ? 'Nocturnas Festivas' : 'Nocturnas'}</TableCell>
                                                         <TableCell className="text-right font-mono">{shiftCalculation.nightHours.toFixed(2)}</TableCell>
-                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayNightRate || 0) : (settings.nightRate || 0))}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayNightRate || settings.nightRate || 0) : (settings.nightRate || 0))}</TableCell>
                                                         <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightPayment)}</TableCell>
                                                     </TableRow>
                                                 )}
@@ -546,7 +561,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                                     <TableRow>
                                                         <TableCell>{shiftCalculation.isHoliday ? 'Diurnas Extra Festivas' : 'Diurnas Extra'}</TableCell>
                                                         <TableCell className="text-right font-mono">{shiftCalculation.dayOvertimeHours.toFixed(2)}</TableCell>
-                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayDayOvertimeRate || 0) : (settings.dayOvertimeRate || 0))}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayDayOvertimeRate || settings.dayOvertimeRate || 0) : (settings.dayOvertimeRate || 0))}</TableCell>
                                                         <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayOvertimePayment)}</TableCell>
                                                     </TableRow>
                                                 )}
@@ -554,7 +569,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                                     <TableRow>
                                                         <TableCell>{shiftCalculation.isHoliday ? 'Nocturnas Extra Festivas' : 'Nocturnas Extra'}</TableCell>
                                                         <TableCell className="text-right font-mono">{shiftCalculation.nightOvertimeHours.toFixed(2)}</TableCell>
-                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayNightOvertimeRate || 0) : (settings.nightOvertimeRate || 0))}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayNightOvertimeRate || settings.nightOvertimeRate || 0) : (settings.nightOvertimeRate || 0))}</TableCell>
                                                         <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightOvertimePayment)}</TableCell>
                                                     </TableRow>
                                                 )}
@@ -597,3 +612,4 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
