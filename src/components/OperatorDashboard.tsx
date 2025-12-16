@@ -97,6 +97,36 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const { paymentModel, payrollCycle } = settings;
 
+  const updatePayrollSummary = useCallback((currentDate: Date, periodSettings: Partial<CompanySettings>, currentItems: CompanyItem[]) => {
+    const cycle = periodSettings.payrollCycle;
+    if (!cycle) return;
+
+    try {
+        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
+        const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+        const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
+        
+        const periodKey = getPeriodKey(currentDate, cycle);
+        setCurrentPeriodDescription(getPeriodDescription(periodKey, cycle));
+
+        const shiftsInPeriod = userShifts.filter(s => {
+            const shiftDate = new Date(s.date);
+            return getPeriodKey(shiftDate, cycle) === periodKey;
+        });
+
+        const summary = calculatePayrollForPeriod({
+            shifts: shiftsInPeriod,
+            periodSettings: periodSettings,
+            items: currentItems
+        });
+        setPayrollSummary(summary);
+
+    } catch (e) {
+        console.error("Failed to calculate payroll summary", e);
+    }
+
+  }, [companyId, user.uid]);
+
   const loadDataForDay = useCallback((currentDate: Date) => {
     setIsLoading(true);
     try {
@@ -148,51 +178,22 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             setSelectedItemId(items.length > 0 ? items[0].id : '');
         }
 
+        updatePayrollSummary(currentDate, companySettings, items);
+
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
         toast({ title: 'Error', description: 'No se pudieron cargar los datos.', variant: 'destructive' });
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, toast]);
-
- const updatePayrollSummary = useCallback((currentDate: Date) => {
-    if (!payrollCycle) return;
-
-    try {
-        const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-        const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-        const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
-        
-        const periodKey = getPeriodKey(currentDate, payrollCycle);
-        setCurrentPeriodDescription(getPeriodDescription(periodKey, payrollCycle));
-
-        const shiftsInPeriod = userShifts.filter(s => {
-            const shiftDate = new Date(s.date);
-            return getPeriodKey(shiftDate, payrollCycle) === periodKey;
-        });
-
-        const summary = calculatePayrollForPeriod({
-            shifts: shiftsInPeriod,
-            periodSettings: settings,
-            items: companyItems
-        });
-        setPayrollSummary(summary);
-
-    } catch (e) {
-        console.error("Failed to calculate payroll summary", e);
-    }
-
-  }, [companyId, user.uid, payrollCycle, companyItems, settings]);
-
+  }, [companyId, router, user.uid, toast, updatePayrollSummary]);
 
   // Initial load and when date changes
   useEffect(() => {
     if (date) {
         loadDataForDay(date);
-        updatePayrollSummary(date);
     }
-  }, [date, loadDataForDay, updatePayrollSummary]);
+  }, [date, loadDataForDay]);
 
     // Recalculate shift details when times change
   useEffect(() => {
@@ -274,7 +275,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         toast({ title: '¡Guardado!', description: 'Tu registro ha sido actualizado.' });
 
         // After saving, update the summary
-        updatePayrollSummary(date);
+        updatePayrollSummary(date, settings, companyItems);
 
     } catch (e) {
         console.error("Failed to save shift to localStorage", e);
@@ -306,7 +307,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
       toast({ title: "¡Eliminado!", description: "El registro del turno ha sido eliminado." });
       
-      updatePayrollSummary(date);
+      updatePayrollSummary(date, settings, companyItems);
 
     } catch (e) {
       console.error("Failed to delete shift from localStorage", e);
