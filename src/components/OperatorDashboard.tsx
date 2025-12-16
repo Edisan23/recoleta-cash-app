@@ -95,8 +95,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const { paymentModel, payrollCycle } = settings;
 
-  const loadDataForDay = useCallback((currentDate: Date) => {
+
+  useEffect(() => {
+    if (!date) {
+        setIsLoading(false);
+        return;
+    }
+    
     setIsLoading(true);
+
     try {
         const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
         const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
@@ -126,7 +133,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
         const allShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
 
-        const todayString = format(currentDate, 'yyyy-MM-dd');
+        const todayString = format(date, 'yyyy-MM-dd');
         const shiftForDay = allShifts.find(s => s.userId === user.uid && s.companyId === companyId && s.date.startsWith(todayString));
 
         if (shiftForDay) {
@@ -151,7 +158,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const cycle = companySettings.payrollCycle;
         if (cycle) {
           const userShifts = allShifts.filter(s => s.userId === user.uid && s.companyId === companyId);
-          const periodKey = getPeriodKey(currentDate, cycle);
+          const periodKey = getPeriodKey(date, cycle);
           setCurrentPeriodDescription(getPeriodDescription(periodKey, cycle));
           const shiftsInPeriod = userShifts.filter(s => {
             const shiftDate = new Date(s.date);
@@ -164,23 +171,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           });
           setPayrollSummary(summary);
         }
-        // --- End Payroll Summary Calculation ---
-
-
     } catch(e) {
         console.error("Failed to load data from localStorage", e);
         toast({ title: 'Error', description: 'No se pudieron cargar los datos.', variant: 'destructive' });
     } finally {
         setIsLoading(false);
     }
-  }, [companyId, router, user.uid, toast]);
+  }, [date, companyId, router, user.uid, toast]);
 
-
-  useEffect(() => {
-    if (date) {
-        loadDataForDay(date);
-    }
-  }, [date, loadDataForDay]);
 
     // Recalculate shift details when times change
   useEffect(() => {
@@ -613,3 +611,4 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   );
 }
 
+    
