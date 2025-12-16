@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -196,7 +195,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
     // Recalculate shift details when times change
   useEffect(() => {
-    if (settings.paymentModel === 'hourly' && startTime && endTime && date) {
+    if (paymentModel === 'hourly' && startTime && endTime && date) {
       const shift: Shift = {
         id: todaysShiftId || '',
         userId: user.uid,
@@ -215,7 +214,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } else {
       setShiftCalculation(null);
     }
-  }, [startTime, endTime, date, settings, todaysShiftId, user.uid, companyId]);
+  }, [startTime, endTime, date, settings, todaysShiftId, user.uid, companyId, paymentModel]);
 
 
   const handleSave = async () => {
@@ -513,14 +512,38 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {shiftCalculation.dayHours > 0 && <TableRow><TableCell>{shiftCalculation.isHoliday ? 'Diurnas Festivas' : 'Diurnas'}</TableCell><TableCell className="text-right font-mono">{shiftCalculation.dayHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayDayRate || 0) : (settings.dayRate || 0))}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayPayment)}</TableCell></TableRow>}
-                                                
-                                                {shiftCalculation.nightHours > 0 && <TableRow><TableCell>{shiftCalculation.isHoliday ? 'Nocturnas Festivas' : 'Nocturnas'}</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayNightRate || 0) : (settings.nightRate || 0))}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightPayment)}</TableCell></TableRow>}
-                                                
-                                                {shiftCalculation.dayOvertimeHours > 0 && <TableRow><TableCell>{shiftCalculation.isHoliday ? 'Diurnas Extra Festivas' : 'Diurnas Extra'}</TableCell><TableCell className="text-right font-mono">{shiftCalculation.dayOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayDayOvertimeRate || 0) : (settings.dayOvertimeRate || 0))}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayOvertimePayment)}</TableCell></TableRow>}
-                                                
-                                                {shiftCalculation.nightOvertimeHours > 0 && <TableRow><TableCell>{shiftCalculation.isHoliday ? 'Nocturnas Extra Festivas' : 'Nocturnas Extra'}</TableCell><TableCell className="text-right font-mono">{shiftCalculation.nightOvertimeHours.toFixed(2)}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayNightOvertimeRate || 0) : (settings.nightOvertimeRate || 0))}</TableCell><TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightOvertimePayment)}</TableCell></TableRow>}
-                                                
+                                                 {shiftCalculation.dayHours > 0 && (
+                                                    <TableRow>
+                                                        <TableCell>{shiftCalculation.isHoliday ? 'Diurnas Festivas' : 'Diurnas'}</TableCell>
+                                                        <TableCell className="text-right font-mono">{shiftCalculation.dayHours.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayDayRate || 0) : (settings.dayRate || 0))}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayPayment)}</TableCell>
+                                                    </TableRow>
+                                                )}
+                                                {shiftCalculation.nightHours > 0 && (
+                                                    <TableRow>
+                                                        <TableCell>{shiftCalculation.isHoliday ? 'Nocturnas Festivas' : 'Nocturnas'}</TableCell>
+                                                        <TableCell className="text-right font-mono">{shiftCalculation.nightHours.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayNightRate || 0) : (settings.nightRate || 0))}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightPayment)}</TableCell>
+                                                    </TableRow>
+                                                )}
+                                                {shiftCalculation.dayOvertimeHours > 0 && (
+                                                    <TableRow>
+                                                        <TableCell>{shiftCalculation.isHoliday ? 'Diurnas Extra Festivas' : 'Diurnas Extra'}</TableCell>
+                                                        <TableCell className="text-right font-mono">{shiftCalculation.dayOvertimeHours.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayDayOvertimeRate || 0) : (settings.dayOvertimeRate || 0))}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.dayOvertimePayment)}</TableCell>
+                                                    </TableRow>
+                                                )}
+                                                {shiftCalculation.nightOvertimeHours > 0 && (
+                                                    <TableRow>
+                                                        <TableCell>{shiftCalculation.isHoliday ? 'Nocturnas Extra Festivas' : 'Nocturnas Extra'}</TableCell>
+                                                        <TableCell className="text-right font-mono">{shiftCalculation.nightOvertimeHours.toFixed(2)}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.isHoliday ? (settings.holidayNightOvertimeRate || 0) : (settings.nightOvertimeRate || 0))}</TableCell>
+                                                        <TableCell className="text-right font-mono">{formatCurrency(shiftCalculation.nightOvertimePayment)}</TableCell>
+                                                    </TableRow>
+                                                )}
                                             </TableBody>
                                         </Table>
                                     </div>
@@ -531,7 +554,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </Card>
             )}
 
-            {payrollCycle && payrollSummary && (
+            {payrollCycle && (
                 <Card>
                     <CardHeader>
                         <CardTitle>{payrollCycleTitle}</CardTitle>
@@ -542,14 +565,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                             <CalendarClock className="h-8 w-8 text-muted-foreground" />
                             <div>
                                 <p className="text-sm text-muted-foreground">Total Horas</p>
-                                <p className="text-2xl font-bold">{isHourly ? payrollSummary.totalHours.toFixed(2) : '-'}</p>
+                                <p className="text-2xl font-bold">{isHourly && payrollSummary ? payrollSummary.totalHours.toFixed(2) : '-'}</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-4">
                             <Coins className="h-8 w-8 text-muted-foreground" />
                             <div>
                                 <p className="text-sm text-muted-foreground">Pago Bruto</p>
-                                <p className="text-2xl font-bold">{formatCurrency(payrollSummary.grossPay)}</p>
+                                <p className="text-2xl font-bold">{formatCurrency(payrollSummary ? payrollSummary.grossPay : 0)}</p>
                             </div>
                         </div>
                     </CardContent>
@@ -561,3 +584,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
