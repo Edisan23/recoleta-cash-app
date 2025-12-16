@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -155,7 +156,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [companyId, router, user.uid, toast]);
 
-  const updatePayrollSummary = useCallback((currentDate: Date) => {
+ const updatePayrollSummary = useCallback((currentDate: Date) => {
     if (!payrollCycle) return;
 
     try {
@@ -182,7 +183,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         console.error("Failed to calculate payroll summary", e);
     }
 
-  }, [companyId, user.uid, payrollCycle, settings, companyItems]);
+  }, [companyId, user.uid, payrollCycle, companyItems, settings]);
 
 
   // Initial load and when date changes
