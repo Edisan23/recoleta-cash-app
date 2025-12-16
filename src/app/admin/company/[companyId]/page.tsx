@@ -128,7 +128,6 @@ export default function CompanySettingsPage() {
         // Ensure all settings are included
         const updatedSettings: Partial<CompanySettings> = { 
             id: companyId, 
-            payrollCycle: settings.payrollCycle, 
             nightShiftStart: settings.nightShiftStart,
             normalWorkHours: settings.normalWorkHours,
             paymentModel: settings.paymentModel || 'hourly',
@@ -241,66 +240,42 @@ export default function CompanySettingsPage() {
                     </RadioGroup>
                 </CardContent>
             </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Configuración de Nómina</CardTitle>
-                    <CardDescription>Establece las reglas generales de la nómina.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                     <RadioGroup 
-                        value={settings.payrollCycle || 'fortnightly'} 
-                        onValueChange={(value) => handleRadioGroupChange('payrollCycle', value as 'monthly' | 'fortnightly')}
-                    >
-                        <Label>Frecuencia de Pago</Label>
-                        <div className="flex items-center space-x-2 mt-2">
-                            <RadioGroupItem value="fortnightly" id="fortnightly" />
-                            <Label htmlFor="fortnightly">Quincenal</Label>
+            
+            {paymentModel === 'hourly' && (
+                <>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Reglas de Horario</CardTitle>
+                        <CardDescription>Establece los parámetros para el cálculo de horas.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 md:grid-cols-2">
+                        <div className='grid gap-2'>
+                            <Label>Inicio de Horario Nocturno</Label>
+                            <div className='flex items-center gap-4'>
+                            <TimeInput 
+                            label="Inicio de Horario Nocturno"
+                            value={settings.nightShiftStart || '21:00'}
+                            onChange={(value) => handleStringSettingChange('nightShiftStart', value)}
+                            />
+                            </div>
                         </div>
-                        <p className="text-xs text-muted-foreground ml-6">
-                            La primera quincena va del día 1 al 15. La segunda, del 16 a fin de mes.
-                        </p>
-                        <div className="flex items-center space-x-2 mt-4">
-                            <RadioGroupItem value="monthly" id="monthly" />
-                            <Label htmlFor="monthly">Mensual</Label>
-                        </div>
-                         <p className="text-xs text-muted-foreground ml-6">
-                            El ciclo va desde el primer hasta el último día del mes.
-                        </p>
-                    </RadioGroup>
-                    
-                    {paymentModel === 'hourly' && (
-                        <>
-                        <Separator />
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <div className='grid gap-2'>
-                                <Label>Inicio de Horario Nocturno</Label>
-                                <div className='flex items-center gap-4'>
-                                <TimeInput 
-                                label="Inicio de Horario Nocturno"
-                                value={settings.nightShiftStart || '21:00'}
-                                onChange={(value) => handleStringSettingChange('nightShiftStart', value)}
+                         <div className='grid gap-2'>
+                            <Label htmlFor="normal-work-hours">Inicio de Horas Extras (después de...)</Label>
+                            <div className='flex items-center gap-2'>
+                            <Input 
+                                id="normal-work-hours"
+                                type="number"
+                                value={settings.normalWorkHours || 8}
+                                onChange={(e) => handleNumericSettingChange('normalWorkHours', parseFloat(e.target.value) || undefined)}
+                                className="max-w-[80px]"
                                 />
-                                </div>
-                            </div>
-                             <div className='grid gap-2'>
-                                <Label htmlFor="normal-work-hours">Inicio de Horas Extras (después de...)</Label>
-                                <div className='flex items-center gap-2'>
-                                <Input 
-                                    id="normal-work-hours"
-                                    type="number"
-                                    value={settings.normalWorkHours || 8}
-                                    onChange={(e) => handleNumericSettingChange('normalWorkHours', parseFloat(e.target.value) || undefined)}
-                                    className="max-w-[80px]"
-                                    />
-                                    <span className="text-sm text-muted-foreground">horas</span>
-                                </div>
+                                <span className="text-sm text-muted-foreground">horas</span>
                             </div>
                         </div>
-                        </>
-                    )}
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+                </>
+            )}
 
              {paymentModel === 'hourly' && (
                 <Card>
@@ -420,4 +395,5 @@ export default function CompanySettingsPage() {
     </TooltipProvider>
   );
 }
+
 

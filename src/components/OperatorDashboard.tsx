@@ -92,7 +92,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   const paymentModel = settings.paymentModel;
 
-  const loadDataForDay = useCallback(async (currentDate: Date) => {
+
+  const loadAndCalculate = useCallback(async (currentDate: Date) => {
     if (!currentDate || !companyId) {
         setIsLoading(false);
         return;
@@ -163,12 +164,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [companyId, user.uid, router, toast]);
 
-  // This is the main effect that loads all data when the date changes.
   useEffect(() => {
-    if (date && !isSaving) {
-        loadDataForDay(date);
+    if (date) {
+        loadAndCalculate(date);
     }
-  }, [date, companyId, loadDataForDay, isSaving]);
+  }, [date, companyId, loadAndCalculate]);
 
 
     // Recalculate shift details for the *current day* when inputs change
@@ -273,7 +273,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         toast({ title: 'Error', description: 'No se pudo guardar el registro.', variant: 'destructive' });
     } finally {
         setIsSaving(false);
-        loadDataForDay(date);
+        loadAndCalculate(date);
     }
   };
 
@@ -304,7 +304,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       toast({ title: 'Error', description: 'No se pudo eliminar el registro.', variant: 'destructive' });
     } finally {
       setIsSaving(false);
-      loadDataForDay(date);
+      loadAndCalculate(date);
     }
   }
 

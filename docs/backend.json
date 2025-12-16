@@ -83,11 +83,6 @@
             "enum": ["hourly", "production"],
             "description": "The payment model for the company."
         },
-        "payrollCycle": {
-          "type": "string",
-          "enum": ["monthly", "fortnightly"],
-          "description": "Defines the company's payroll payment cycle."
-        },
         "nightShiftStart": {
           "type": "string",
           "description": "The time when the night shift begins (e.g., '21:00')."

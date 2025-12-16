@@ -205,34 +205,3 @@ const parseTime = (date: Date, time: string): Date => {
     newDate.setHours(hours, minutes, 0, 0);
     return newDate;
 };
-
-export const getPeriodKey = (date: Date, cycle: 'monthly' | 'fortnightly' = 'fortnightly'): string => {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1; 
-    if (cycle === 'monthly') {
-      return `${year}-${String(month).padStart(2, '0')}`;
-    }
-    const dayOfMonth = date.getDate();
-    const fortnight = dayOfMonth <= 15 ? 1 : 2;
-    return `${year}-${String(month).padStart(2, '0')}-${fortnight}`;
-  };
-
-export const getPeriodDescription = (periodKey: string, cycle: 'monthly' | 'fortnightly' = 'fortnightly'): string => {
-    const parts = periodKey.split('-');
-    const year = parseInt(parts[0]);
-    const month = parseInt(parts[1]);
-    const date = new Date(year, month - 1, 1);
-    const monthName = date.toLocaleString('es-CO', { month: 'long' });
-
-    if (cycle === 'monthly') {
-        return `${monthName.charAt(0).toUpperCase() + monthName.slice(1)} ${year}`;
-    }
-
-    const fortnight = parseInt(parts[2]);
-    if (fortnight === 1) {
-        return `1 - 15 de ${monthName} de ${year}`;
-    } else {
-        const lastDay = lastDayOfMonth(date).getDate();
-        return `16 - ${lastDay} de ${monthName} de ${year}`;
-    }
-};
