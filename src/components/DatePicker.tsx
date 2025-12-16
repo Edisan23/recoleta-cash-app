@@ -26,11 +26,11 @@ export function DatePicker({ date, setDate }: DatePickerProps) {
         <Button
           variant={'outline'}
           className={cn(
-            'w-[280px] justify-start text-left font-normal',
-            !date && 'text-muted-foreground'
+            'w-[320px] justify-start text-left font-semibold text-lg py-6',
+            !date && 'text-muted-foreground font-normal'
           )}
         >
-          <CalendarIcon className="mr-2 h-4 w-4" />
+          <CalendarIcon className="mr-3 h-5 w-5" />
           {date ? format(date, 'PPP', { locale: es }) : <span>Selecciona una fecha</span>}
         </Button>
       </PopoverTrigger>
