@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Loader2, Trash2 } from 'lucide-react';
-import type { Company, Shift, CompanySettings, PayrollSummary } from '@/types/db-entities';
+import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -30,6 +30,8 @@ const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 const SHIFTS_DB_KEY = 'fake_shifts_db';
 const SETTINGS_DB_KEY = 'fake_company_settings_db';
 const HOLIDAYS_DB_KEY = 'fake_holidays_db';
+const BENEFITS_DB_KEY = 'fake_company_benefits_db';
+const DEDUCTIONS_DB_KEY = 'fake_company_deductions_db';
 
 
 // --- HELPER FUNCTIONS ---
@@ -62,6 +64,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [allShifts, setAllShifts] = useState<Shift[]>([]);
   const [holidays, setHolidays] = useState<Date[]>([]);
+  const [benefits, setBenefits] = useState<Benefit[]>([]);
+  const [deductions, setDeductions] = useState<Deduction[]>([]);
 
 
   // Shift state for the selected day
@@ -70,7 +74,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [endTime, setEndTime] = useState<string>('');
   
   // Calculated Summaries
-  const [dailySummary, setDailySummary] = useState<PayrollSummary | null>(null);
+  const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
 
 
@@ -118,7 +122,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
       if(storedSettings) {
         let allSettingsData = JSON.parse(storedSettings);
-        // This is the robust check to handle both object and array formats
         if (!Array.isArray(allSettingsData)) {
             allSettingsData = [allSettingsData];
         }
@@ -132,6 +135,16 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         const holidayStrings: string[] = JSON.parse(storedHolidays);
         setHolidays(holidayStrings.map(dateString => new Date(dateString)));
       }
+
+      // Load Benefits
+      const storedBenefits = localStorage.getItem(BENEFITS_DB_KEY);
+      const allBenefits: Benefit[] = storedBenefits ? JSON.parse(storedBenefits) : [];
+      setBenefits(allBenefits.filter(b => b.companyId === companyId));
+
+      // Load Deductions
+      const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
+      const allDeductions: Deduction[] = storedDeductions ? JSON.parse(storedDeductions) : [];
+      setDeductions(allDeductions.filter(d => d.companyId === companyId));
 
     } catch(e) {
       console.error("Failed to load initial data from localStorage", e);
@@ -167,10 +180,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   useEffect(() => {
     if (!date || !settings || !user) return;
 
-    const summary = calculatePeriodSummary(allShifts, settings, holidays, user.uid, companyId, date);
+    const summary = calculatePeriodSummary(allShifts, settings, holidays, benefits, deductions, user.uid, companyId, date);
     setPeriodSummary(summary);
 
-  }, [allShifts, user, companyId, settings, date, holidays]);
+  }, [allShifts, user, companyId, settings, date, holidays, benefits, deductions]);
 
   const handleSave = async () => {
     if (!date || !user || (!startTime && !endTime)) {
@@ -348,7 +361,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 <CardHeader>
                     <CardTitle>Resumen del Turno</CardTitle>
                     <CardDescription>
-                        Cálculo para el día seleccionado.
+                        Cálculo para el día seleccionado. Los subsidios y deducciones se aplican en el resumen del período.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -360,7 +373,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                             </p>
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground">Pago del Turno</p>
+                            <p className="text-sm text-muted-foreground">Pago Bruto del Turno</p>
                             <p className="text-2xl font-bold text-green-600">
                                 {dailySummary ? formatCurrency(dailySummary.grossPay) : '$0'}
                             </p>
@@ -389,17 +402,23 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex justify-around items-center text-center">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
                         <div>
-                            <p className="text-sm text-muted-foreground">Total Horas Acumuladas</p>
+                            <p className="text-sm text-muted-foreground">Total Horas</p>
                             <p className="text-2xl font-bold">
                                 {periodSummary ? `${periodSummary.totalHours.toFixed(2)}h` : '0h'}
                             </p>
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground">Pago Total Acumulado</p>
-                            <p className="text-2xl font-bold text-green-600">
+                            <p className="text-sm text-muted-foreground">Pago Bruto</p>
+                            <p className="text-2xl font-bold">
                                 {periodSummary ? formatCurrency(periodSummary.grossPay) : '$0'}
+                            </p>
+                        </div>
+                         <div>
+                            <p className="text-sm text-muted-foreground">Pago Neto</p>
+                            <p className="text-2xl font-bold text-green-600">
+                                {periodSummary ? formatCurrency(periodSummary.netPay) : '$0'}
                             </p>
                         </div>
                     </div>

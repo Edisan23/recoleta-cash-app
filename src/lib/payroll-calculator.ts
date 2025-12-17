@@ -1,4 +1,4 @@
-import type { Shift, CompanySettings, PayrollSummary } from '@/types/db-entities';
+import type { Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import { isHoliday } from './date-helpers';
 import { startOfDay, endOfDay, isWithinInterval, addDays, getMonth, getYear, getDate } from 'date-fns';
 
@@ -29,16 +29,18 @@ function isNightHour(dateTime: Date, nightShiftStartHour: number) {
     return isWithinInterval(dateTime, intervals[0]) || isWithinInterval(dateTime, intervals[1]);
 }
 
-
-export function calculateShiftSummary(shift: Shift, settings: CompanySettings, holidays: Date[]): PayrollSummary {
-  const summary: PayrollSummary = {
+const emptySummary = (): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> => ({
     totalHours: 0,
     grossPay: 0,
     dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
     holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
     dayPay: 0, nightPay: 0, dayOvertimePay: 0, nightOvertimePay: 0,
     holidayDayPay: 0, holidayNightPay: 0, holidayDayOvertimePay: 0, holidayNightOvertimePay: 0,
-  };
+});
+
+
+export function calculateShiftSummary(shift: Shift, settings: CompanySettings, holidays: Date[]): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> {
+  const summary = emptySummary();
 
   if (!shift.startTime || !shift.endTime || !settings) {
     return summary;
@@ -123,6 +125,8 @@ export function calculatePeriodSummary(
   allShifts: Shift[],
   settings: CompanySettings,
   holidays: Date[],
+  benefits: Benefit[],
+  deductions: Deduction[],
   userId: string,
   companyId: string,
   selectedDate: Date
@@ -175,12 +179,41 @@ export function calculatePeriodSummary(
     acc.holidayNightOvertimePay += shiftSummary.holidayNightOvertimePay;
     return acc;
   }, {
-    totalHours: 0, grossPay: 0,
-    dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
-    holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
-    dayPay: 0, nightPay: 0, dayOvertimePay: 0, nightOvertimePay: 0,
-    holidayDayPay: 0, holidayNightPay: 0, holidayDayOvertimePay: 0, holidayNightOvertimePay: 0
+    ...emptySummary(),
+    netPay: 0,
+    totalBenefits: 0,
+    totalDeductions: 0,
+    benefitBreakdown: [],
+    deductionBreakdown: [],
   });
+
+  // Calculate Benefits
+  for (const benefit of benefits) {
+      let benefitValue = 0;
+      if (benefit.type === 'fixed') {
+          benefitValue = benefit.value;
+      } else if (benefit.type === 'percentage') {
+          benefitValue = periodSummary.grossPay * (benefit.value / 100);
+      } else if (benefit.type === 'per-hour') {
+          benefitValue = periodSummary.totalHours * benefit.value;
+      }
+      periodSummary.totalBenefits += benefitValue;
+      periodSummary.benefitBreakdown.push({ name: benefit.name, value: benefitValue });
+  }
+
+  // Calculate Deductions
+  for (const deduction of deductions) {
+      let deductionValue = 0;
+      if (deduction.type === 'fixed') {
+          deductionValue = deduction.value;
+      } else if (deduction.type === 'percentage') {
+          deductionValue = periodSummary.grossPay * (deduction.value / 100);
+      }
+      periodSummary.totalDeductions += deductionValue;
+      periodSummary.deductionBreakdown.push({ name: deduction.name, value: deductionValue });
+  }
+  
+  periodSummary.netPay = periodSummary.grossPay + periodSummary.totalBenefits - periodSummary.totalDeductions;
 
   return periodSummary;
 }
