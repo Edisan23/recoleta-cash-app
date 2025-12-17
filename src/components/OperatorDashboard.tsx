@@ -17,6 +17,7 @@ import { calculateShiftSummary, calculatePeriodSummary } from '@/lib/payroll-cal
 import { PayrollBreakdown } from './operator/PayrollBreakdown';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth, useUser } from '@/firebase';
+import { ThemeToggle } from './ui/theme-toggle';
 
 
 // --- FAKE DATA & KEYS ---
@@ -268,7 +269,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12 sm:h-16 sm:w-16">
                 <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'User'}/>
@@ -308,10 +309,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                   Panel de Operador
                 </p>
             </div>
-            <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
-              <LogOut className="mr-2 h-5 w-5" />
-              <span className="hidden sm:inline">Salir</span>
-            </Button>
+            <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
+                <LogOut className="mr-2 h-5 w-5" />
+                <span className="hidden sm:inline">Salir</span>
+                </Button>
+            </div>
           </div>
         </header>
 
@@ -441,5 +445,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    
