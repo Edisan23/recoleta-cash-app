@@ -102,11 +102,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       // Load Company Settings
       const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
       if(storedSettings) {
-        let allSettings: CompanySettings[] = JSON.parse(storedSettings);
-        if (!Array.isArray(allSettings)) {
-          allSettings = [allSettings];
+        let allSettingsData = JSON.parse(storedSettings);
+        // Ensure allSettingsData is an array
+        if (!Array.isArray(allSettingsData)) {
+            allSettingsData = [allSettingsData];
         }
-        const foundSettings = allSettings.find(s => s.id === companyId);
+        const foundSettings = allSettingsData.find(s => s.id === companyId);
         setSettings(foundSettings || { id: companyId, payrollCycle: 'monthly' });
       } else {
         setSettings({ id: companyId, payrollCycle: 'monthly' });
@@ -160,22 +161,24 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // Effect 4: Calculate accumulated hours for the current period (month/fortnight)
   useEffect(() => {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
+    if (!date) return;
+    
+    const selectedDate = date;
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+    const day = selectedDate.getDate();
 
     let periodShifts: Shift[] = [];
 
     if (settings?.payrollCycle === 'bi-weekly') {
-        const isFirstFortnight = currentDay <= 15;
+        const isFirstFortnight = day <= 15;
         periodShifts = allShifts.filter(shift => {
             const shiftDate = new Date(shift.date);
             const shiftDay = shiftDate.getDate();
             return shift.userId === user.uid &&
                    shift.companyId === companyId &&
-                   shiftDate.getFullYear() === currentYear &&
-                   shiftDate.getMonth() === currentMonth &&
+                   shiftDate.getFullYear() === year &&
+                   shiftDate.getMonth() === month &&
                    (isFirstFortnight ? shiftDay <= 15 : shiftDay > 15);
         });
     } else { // monthly
@@ -183,8 +186,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             const shiftDate = new Date(shift.date);
             return shift.userId === user.uid &&
                    shift.companyId === companyId &&
-                   shiftDate.getFullYear() === currentYear &&
-                   shiftDate.getMonth() === currentMonth;
+                   shiftDate.getFullYear() === year &&
+                   shiftDate.getMonth() === month;
         });
     }
 
@@ -212,7 +215,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     
     setAccumulatedHoursSummary(`${totalHours}h ${totalMins}m`);
 
-  }, [allShifts, user.uid, companyId, settings]);
+  }, [allShifts, user.uid, companyId, settings, date]);
 
   const handleSave = async () => {
     if (!date || !user || (!startTime && !endTime)) {
@@ -411,7 +414,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         {settings?.payrollCycle === 'bi-weekly' ? 'Acumulado Quincenal' : 'Acumulado Mensual'}
                     </CardTitle>
                     <CardDescription>
-                        Total de horas trabajadas en el período actual.
+                        Total de horas trabajadas en el período consultado.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -430,3 +433,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
