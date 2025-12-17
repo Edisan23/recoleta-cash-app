@@ -98,7 +98,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
     if (shiftForDate) {
       setStartTime(shiftForDate.startTime || '');
-      setEndTime(shiftFordDate.endTime || '');
+      setEndTime(shiftForDate.endTime || '');
     } else {
       setStartTime('');
       setEndTime('');
@@ -121,12 +121,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     );
 
     let updatedShifts = [...allShifts];
-    let shiftId = '';
 
     if (shiftIndex > -1) {
         // Update existing shift
         const existingShift = updatedShifts[shiftIndex];
-        shiftId = existingShift.id;
         updatedShifts[shiftIndex] = { ...existingShift, startTime, endTime };
     } else {
         // Create new shift
@@ -138,7 +136,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             startTime,
             endTime,
         };
-        shiftId = newShift.id;
         updatedShifts.push(newShift);
     }
     
@@ -255,5 +252,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    

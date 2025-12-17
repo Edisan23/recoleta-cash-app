@@ -46,5 +46,3 @@ export function DatePicker({ date, setDate }: DatePickerProps) {
     </Popover>
   );
 }
-
-    

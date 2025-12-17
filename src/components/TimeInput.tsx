@@ -23,5 +23,3 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
         </div>
     )
 }
-
-    
