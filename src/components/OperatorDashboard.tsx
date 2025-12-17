@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Loader2, Trash2 } from 'lucide-react';
 import type { Company, Shift } from '@/types/db-entities';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { DatePicker } from '@/components/DatePicker';
 import { TimeInput } from '@/components/TimeInput';
+import { DeleteShiftDialog } from '@/components/operator/DeleteShiftDialog';
 
 // --- FAKE DATA & KEYS ---
 const FAKE_OPERATOR_USER = {
@@ -57,6 +58,23 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [endTime, setEndTime] = useState<string>('');
   const [workedHoursSummary, setWorkedHoursSummary] = useState<string | null>(null);
 
+  // --- DERIVED STATE ---
+  const shiftForSelectedDate = useMemo(() => {
+    if (!date || !user) return null;
+    return allShifts.find(s => 
+        s.userId === user.uid && 
+        s.companyId === companyId &&
+        new Date(s.date).toDateString() === date.toDateString()
+    );
+  }, [date, allShifts, companyId, user.uid]);
+  
+  const shiftDays = useMemo(() => {
+    return allShifts
+        .filter(s => s.userId === user.uid && s.companyId === companyId)
+        .map(s => new Date(s.date));
+  }, [allShifts, user.uid, companyId]);
+
+
   // Effect 1: Load all initial data from localStorage ONCE
   useEffect(() => {
     setIsLoading(true);
@@ -74,7 +92,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       }
       setCompany(foundCompany);
 
-      // Load all shifts
+      // Load all shifts for this user
       const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
       const parsedShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
       setAllShifts(parsedShifts);
@@ -85,26 +103,18 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     } finally {
       setIsLoading(false);
     }
-  }, [companyId, user.uid, router, toast]);
+  }, [companyId, router, toast]);
 
-  // Effect 2: Update inputs when date or shifts change
+  // Effect 2: Update inputs when date changes or shifts are updated
   useEffect(() => {
-    if (!date || !user) return;
-
-    const shiftForDate = allShifts.find(s => 
-        s.userId === user.uid && 
-        s.companyId === companyId &&
-        new Date(s.date).toDateString() === date.toDateString()
-    );
-
-    if (shiftForDate) {
-      setStartTime(shiftForDate.startTime || '');
-      setEndTime(shiftForDate.endTime || '');
+    if (shiftForSelectedDate) {
+      setStartTime(shiftForSelectedDate.startTime || '');
+      setEndTime(shiftForSelectedDate.endTime || '');
     } else {
       setStartTime('');
       setEndTime('');
     }
-  }, [date, allShifts, companyId, user.uid]);
+  }, [shiftForSelectedDate]);
 
   // Effect 3: Calculate worked hours summary
   useEffect(() => {
@@ -133,8 +143,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }, [startTime, endTime]);
 
   const handleSave = async () => {
-    if (!date || !user) {
-        toast({ title: "Error", description: "Falta información para guardar.", variant: "destructive"});
+    if (!date || !user || (!startTime && !endTime)) {
+        toast({ title: "Atención", description: "Debes ingresar al menos una hora para guardar.", variant: "destructive"});
         return;
     }
 
@@ -166,11 +176,31 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     
     try {
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
-        setAllShifts(updatedShifts); // <-- This is the crucial part that was missing
+        setAllShifts(updatedShifts);
         toast({ title: "¡Guardado!", description: "Tu turno se ha guardado correctamente." });
     } catch(e) {
         console.error("Error saving shifts to localStorage", e);
         toast({ title: "Error", description: "No se pudo guardar tu turno.", variant: "destructive" });
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!date || !user || !shiftForSelectedDate) return;
+
+    setIsSaving(true);
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const updatedShifts = allShifts.filter(s => s.id !== shiftForSelectedDate.id);
+
+    try {
+        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
+        setAllShifts(updatedShifts);
+        toast({ title: "¡Eliminado!", description: "El turno ha sido eliminado." });
+    } catch (e) {
+        console.error("Error deleting shift from localStorage", e);
+        toast({ title: "Error", description: "No se pudo eliminar el turno.", variant: "destructive" });
     } finally {
         setIsSaving(false);
     }
@@ -244,12 +274,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 <CardHeader>
                     <CardTitle>Registrar Actividad</CardTitle>
                     <CardDescription>
-                        Selecciona una fecha y registra tus horas de trabajo.
+                        Selecciona una fecha y registra tus horas de trabajo. Los días con turnos guardados se marcan en el calendario.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <DatePicker date={date} setDate={setDate} />
+                        <DatePicker date={date} setDate={setDate} highlightedDays={shiftDays} />
                         
                         <div className="grid grid-cols-2 gap-4 w-full">
                            <TimeInput 
@@ -265,7 +295,17 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         </div>
                     </div>
                 </CardContent>
-                <CardFooter className="flex justify-end gap-2">
+                <CardFooter className="flex justify-between items-center">
+                    <div>
+                        {shiftForSelectedDate && (
+                            <DeleteShiftDialog onConfirm={handleDelete}>
+                                <Button variant="destructive" size="icon" disabled={isSaving}>
+                                    <Trash2 className="h-4 w-4"/>
+                                    <span className="sr-only">Eliminar Turno</span>
+                                </Button>
+                            </DeleteShiftDialog>
+                        )}
+                    </div>
                     <Button onClick={handleSave} disabled={isSaving || !date}>
                         {isSaving ? <Loader2 className="animate-spin mr-2" /> : null}
                         Guardar Turno
