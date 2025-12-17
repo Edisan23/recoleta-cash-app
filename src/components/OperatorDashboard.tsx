@@ -122,7 +122,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
       if(storedSettings) {
         let allSettingsData = JSON.parse(storedSettings);
-        if (!Array.isArray(allSettingsData)) { // Ensure it's an array
+        if (!Array.isArray(allSettingsData)) { // Ensure it's an array for robustness
             allSettingsData = [allSettingsData];
         }
         const foundSettings = allSettingsData.find((s: CompanySettings) => s.id === companyId);
@@ -271,49 +271,52 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        <header className="flex justify-between items-start mb-8">
-            <div className="flex items-center gap-4">
-                 <Avatar className="h-16 w-16">
-                    <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'User'}/>
-                    <AvatarFallback>
-                        {user?.isAnonymous ? 'OP' : (user?.displayName ? getInitials(user.displayName) : 'U')}
-                    </AvatarFallback>
-                </Avatar>
-                <div className="text-left">
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                    Bienvenido, {user?.isAnonymous ? 'Operador' : user?.displayName || ''}
-                    </h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">
-                    Panel de Operador
-                    </p>
-                </div>
+        <header className="mb-8 space-y-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12 sm:h-16 sm:w-16">
+                <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'User'}/>
+                <AvatarFallback>
+                    {user?.isAnonymous ? 'OP' : (user?.displayName ? getInitials(user.displayName) : 'U')}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-left sm:hidden">
+                  <p className="font-semibold">{user?.isAnonymous ? 'Operador' : user?.displayName || ''}</p>
+                  <p className="text-sm text-muted-foreground">Usuario</p>
+              </div>
             </div>
-             <div className="flex flex-col items-end gap-2">
-                 {company && (
-                    <div className="flex items-center gap-3 text-right">
-                        <div>
-                            <p className="font-semibold text-lg">{company.name}</p>
-                            <p className="text-sm text-muted-foreground">Empresa</p>
-                        </div>
-                        {company.logoUrl ? (
-                            <Image src={company.logoUrl} alt={company.name} width={48} height={48} className="rounded-md object-contain" />
-                        ) : (
-                             <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
-                                Logo
-                            </div>
-                        )}
+
+            {company && (
+              <div className="flex items-center gap-3 text-right">
+                  <div className="text-right sm:hidden">
+                        <p className="font-semibold">{company.name}</p>
+                        <p className="text-sm text-muted-foreground">Empresa</p>
                     </div>
-                )}
-                <div className="flex items-center gap-2">
-                    <Button variant="ghost" onClick={() => router.push('/select-company')} aria-label="Cambiar Empresa">
-                        Cambiar Empresa
-                    </Button>
-                    <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
-                        <LogOut className="mr-2 h-5 w-5" />
-                        Salir
-                    </Button>
-                </div>
+                  {company.logoUrl ? (
+                      <Image src={company.logoUrl} alt={company.name} width={48} height={48} className="rounded-md object-contain h-12 w-12 sm:h-16 sm:w-16" />
+                  ) : (
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
+                          Logo
+                      </div>
+                  )}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex justify-between items-center">
+             <div className="text-left">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                  Bienvenido
+                </h1>
+                <p className="text-lg text-gray-600 dark:text-gray-400">
+                  Panel de Operador
+                </p>
             </div>
+            <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
+              <LogOut className="mr-2 h-5 w-5" />
+              <span className="hidden sm:inline">Salir</span>
+            </Button>
+          </div>
         </header>
 
         <main className="space-y-8">
@@ -442,3 +445,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
