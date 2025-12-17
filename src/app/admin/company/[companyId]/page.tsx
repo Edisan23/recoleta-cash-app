@@ -22,6 +22,16 @@ import { Label } from '@/components/ui/label';
 const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
 const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
 
+const initialSettings: Omit<CompanySettings, 'id'> = {
+    payrollCycle: 'monthly',
+    paymentModel: 'hourly',
+    dayRate: 0,
+    nightRate: 0,
+    dayOvertimeRate: 0,
+    nightOvertimeRate: 0,
+    holidayDayRate: 0,
+    holidayNightRate: 0,
+};
 
 export default function CompanySettingsPage() {
   const router = useRouter();
@@ -30,7 +40,7 @@ export default function CompanySettingsPage() {
   const { toast } = useToast();
 
   const [company, setCompany] = useState<Company | null>(null);
-  const [settings, setSettings] = useState<CompanySettings>({ id: companyId, payrollCycle: 'monthly' });
+  const [settings, setSettings] = useState<CompanySettings>({ id: companyId, ...initialSettings });
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -119,6 +129,15 @@ export default function CompanySettingsPage() {
     }
   };
 
+  const handleRateChange = (field: keyof CompanySettings, value: string) => {
+    const numericValue = parseFloat(value);
+    if (!isNaN(numericValue)) {
+        setSettings({ ...settings, [field]: numericValue });
+    } else if (value === '') {
+        setSettings({ ...settings, [field]: 0 });
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -200,6 +219,39 @@ export default function CompanySettingsPage() {
             </CardContent>
         </Card>
         
+         <Card>
+            <CardHeader>
+                <CardTitle>Tarifas de Pago por Hora</CardTitle>
+                <CardDescription>Define los valores para cada tipo de hora trabajada.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                    <Label htmlFor="dayRate">Hora Diurna</Label>
+                    <Input type="number" id="dayRate" placeholder="0.00" value={settings.dayRate || ''} onChange={(e) => handleRateChange('dayRate', e.target.value)} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="nightRate">Hora Nocturna</Label>
+                    <Input type="number" id="nightRate" placeholder="0.00" value={settings.nightRate || ''} onChange={(e) => handleRateChange('nightRate', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="dayOvertimeRate">Hora Extra Diurna</Label>
+                    <Input type="number" id="dayOvertimeRate" placeholder="0.00" value={settings.dayOvertimeRate || ''} onChange={(e) => handleRateChange('dayOvertimeRate', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="nightOvertimeRate">Hora Extra Nocturna</Label>
+                    <Input type="number" id="nightOvertimeRate" placeholder="0.00" value={settings.nightOvertimeRate || ''} onChange={(e) => handleRateChange('nightOvertimeRate', e.target.value)} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="holidayDayRate">Hora Festiva Diurna</Label>
+                    <Input type="number" id="holidayDayRate" placeholder="0.00" value={settings.holidayDayRate || ''} onChange={(e) => handleRateChange('holidayDayRate', e.target.value)} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="holidayNightRate">Hora Festiva Nocturna</Label>
+                    <Input type="number" id="holidayNightRate" placeholder="0.00" value={settings.holidayNightRate || ''} onChange={(e) => handleRateChange('holidayNightRate', e.target.value)} />
+                </div>
+            </CardContent>
+        </Card>
+
         <Separator />
 
         <div className="flex justify-end">
@@ -212,5 +264,3 @@ export default function CompanySettingsPage() {
     </div>
   );
 }
-
-    

@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -53,14 +54,6 @@ service cloud.firestore {
           // For simplicity, updates/deletes are admin-only.
           // A more complex rule could allow owners to update/delete their own shifts.
           allow update, delete: if isAdmin();
-      }
-
-      // Operator-specific deductions
-      match /operatorDeductions/{userId} {
-        // A user can read and write their own deduction settings.
-        allow read, write: if isCompanyMember(companyId) && isOwner(userId);
-        // Admins can read deductions for payroll purposes.
-        allow read: if isAdmin();
       }
 
        // Payrolls can be read by the user they belong to, or by an admin.

@@ -21,7 +21,14 @@ export type User = {
 
   export type CompanySettings = {
     id: string; // Corresponds to companyId
+    paymentModel: 'hourly' | 'production';
     payrollCycle: 'monthly' | 'bi-weekly';
+    dayRate?: number;
+    nightRate?: number;
+    dayOvertimeRate?: number;
+    nightOvertimeRate?: number;
+    holidayDayRate?: number;
+    holidayNightRate?: number;
   };
     
   export type Shift = {

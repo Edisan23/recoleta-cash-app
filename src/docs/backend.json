@@ -88,22 +88,12 @@
             "enum": ["monthly", "bi-weekly"],
             "description": "The payroll payment frequency."
         },
-        "nightShiftStart": {
-          "type": "string",
-          "description": "The time when the night shift begins (e.g., '21:00')."
-        },
-        "normalWorkHours": {
-          "type": "number",
-          "description": "The number of hours after which overtime starts."
-        },
         "dayRate": { "type": "number" },
         "nightRate": { "type": "number" },
         "dayOvertimeRate": { "type": "number" },
         "nightOvertimeRate": { "type": "number" },
         "holidayDayRate": { "type": "number" },
-        "holidayNightRate": { "type": "number" },
-        "holidayDayOvertimeRate": { "type": "number" },
-        "holidayNightOvertimeRate": { "type": "number" }
+        "holidayNightRate": { "type": "number" }
       }
     },
     "CompanyItem": {
