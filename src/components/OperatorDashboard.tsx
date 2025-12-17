@@ -269,7 +269,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         try {
             const canvas = await html2canvas(voucherRef.current, {
                 scale: 2, // Higher scale for better quality
-                backgroundColor: null, // Use element's background
+                backgroundColor: '#ffffff', // Force white background
             });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({
@@ -306,7 +306,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       
        {/* Hidden element for PDF generation */}
        <div className="absolute left-[-9999px] top-[-9999px]">
-            <div ref={voucherRef} className="bg-white dark:bg-gray-950 text-black dark:text-white p-8">
+            <div ref={voucherRef} className="bg-white text-black p-8">
                 {company && user && date && periodSummary && settings && (
                     <PayrollVoucher 
                         operatorName={user.displayName || 'Operador'}
