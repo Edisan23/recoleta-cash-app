@@ -16,15 +16,10 @@ import { DeleteShiftDialog } from '@/components/operator/DeleteShiftDialog';
 import { calculateShiftSummary, calculatePeriodSummary } from '@/lib/payroll-calculator';
 import { PayrollBreakdown } from './operator/PayrollBreakdown';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useAuth, useUser } from '@/firebase';
+
 
 // --- FAKE DATA & KEYS ---
-const FAKE_OPERATOR_USER = {
-  uid: 'fake-operator-uid-12345',
-  isAnonymous: false,
-  displayName: 'Juan Operador',
-  photoURL: '',
-};
-
 const COMPANIES_DB_KEY = 'fake_companies_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 const SHIFTS_DB_KEY = 'fake_shifts_db';
@@ -51,10 +46,10 @@ function formatCurrency(value: number) {
 // --- COMPONENT ---
 export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
+  const auth = useAuth();
+  const { user } = useUser();
   const { toast } = useToast();
   
-  const user = FAKE_OPERATOR_USER;
-
   // Global state
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -251,13 +246,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   };
   
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
     try {
+        if(auth) await auth.signOut();
         localStorage.removeItem(OPERATOR_COMPANY_KEY);
     } catch (e) {
-        console.error("Failed to clear localStorage", e);
+        console.error("Failed to sign out or clear localStorage", e);
     }
-    router.push('/'); 
+    router.push('/login'); 
   };
   
   if (isLoading || !company || !user) {
@@ -281,8 +277,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </AvatarFallback>
               </Avatar>
               <div className="text-left sm:hidden">
-                  <p className="font-semibold">{user?.isAnonymous ? 'Operador' : user?.displayName || ''}</p>
-                  <p className="text-sm text-muted-foreground">Usuario</p>
+                  <p className="font-semibold">{user?.isAnonymous ? 'Operador' : user?.displayName || 'Usuario'}</p>
+                  <p className="text-sm text-muted-foreground">Operador</p>
               </div>
             </div>
 

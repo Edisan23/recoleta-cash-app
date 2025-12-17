@@ -22,7 +22,7 @@ export function LandingPage() {
           </CardHeader>
           <CardContent className="flex-grow flex items-center justify-center">
             <Button asChild size="lg" className="w-full sm:w-3/4">
-              <Link href="/select-company">
+              <Link href="/login">
                 <LogIn className="mr-2" /> Ingresar como Operador
               </Link>
             </Button>

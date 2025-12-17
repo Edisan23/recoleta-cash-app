@@ -15,17 +15,25 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Loader2 } from 'lucide-react';
+import { useUser } from '@/firebase';
 
 const COMPANIES_DB_KEY = 'fake_companies_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
 export default function SelectCompanyPage() {
   const router = useRouter();
+  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if(!isUserLoading && !user) {
+      router.replace('/login');
+    }
+  }, [user, isUserLoading, router]);
 
   useEffect(() => {
     try {
@@ -65,14 +73,22 @@ export default function SelectCompanyPage() {
         setIsSubmitting(false);
     }
   };
+
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
   
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
       <Card className="w-full max-w-4xl">
         <CardHeader>
-          <Button variant="ghost" onClick={() => router.push('/')} className="mb-4 justify-start p-0 h-auto self-start">
+          <Button variant="ghost" onClick={() => router.push('/login')} className="mb-4 justify-start p-0 h-auto self-start">
             <ArrowLeft className="mr-2" />
-            Volver al inicio
+            Volver
           </Button>
           <CardTitle className="text-2xl">Selecciona tu Empresa</CardTitle>
           <CardDescription>
