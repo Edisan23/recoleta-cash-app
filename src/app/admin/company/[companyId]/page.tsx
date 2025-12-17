@@ -204,4 +204,5 @@ export default function CompanySettingsPage() {
       </main>
     </div>
   );
-}
+
+    
