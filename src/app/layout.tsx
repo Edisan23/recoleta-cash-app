@@ -7,7 +7,7 @@ import { FirebaseClientProvider } from '@/firebase';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'TT App',
+  title: 'Turno Pro',
   description: 'Shift and Payroll Management',
 };
 

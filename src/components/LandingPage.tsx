@@ -8,7 +8,7 @@ export function LandingPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-8">
       <div className="flex flex-col items-center text-center mb-12">
         <Hexagon className="h-16 w-16 text-primary mx-auto mb-6" strokeWidth={1.5}/>
-        <h1 className="text-5xl font-bold mb-4">TT App</h1>
+        <h1 className="text-5xl font-bold mb-4">Turno Pro</h1>
         <p className="text-xl text-muted-foreground max-w-md mx-auto">
           Plataforma de Gestión de Turnos y Nómina.
         </p>
