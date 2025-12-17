@@ -23,6 +23,7 @@ export type User = {
     id: string; // Corresponds to companyId
     paymentModel: 'hourly' | 'production';
     payrollCycle: 'monthly' | 'bi-weekly';
+    nightShiftStartHour?: number; // The hour (0-23) when the night shift begins.
     dayRate?: number;
     nightRate?: number;
     dayOvertimeRate?: number;

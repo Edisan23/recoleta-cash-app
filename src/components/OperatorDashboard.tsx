@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -81,13 +82,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         s.companyId === companyId &&
         new Date(s.date).toDateString() === date.toDateString()
     );
-  }, [date, allShifts, companyId, user.uid]);
+  }, [date, allShifts, companyId, user?.uid]);
   
   const shiftDays = useMemo(() => {
+    if (!user) return [];
     return allShifts
         .filter(s => s.userId === user.uid && s.companyId === companyId)
         .map(s => new Date(s.date));
-  }, [allShifts, user.uid, companyId]);
+  }, [allShifts, user?.uid, companyId]);
 
 
   // Effect 1: Load all initial data from localStorage ONCE
@@ -116,10 +118,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
       if(storedSettings) {
         let allSettingsData = JSON.parse(storedSettings);
+        // This is the robust check to handle both object and array formats
         if (!Array.isArray(allSettingsData)) {
             allSettingsData = [allSettingsData];
         }
-        const foundSettings = allSettingsData.find(s => s.id === companyId);
+        const foundSettings = allSettingsData.find((s: CompanySettings) => s.id === companyId);
         setSettings(foundSettings || null);
       }
       
@@ -162,12 +165,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // Effect 4: Calculate accumulated hours for the current period (month/fortnight)
   useEffect(() => {
-    if (!date || !settings) return;
+    if (!date || !settings || !user) return;
 
     const summary = calculatePeriodSummary(allShifts, settings, holidays, user.uid, companyId, date);
     setPeriodSummary(summary);
 
-  }, [allShifts, user.uid, companyId, settings, date, holidays]);
+  }, [allShifts, user, companyId, settings, date, holidays]);
 
   const handleSave = async () => {
     if (!date || !user || (!startTime && !endTime)) {
@@ -244,7 +247,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     router.push('/'); 
   };
   
-  if (isLoading || !company) {
+  if (isLoading || !company || !user) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin" />

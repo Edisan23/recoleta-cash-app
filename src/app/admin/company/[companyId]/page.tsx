@@ -25,6 +25,7 @@ const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
 const initialSettings: Omit<CompanySettings, 'id'> = {
     payrollCycle: 'monthly',
     paymentModel: 'hourly',
+    nightShiftStartHour: 21,
     dayRate: 0,
     nightRate: 0,
     dayOvertimeRate: 0,
@@ -192,32 +193,52 @@ export default function CompanySettingsPage() {
                 <CardTitle>Configuración de Nómina</CardTitle>
                 <CardDescription>Define cómo se calcularán y pagarán los períodos de trabajo.</CardDescription>
             </CardHeader>
-            <CardContent>
-                <Label className='text-base'>Frecuencia de Pago</Label>
-                <RadioGroup 
-                    value={settings.payrollCycle} 
-                    onValueChange={(value) => setSettings({...settings, payrollCycle: value as 'monthly' | 'bi-weekly' })}
-                    className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4"
-                >
-                    <Label className="flex flex-col items-start gap-4 rounded-lg border p-4 cursor-pointer hover:bg-accent transition-colors">
-                        <div className='flex items-center gap-4'>
-                            <RadioGroupItem value="monthly" id="monthly" />
-                            <div className='text-left'>
-                                <p className="font-semibold">Mensual</p>
-                                <p className="text-sm text-muted-foreground">El período de pago cubre el mes calendario completo (día 1 al 30/31).</p>
+            <CardContent className="space-y-6">
+                <div>
+                    <Label className='text-base'>Frecuencia de Pago</Label>
+                    <RadioGroup 
+                        value={settings.payrollCycle} 
+                        onValueChange={(value) => setSettings({...settings, payrollCycle: value as 'monthly' | 'bi-weekly' })}
+                        className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4"
+                    >
+                        <Label className="flex flex-col items-start gap-4 rounded-lg border p-4 cursor-pointer hover:bg-accent transition-colors">
+                            <div className='flex items-center gap-4'>
+                                <RadioGroupItem value="monthly" id="monthly" />
+                                <div className='text-left'>
+                                    <p className="font-semibold">Mensual</p>
+                                    <p className="text-sm text-muted-foreground">El período de pago cubre el mes calendario completo (día 1 al 30/31).</p>
+                                </div>
                             </div>
-                        </div>
-                    </Label>
-                     <Label className="flex flex-col items-start gap-4 rounded-lg border p-4 cursor-pointer hover:bg-accent transition-colors">
-                        <div className='flex items-center gap-4'>
-                            <RadioGroupItem value="bi-weekly" id="bi-weekly" />
-                            <div className='text-left'>
-                                <p className="font-semibold">Quincenal</p>
-                                <p className="text-sm text-muted-foreground">Dos períodos por mes: del 1 al 15 y del 16 al fin de mes.</p>
+                        </Label>
+                         <Label className="flex flex-col items-start gap-4 rounded-lg border p-4 cursor-pointer hover:bg-accent transition-colors">
+                            <div className='flex items-center gap-4'>
+                                <RadioGroupItem value="bi-weekly" id="bi-weekly" />
+                                <div className='text-left'>
+                                    <p className="font-semibold">Quincenal</p>
+                                    <p className="text-sm text-muted-foreground">Dos períodos por mes: del 1 al 15 y del 16 al fin de mes.</p>
+                                </div>
                             </div>
-                        </div>
-                    </Label>
-                </RadioGroup>
+                        </Label>
+                    </RadioGroup>
+                </div>
+                 <div>
+                    <Label htmlFor="nightShiftStartHour" className='text-base'>Inicio del Turno Nocturno (Hora)</Label>
+                    <p className="text-sm text-muted-foreground">Define a partir de qué hora (0-23) se considera turno nocturno.</p>
+                    <Input 
+                        id="nightShiftStartHour"
+                        type="number"
+                        min="0"
+                        max="23"
+                        value={settings.nightShiftStartHour ?? 21}
+                        onChange={(e) => {
+                            const hour = parseInt(e.target.value);
+                            if (hour >= 0 && hour <= 23) {
+                                setSettings({...settings, nightShiftStartHour: hour});
+                            }
+                        }}
+                        className="mt-2 max-w-[120px]"
+                    />
+                </div>
             </CardContent>
         </Card>
         
@@ -274,5 +295,3 @@ export default function CompanySettingsPage() {
     </div>
   );
 }
-
-    

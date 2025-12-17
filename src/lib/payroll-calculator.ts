@@ -2,11 +2,10 @@ import type { Shift, CompanySettings, PayrollSummary } from '@/types/db-entities
 import { isHoliday } from './date-helpers';
 import { startOfDay, endOfDay, isWithinInterval, addDays, getMonth, getYear, getDate } from 'date-fns';
 
-const NIGHT_SHIFT_START_HOUR = 21; // 9 PM
 const NIGHT_SHIFT_END_HOUR = 6;   // 6 AM
 const DAILY_HOUR_LIMIT = 8;
 
-function getNightIntervals(date: Date) {
+function getNightIntervals(date: Date, nightShiftStartHour: number) {
   const dayStart = startOfDay(date);
   const dayEnd = endOfDay(date);
   
@@ -15,9 +14,9 @@ function getNightIntervals(date: Date) {
   const nightInterval1End = new Date(dayStart);
   nightInterval1End.setHours(NIGHT_SHIFT_END_HOUR);
 
-  // Night period from 21:00 to 23:59:59 of the current day
+  // Night period from start hour to 23:59:59 of the current day
   const nightInterval2Start = new Date(dayStart);
-  nightInterval2Start.setHours(NIGHT_SHIFT_START_HOUR);
+  nightInterval2Start.setHours(nightShiftStartHour);
   const nightInterval2End = new Date(dayEnd);
 
   return [
@@ -26,8 +25,8 @@ function getNightIntervals(date: Date) {
   ];
 }
 
-function isNightHour(dateTime: Date) {
-    const intervals = getNightIntervals(dateTime);
+function isNightHour(dateTime: Date, nightShiftStartHour: number) {
+    const intervals = getNightIntervals(dateTime, nightShiftStartHour);
     return isWithinInterval(dateTime, intervals[0]) || isWithinInterval(dateTime, intervals[1]);
 }
 
@@ -61,13 +60,15 @@ export function calculateShiftSummary(shift: Shift, settings: CompanySettings, h
 
   const totalShiftMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
   summary.totalHours = totalShiftMinutes / 60;
+  
+  const nightShiftStartHour = settings.nightShiftStartHour ?? 21;
 
   for (let i = 0; i < totalShiftMinutes; i++) {
     const currentMinuteTime = new Date(start.getTime() + i * 60 * 1000);
     const hourFraction = 1 / 60;
     
     const isCurrentMinuteHoliday = isHoliday(currentMinuteTime, holidays);
-    const isNight = isNightHour(currentMinuteTime);
+    const isNight = isNightHour(currentMinuteTime, nightShiftStartHour);
     const hoursSoFar = i / 60;
     const isOvertime = hoursSoFar >= DAILY_HOUR_LIMIT;
     

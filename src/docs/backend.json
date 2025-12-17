@@ -88,6 +88,10 @@
             "enum": ["monthly", "bi-weekly"],
             "description": "The payroll payment frequency."
         },
+        "nightShiftStartHour": {
+            "type": "number",
+            "description": "The hour (0-23) when the night shift begins."
+        },
         "dayRate": { "type": "number" },
         "nightRate": { "type": "number" },
         "dayOvertimeRate": { "type": "number" },
@@ -196,5 +200,3 @@
     ]
   }
 }
-
-    
