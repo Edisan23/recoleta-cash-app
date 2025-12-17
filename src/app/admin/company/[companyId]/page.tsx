@@ -31,6 +31,8 @@ const initialSettings: Omit<CompanySettings, 'id'> = {
     nightOvertimeRate: 0,
     holidayDayRate: 0,
     holidayNightRate: 0,
+    holidayDayOvertimeRate: 0,
+    holidayNightOvertimeRate: 0,
 };
 
 export default function CompanySettingsPage() {
@@ -224,7 +226,7 @@ export default function CompanySettingsPage() {
                 <CardTitle>Tarifas de Pago por Hora</CardTitle>
                 <CardDescription>Define los valores para cada tipo de hora trabajada.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="space-y-2">
                     <Label htmlFor="dayRate">Hora Diurna</Label>
                     <Input type="number" id="dayRate" placeholder="0.00" value={settings.dayRate || ''} onChange={(e) => handleRateChange('dayRate', e.target.value)} />
@@ -249,6 +251,14 @@ export default function CompanySettingsPage() {
                     <Label htmlFor="holidayNightRate">Hora Festiva Nocturna</Label>
                     <Input type="number" id="holidayNightRate" placeholder="0.00" value={settings.holidayNightRate || ''} onChange={(e) => handleRateChange('holidayNightRate', e.target.value)} />
                 </div>
+                <div className="space-y-2">
+                    <Label htmlFor="holidayDayOvertimeRate">Hora Extra Festiva Diurna</Label>
+                    <Input type="number" id="holidayDayOvertimeRate" placeholder="0.00" value={settings.holidayDayOvertimeRate || ''} onChange={(e) => handleRateChange('holidayDayOvertimeRate', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="holidayNightOvertimeRate">Hora Extra Festiva Nocturna</Label>
+                    <Input type="number" id="holidayNightOvertimeRate" placeholder="0.00" value={settings.holidayNightOvertimeRate || ''} onChange={(e) => handleRateChange('holidayNightOvertimeRate', e.target.value)} />
+                </div>
             </CardContent>
         </Card>
 
@@ -264,3 +274,5 @@ export default function CompanySettingsPage() {
     </div>
   );
 }
+
+    

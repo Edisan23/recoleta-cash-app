@@ -93,7 +93,9 @@
         "dayOvertimeRate": { "type": "number" },
         "nightOvertimeRate": { "type": "number" },
         "holidayDayRate": { "type": "number" },
-        "holidayNightRate": { "type": "number" }
+        "holidayNightRate": { "type": "number" },
+        "holidayDayOvertimeRate": { "type": "number" },
+        "holidayNightOvertimeRate": { "type": "number" }
       }
     },
     "CompanyItem": {
@@ -194,3 +196,5 @@
     ]
   }
 }
+
+    

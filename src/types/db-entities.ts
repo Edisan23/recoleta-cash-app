@@ -29,6 +29,8 @@ export type User = {
     nightOvertimeRate?: number;
     holidayDayRate?: number;
     holidayNightRate?: number;
+    holidayDayOvertimeRate?: number;
+    holidayNightOvertimeRate?: number;
   };
     
   export type Shift = {
@@ -59,4 +61,6 @@ export type User = {
     totalHours: number;
     totalBasePayment: number;
   }
+    
+
     
