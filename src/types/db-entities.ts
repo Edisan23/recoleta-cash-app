@@ -55,11 +55,28 @@ export type User = {
     periodEnd: string;
   };
   
-  export interface PayrollSummary {
+  export interface PayrollBreakdown {
+    dayHours: number;
+    nightHours: number;
+    dayOvertimeHours: number;
+    nightOvertimeHours: number;
+    holidayDayHours: number;
+    holidayNightHours: number;
+    holidayDayOvertimeHours: number;
+    holidayNightOvertimeHours: number;
+    dayPay: number;
+    nightPay: number;
+    dayOvertimePay: number;
+    nightOvertimePay: number;
+    holidayDayPay: number;
+    holidayNightPay: number;
+    holidayDayOvertimePay: number;
+    holidayNightOvertimePay: number;
+  }
+  
+  export interface PayrollSummary extends PayrollBreakdown {
     grossPay: number;
-    netPay: number;
     totalHours: number;
-    totalBasePayment: number;
   }
     
 

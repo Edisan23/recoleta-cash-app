@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Loader2, Trash2 } from 'lucide-react';
-import type { Company, Shift, CompanySettings } from '@/types/db-entities';
+import type { Company, Shift, CompanySettings, PayrollSummary } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -13,6 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { DatePicker } from '@/components/DatePicker';
 import { TimeInput } from '@/components/TimeInput';
 import { DeleteShiftDialog } from '@/components/operator/DeleteShiftDialog';
+import { calculateShiftSummary, calculatePeriodSummary } from '@/lib/payroll-calculator';
+import { PayrollBreakdown } from './operator/PayrollBreakdown';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 // --- FAKE DATA & KEYS ---
 const FAKE_OPERATOR_USER = {
@@ -26,6 +28,8 @@ const COMPANIES_DB_KEY = 'fake_companies_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 const SHIFTS_DB_KEY = 'fake_shifts_db';
 const SETTINGS_DB_KEY = 'fake_company_settings_db';
+const HOLIDAYS_DB_KEY = 'fake_holidays_db';
+
 
 // --- HELPER FUNCTIONS ---
 function getInitials(name: string) {
@@ -34,6 +38,10 @@ function getInitials(name: string) {
         return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
     }
     return name.substring(0, 2).toUpperCase();
+}
+
+function formatCurrency(value: number) {
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
 
 
@@ -52,13 +60,18 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [allShifts, setAllShifts] = useState<Shift[]>([]);
+  const [holidays, setHolidays] = useState<Date[]>([]);
+
 
   // Shift state for the selected day
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
-  const [workedHoursSummary, setWorkedHoursSummary] = useState<string | null>(null);
-  const [accumulatedHoursSummary, setAccumulatedHoursSummary] = useState<string | null>(null);
+  
+  // Calculated Summaries
+  const [dailySummary, setDailySummary] = useState<PayrollSummary | null>(null);
+  const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
+
 
   // --- DERIVED STATE ---
   const shiftForSelectedDate = useMemo(() => {
@@ -103,16 +116,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
       if(storedSettings) {
         let allSettingsData = JSON.parse(storedSettings);
-        // Ensure allSettingsData is an array
         if (!Array.isArray(allSettingsData)) {
             allSettingsData = [allSettingsData];
         }
         const foundSettings = allSettingsData.find(s => s.id === companyId);
-        setSettings(foundSettings || { id: companyId, payrollCycle: 'monthly' });
-      } else {
-        setSettings({ id: companyId, payrollCycle: 'monthly' });
+        setSettings(foundSettings || null);
       }
-
+      
+      // Load Holidays
+      const storedHolidays = localStorage.getItem(HOLIDAYS_DB_KEY);
+      if (storedHolidays) {
+        const holidayStrings: string[] = JSON.parse(storedHolidays);
+        setHolidays(holidayStrings.map(dateString => new Date(dateString)));
+      }
 
     } catch(e) {
       console.error("Failed to load initial data from localStorage", e);
@@ -133,89 +149,25 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [shiftForSelectedDate, date]);
 
-  // Effect 3: Calculate worked hours summary for the selected day
+  // Effect 3: Calculate daily summary for the selected day
   useEffect(() => {
-    if (startTime && endTime && /^\d{2}:\d{2}$/.test(startTime) && /^\d{2}:\d{2}$/.test(endTime)) {
-        const [startHours, startMinutes] = startTime.split(':').map(Number);
-        const [endHours, endMinutes] = endTime.split(':').map(Number);
-
-        let start = new Date();
-        start.setHours(startHours, startMinutes, 0, 0);
-
-        let end = new Date();
-        end.setHours(endHours, endMinutes, 0, 0);
-
-        if (end < start) {
-            end.setDate(end.getDate() + 1);
-        }
-
-        const diffMs = end.getTime() - start.getTime();
-        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-
-        setWorkedHoursSummary(`${diffHours}h ${diffMins}m`);
+    if (shiftForSelectedDate && settings) {
+        const summary = calculateShiftSummary(shiftForSelectedDate, settings, holidays);
+        setDailySummary(summary);
     } else {
-        setWorkedHoursSummary(null);
+        setDailySummary(null);
     }
-  }, [startTime, endTime]);
+  }, [shiftForSelectedDate, settings, holidays]);
+
 
   // Effect 4: Calculate accumulated hours for the current period (month/fortnight)
   useEffect(() => {
-    if (!date) return;
-    
-    const selectedDate = date;
-    const year = selectedDate.getFullYear();
-    const month = selectedDate.getMonth();
-    const day = selectedDate.getDate();
+    if (!date || !settings) return;
 
-    let periodShifts: Shift[] = [];
+    const summary = calculatePeriodSummary(allShifts, settings, holidays, user.uid, companyId, date);
+    setPeriodSummary(summary);
 
-    if (settings?.payrollCycle === 'bi-weekly') {
-        const isFirstFortnight = day <= 15;
-        periodShifts = allShifts.filter(shift => {
-            const shiftDate = new Date(shift.date);
-            const shiftDay = shiftDate.getDate();
-            return shift.userId === user.uid &&
-                   shift.companyId === companyId &&
-                   shiftDate.getFullYear() === year &&
-                   shiftDate.getMonth() === month &&
-                   (isFirstFortnight ? shiftDay <= 15 : shiftDay > 15);
-        });
-    } else { // monthly
-        periodShifts = allShifts.filter(shift => {
-            const shiftDate = new Date(shift.date);
-            return shift.userId === user.uid &&
-                   shift.companyId === companyId &&
-                   shiftDate.getFullYear() === year &&
-                   shiftDate.getMonth() === month;
-        });
-    }
-
-    let totalMs = 0;
-    periodShifts.forEach(shift => {
-        if (shift.startTime && shift.endTime) {
-             const [startHours, startMinutes] = shift.startTime.split(':').map(Number);
-             const [endHours, endMinutes] = shift.endTime.split(':').map(Number);
-
-             let start = new Date(shift.date);
-             start.setHours(startHours, startMinutes, 0, 0);
-
-             let end = new Date(shift.date);
-             end.setHours(endHours, endMinutes, 0, 0);
-
-             if (end < start) {
-                 end.setDate(end.getDate() + 1);
-             }
-             totalMs += end.getTime() - start.getTime();
-        }
-    });
-
-    const totalHours = Math.floor(totalMs / (1000 * 60 * 60));
-    const totalMins = Math.floor((totalMs % (1000 * 60 * 60)) / (1000 * 60));
-    
-    setAccumulatedHoursSummary(`${totalHours}h ${totalMins}m`);
-
-  }, [allShifts, user.uid, companyId, settings, date]);
+  }, [allShifts, user.uid, companyId, settings, date, holidays]);
 
   const handleSave = async () => {
     if (!date || !user || (!startTime && !endTime)) {
@@ -401,10 +353,26 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         <div>
                             <p className="text-sm text-muted-foreground">Total de Horas</p>
                             <p className="text-2xl font-bold">
-                                {workedHoursSummary || '--:--'}
+                                {dailySummary ? `${dailySummary.totalHours.toFixed(2)}h` : '--:--'}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Pago del Turno</p>
+                            <p className="text-2xl font-bold text-green-600">
+                                {dailySummary ? formatCurrency(dailySummary.grossPay) : '$0'}
                             </p>
                         </div>
                     </div>
+                    {dailySummary && dailySummary.grossPay > 0 && (
+                        <Accordion type="single" collapsible className="w-full mt-4">
+                            <AccordionItem value="item-1">
+                                <AccordionTrigger>Ver desglose del turno</AccordionTrigger>
+                                <AccordionContent>
+                                    <PayrollBreakdown summary={dailySummary} />
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    )}
                 </CardContent>
             </Card>
 
@@ -414,18 +382,34 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         {settings?.payrollCycle === 'bi-weekly' ? 'Acumulado Quincenal' : 'Acumulado Mensual'}
                     </CardTitle>
                     <CardDescription>
-                        Total de horas trabajadas en el período consultado.
+                        Total de horas trabajadas y pago en el período consultado.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex justify-around items-center text-center">
                         <div>
-                            <p className="text-sm text-muted-foreground">Total de Horas Acumuladas</p>
+                            <p className="text-sm text-muted-foreground">Total Horas Acumuladas</p>
                             <p className="text-2xl font-bold">
-                                {accumulatedHoursSummary || '0h 0m'}
+                                {periodSummary ? `${periodSummary.totalHours.toFixed(2)}h` : '0h'}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-sm text-muted-foreground">Pago Total Acumulado</p>
+                            <p className="text-2xl font-bold text-green-600">
+                                {periodSummary ? formatCurrency(periodSummary.grossPay) : '$0'}
                             </p>
                         </div>
                     </div>
+                     {periodSummary && periodSummary.grossPay > 0 && (
+                        <Accordion type="single" collapsible className="w-full mt-4">
+                            <AccordionItem value="item-1">
+                                <AccordionTrigger>Ver desglose del período</AccordionTrigger>
+                                <AccordionContent>
+                                    <PayrollBreakdown summary={periodSummary} />
+                                </AccordionContent>
+                            </AccordionItem>
+                        </Accordion>
+                    )}
                 </CardContent>
             </Card>
         </main>
@@ -433,5 +417,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    
