@@ -22,11 +22,17 @@ interface DatePickerProps {
 }
 
 export function DatePicker({ date, setDate, highlightedDays = [] }: DatePickerProps) {
+  const [open, setOpen] = React.useState(false);
+
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    setDate(selectedDate);
+    setOpen(false); // Close the popover on date selection
+  }
   
   const footer = date ? <p className='px-4 pt-2 text-sm'>Has seleccionado {format(date, 'PPP', { locale: es })}.</p> : <p className='px-4 pt-2 text-sm'>Por favor, selecciona un día.</p>;
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant={'outline'}
@@ -43,7 +49,7 @@ export function DatePicker({ date, setDate, highlightedDays = [] }: DatePickerPr
         <Calendar
           mode="single"
           selected={date}
-          onSelect={setDate}
+          onSelect={handleDateSelect}
           initialFocus
           locale={es}
           modifiers={{ highlighted: highlightedDays }}
