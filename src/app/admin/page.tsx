@@ -40,7 +40,7 @@ const formSchema = z.object({
     .min(6, { message: 'La contraseña debe tener al menos 6 caracteres.' }),
 });
 
-const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1'; // IMPORTANT: Replace with the actual Admin UID
+const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1'; // IMPORTANT: This is the real Admin UID
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -118,7 +118,7 @@ export default function AdminLoginPage() {
         toast({
             variant: 'destructive',
             title: 'Error de Autenticación',
-            description: 'Correo o contraseña incorrectos.',
+            description: 'Credenciales inválidas. El usuario no existe o la contraseña es incorrecta. Intenta ingresar con Google.',
         });
     }
   };
