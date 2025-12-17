@@ -1,9 +1,9 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2, Trash2 } from 'lucide-react';
+import { LogOut, Loader2, Trash2, Download } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,11 +13,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { DatePicker } from '@/components/DatePicker';
 import { TimeInput } from '@/components/TimeInput';
 import { DeleteShiftDialog } from '@/components/operator/DeleteShiftDialog';
-import { calculateShiftSummary, calculatePeriodSummary } from '@/lib/payroll-calculator';
+import { calculateShiftSummary, calculatePeriodSummary, getPeriodDateRange } from '@/lib/payroll-calculator';
 import { PayrollBreakdown } from './operator/PayrollBreakdown';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth, useUser } from '@/firebase';
 import { ThemeToggle } from './ui/theme-toggle';
+import { PayrollVoucher } from './operator/PayrollVoucher';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 
 // --- FAKE DATA & KEYS ---
@@ -50,10 +53,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const auth = useAuth();
   const { user } = useUser();
   const { toast } = useToast();
+  const voucherRef = useRef<HTMLDivElement>(null);
   
   // Global state
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   
   // Data from DB
   const [company, setCompany] = useState<Company | null>(null);
@@ -257,7 +262,38 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     router.push('/login'); 
   };
   
-  if (isLoading || !company || !user) {
+    const handleDownload = async () => {
+        if (!voucherRef.current || !user) return;
+        setIsDownloading(true);
+
+        try {
+            const canvas = await html2canvas(voucherRef.current, {
+                scale: 2, // Higher scale for better quality
+                backgroundColor: null, // Use element's background
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'px',
+                format: [canvas.width, canvas.height]
+            });
+            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+            const fileName = `comprobante-de-pago-${user.displayName?.replace(/\s/g, '-').toLowerCase() || 'operador'}.pdf`;
+            pdf.save(fileName);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'No se pudo generar el comprobante PDF.',
+            });
+        } finally {
+            setIsDownloading(false);
+        }
+    };
+
+
+  if (isLoading || !company || !user || !settings) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -267,6 +303,21 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
+      
+       {/* Hidden element for PDF generation */}
+       <div className="absolute left-[-9999px] top-[-9999px]">
+            <div ref={voucherRef} className="bg-white dark:bg-gray-950 text-black dark:text-white p-8">
+                {company && user && date && periodSummary && settings && (
+                    <PayrollVoucher 
+                        operatorName={user.displayName || 'Operador'}
+                        companyName={company.name}
+                        period={getPeriodDateRange(date, settings.payrollCycle)}
+                        summary={periodSummary}
+                    />
+                )}
+            </div>
+        </div>
+      
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
           <div className="flex justify-between items-start">
@@ -311,9 +362,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle />
+                <Button variant="outline" size="icon" onClick={handleDownload} disabled={isDownloading || !periodSummary}>
+                    {isDownloading ? <Loader2 className="animate-spin" /> : <Download />}
+                    <span className="sr-only">Descargar Comprobante</span>
+                </Button>
                 <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
-                <LogOut className="mr-2 h-5 w-5" />
-                <span className="hidden sm:inline">Salir</span>
+                    <LogOut className="mr-2 h-5 w-5" />
+                    <span className="hidden sm:inline">Salir</span>
                 </Button>
             </div>
           </div>

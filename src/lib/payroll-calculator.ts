@@ -1,6 +1,7 @@
 import type { Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import { isHoliday } from './date-helpers';
-import { startOfDay, endOfDay, isWithinInterval, addDays, getMonth, getYear, getDate } from 'date-fns';
+import { startOfDay, endOfDay, isWithinInterval, addDays, getMonth, getYear, getDate, startOfMonth, endOfMonth, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const NIGHT_SHIFT_END_HOUR = 6;   // 6 AM
 
@@ -120,6 +121,31 @@ export function calculateShiftSummary(shift: Shift, settings: CompanySettings, h
   return summary;
 }
 
+export function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' | 'bi-weekly'): { start: Date, end: Date } {
+    const year = getYear(selectedDate);
+    const month = getMonth(selectedDate);
+    const day = getDate(selectedDate);
+
+    if (payrollCycle === 'bi-weekly') {
+        if (day <= 15) {
+            return {
+                start: new Date(year, month, 1),
+                end: new Date(year, month, 15),
+            };
+        } else {
+            return {
+                start: new Date(year, month, 16),
+                end: endOfMonth(selectedDate),
+            };
+        }
+    } else { // monthly
+        return {
+            start: startOfMonth(selectedDate),
+            end: endOfMonth(selectedDate),
+        };
+    }
+}
+
 
 export function calculatePeriodSummary(
   allShifts: Shift[],
@@ -131,31 +157,14 @@ export function calculatePeriodSummary(
   companyId: string,
   selectedDate: Date
 ): PayrollSummary {
-  const year = getYear(selectedDate);
-  const month = getMonth(selectedDate);
-  const day = getDate(selectedDate);
+  const period = getPeriodDateRange(selectedDate, settings.payrollCycle);
 
-  let periodShifts: Shift[];
-
-  if (settings.payrollCycle === 'bi-weekly') {
-    const isFirstFortnight = day <= 15;
-    periodShifts = allShifts.filter(shift => {
+  const periodShifts = allShifts.filter(shift => {
         const shiftDate = new Date(shift.date);
         return shift.userId === userId &&
                shift.companyId === companyId &&
-               getYear(shiftDate) === year &&
-               getMonth(shiftDate) === month &&
-               (isFirstFortnight ? getDate(shiftDate) <= 15 : getDate(shiftDate) > 15);
+               isWithinInterval(shiftDate, period);
     });
-  } else { // monthly
-    periodShifts = allShifts.filter(shift => {
-        const shiftDate = new Date(shift.date);
-        return shift.userId === userId &&
-               shift.companyId === companyId &&
-               getYear(shiftDate) === year &&
-               getMonth(shiftDate) === month;
-    });
-  }
 
   const periodSummary: PayrollSummary = periodShifts.reduce((acc, shift) => {
     const shiftSummary = calculateShiftSummary(shift, settings, holidays);
