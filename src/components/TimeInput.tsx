@@ -39,6 +39,7 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
             <Label htmlFor={label.toLowerCase().replace(' ', '_')} className="text-sm font-semibold">{label}</Label>
             <Input
                 type="text"
+                inputMode="numeric"
                 id={label.toLowerCase().replace(' ', '_')}
                 value={value}
                 onChange={handleTimeChange}
