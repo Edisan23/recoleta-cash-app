@@ -10,7 +10,7 @@ import type { Company } from '@/types/db-entities';
 import { useAuth, useUser } from '@/firebase';
 
 
-const ADMIN_UID = 'ADMIN_UID_PLACEHOLDER';
+const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1';
 
 const INITIAL_COMPANIES: Company[] = [
     { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },
@@ -110,5 +110,3 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
-
-    

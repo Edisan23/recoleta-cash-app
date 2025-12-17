@@ -40,7 +40,7 @@ const formSchema = z.object({
     .min(6, { message: 'La contraseña debe tener al menos 6 caracteres.' }),
 });
 
-const ADMIN_UID = 'ADMIN_UID_PLACEHOLDER'; // IMPORTANT: Replace with the actual Admin UID
+const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1'; // IMPORTANT: Replace with the actual Admin UID
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -222,5 +222,3 @@ export default function AdminLoginPage() {
     </div>
   );
 }
-
-    
