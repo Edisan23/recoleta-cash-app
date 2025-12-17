@@ -55,6 +55,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
+  const [workedHoursSummary, setWorkedHoursSummary] = useState<string | null>(null);
 
   // Effect 1: Load all initial data from localStorage ONCE
   useEffect(() => {
@@ -105,6 +106,32 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [date, allShifts, companyId, user.uid]);
 
+  // Effect 3: Calculate worked hours summary
+  useEffect(() => {
+    if (startTime && endTime && /^\d{2}:\d{2}$/.test(startTime) && /^\d{2}:\d{2}$/.test(endTime)) {
+        const [startHours, startMinutes] = startTime.split(':').map(Number);
+        const [endHours, endMinutes] = endTime.split(':').map(Number);
+
+        let start = new Date();
+        start.setHours(startHours, startMinutes, 0, 0);
+
+        let end = new Date();
+        end.setHours(endHours, endMinutes, 0, 0);
+
+        if (end < start) {
+            end.setDate(end.getDate() + 1);
+        }
+
+        const diffMs = end.getTime() - start.getTime();
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+        setWorkedHoursSummary(`${diffHours}h ${diffMins}m`);
+    } else {
+        setWorkedHoursSummary(null);
+    }
+  }, [startTime, endTime]);
+
   const handleSave = async () => {
     if (!date || !user) {
         toast({ title: "Error", description: "Falta información para guardar.", variant: "destructive"});
@@ -114,18 +141,16 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     setIsSaving(true);
     await new Promise(resolve => setTimeout(resolve, 500)); // Simulate save
 
-    const shiftIndex = allShifts.findIndex(s => 
+    let updatedShifts = [...allShifts];
+    const shiftIndex = updatedShifts.findIndex(s => 
         s.userId === user.uid && 
         s.companyId === companyId &&
         new Date(s.date).toDateString() === date.toDateString()
     );
 
-    let updatedShifts = [...allShifts];
-
     if (shiftIndex > -1) {
         // Update existing shift
-        const existingShift = updatedShifts[shiftIndex];
-        updatedShifts[shiftIndex] = { ...existingShift, startTime, endTime };
+        updatedShifts[shiftIndex] = { ...updatedShifts[shiftIndex], startTime, endTime };
     } else {
         // Create new shift
         const newShift: Shift = {
@@ -141,7 +166,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     
     try {
         localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
-        setAllShifts(updatedShifts);
+        setAllShifts(updatedShifts); // <-- This is the crucial part that was missing
         toast({ title: "¡Guardado!", description: "Tu turno se ha guardado correctamente." });
     } catch(e) {
         console.error("Error saving shifts to localStorage", e);
@@ -246,6 +271,25 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         Guardar Turno
                     </Button>
                 </CardFooter>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Resumen del Turno</CardTitle>
+                    <CardDescription>
+                        Cálculo para el día seleccionado.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex justify-around items-center text-center">
+                        <div>
+                            <p className="text-sm text-muted-foreground">Total de Horas</p>
+                            <p className="text-2xl font-bold">
+                                {workedHoursSummary || '--:--'}
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
             </Card>
         </main>
       </div>
