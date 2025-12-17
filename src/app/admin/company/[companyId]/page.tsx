@@ -12,12 +12,13 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import type { Company, CompanySettings, Benefit, Deduction } from '@/types/db-entities';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
 const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
@@ -96,7 +97,7 @@ export default function CompanySettingsPage() {
         if (companyBenefits.length > 0) {
             setBenefits(companyBenefits);
         } else {
-             setBenefits(initialBenefits.map((b, i) => ({ ...b, id: `benefit_${i}`, companyId })));
+             setBenefits(initialBenefits.map((b, i) => ({ ...b, id: `benefit_${Date.now()}_${i}`, companyId })));
         }
 
         // Load Deductions
@@ -106,7 +107,7 @@ export default function CompanySettingsPage() {
         if (companyDeductions.length > 0) {
             setDeductions(companyDeductions);
         } else {
-            setDeductions(initialDeductions.map((d, i) => ({ ...d, id: `deduction_${i}`, companyId })));
+            setDeductions(initialDeductions.map((d, i) => ({ ...d, id: `deduction_${Date.now()}_${i}`, companyId })));
         }
 
     } catch (error) {
@@ -154,7 +155,6 @@ export default function CompanySettingsPage() {
         // Save Benefits
         const storedBenefits = localStorage.getItem(LOCAL_STORAGE_KEY_BENEFITS);
         let allBenefits: Benefit[] = storedBenefits ? JSON.parse(storedBenefits) : [];
-        // Remove old benefits for this company and add the new ones
         const otherCompanyBenefits = allBenefits.filter(b => b.companyId !== companyId);
         localStorage.setItem(LOCAL_STORAGE_KEY_BENEFITS, JSON.stringify([...otherCompanyBenefits, ...benefits]));
 
@@ -191,12 +191,28 @@ export default function CompanySettingsPage() {
     }
   };
 
-  const handleBenefitChange = (index: number, value: string) => {
-    const numericValue = parseFloat(value) || 0;
-    const updatedBenefits = [...benefits];
-    updatedBenefits[index].value = numericValue;
-    setBenefits(updatedBenefits);
-  };
+    const handleBenefitChange = (index: number, field: keyof Benefit, value: string | number) => {
+        const updatedBenefits = [...benefits];
+        (updatedBenefits[index] as any)[field] = value;
+        setBenefits(updatedBenefits);
+    };
+
+    const addBenefit = () => {
+        const newBenefit: Benefit = {
+            id: `benefit_${Date.now()}`,
+            companyId,
+            name: '',
+            type: 'fixed',
+            value: 0,
+            appliesTo: 'all'
+        };
+        setBenefits([...benefits, newBenefit]);
+    };
+
+    const removeBenefit = (index: number) => {
+        const updatedBenefits = benefits.filter((_, i) => i !== index);
+        setBenefits(updatedBenefits);
+    };
   
   const handleDeductionChange = (index: number, value: string) => {
     const numericValue = parseFloat(value) || 0;
@@ -374,24 +390,60 @@ export default function CompanySettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
                 <div className="space-y-4 p-4 border rounded-lg">
-                    <h3 className="font-semibold">Beneficios (Subsidios)</h3>
+                    <div className="flex justify-between items-center">
+                        <h3 className="font-semibold">Beneficios (Subsidios)</h3>
+                        <Button variant="outline" size="sm" onClick={addBenefit}>
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Añadir Beneficio
+                        </Button>
+                    </div>
                     {benefits.map((benefit, index) => (
-                        <div key={benefit.id} className="grid grid-cols-3 items-center gap-4">
-                            <Label htmlFor={`benefit-${benefit.id}`} className="text-right">{benefit.name}</Label>
-                             <div className='col-span-2 flex items-center gap-2'>
-                                <Input 
-                                    type="number" 
-                                    id={`benefit-${benefit.id}`} 
+                        <div key={benefit.id} className="grid grid-cols-1 sm:grid-cols-12 items-center gap-2 p-2 rounded-lg bg-muted/50">
+                            <div className="col-span-12 sm:col-span-4">
+                                <Label htmlFor={`benefit-name-${benefit.id}`}>Nombre</Label>
+                                <Input
+                                    id={`benefit-name-${benefit.id}`}
+                                    value={benefit.name}
+                                    onChange={(e) => handleBenefitChange(index, 'name', e.target.value)}
+                                    placeholder="Ej: Subsidio de Transporte"
+                                />
+                            </div>
+                            <div className="col-span-6 sm:col-span-3">
+                                <Label htmlFor={`benefit-type-${benefit.id}`}>Tipo</Label>
+                                <Select
+                                    value={benefit.type}
+                                    onValueChange={(value: 'fixed' | 'percentage' | 'per-hour') => handleBenefitChange(index, 'type', value)}
+                                >
+                                    <SelectTrigger id={`benefit-type-${benefit.id}`}>
+                                        <SelectValue placeholder="Selecciona un tipo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="fixed">Fijo</SelectItem>
+                                        <SelectItem value="percentage">Porcentaje (%)</SelectItem>
+                                        <SelectItem value="per-hour">Por Hora</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="col-span-6 sm:col-span-3">
+                                <Label htmlFor={`benefit-value-${benefit.id}`}>Valor</Label>
+                                <Input
+                                    id={`benefit-value-${benefit.id}`}
+                                    type="number"
                                     value={benefit.value}
-                                    onChange={(e) => handleBenefitChange(index, e.target.value)}
+                                    onChange={(e) => handleBenefitChange(index, 'value', parseFloat(e.target.value) || 0)}
                                     placeholder="0.00"
                                 />
-                                {benefit.type === 'fixed' && <span className='text-muted-foreground'>COP</span>}
-                                {benefit.type === 'percentage' && <span className='text-muted-foreground'>%</span>}
+                            </div>
+                            <div className="col-span-12 sm:col-span-2 flex items-end justify-end">
+                                <Button variant="ghost" size="icon" onClick={() => removeBenefit(index)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
                             </div>
                         </div>
                     ))}
+                     {benefits.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No hay beneficios definidos.</p>}
                 </div>
+
                  <div className="space-y-4 p-4 border rounded-lg">
                     <h3 className="font-semibold">Deducciones de Ley</h3>
                      {deductions.map((deduction, index) => (

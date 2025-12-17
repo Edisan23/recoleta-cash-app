@@ -114,7 +114,7 @@
             "id": { "type": "string" },
             "companyId": { "type": "string" },
             "name": { "type": "string" },
-            "type": { "type": "string", "enum": ["fixed", "percentage"] },
+            "type": { "type": "string", "enum": ["fixed", "percentage", "per-hour"] },
             "value": { "type": "number" },
             "appliesTo": { "type": "string", "enum": ["all", "min-wage"], "description": "Condition for applying the benefit."}
         },

@@ -39,7 +39,7 @@ export type User = {
     id: string;
     companyId: string;
     name: string;
-    type: 'fixed' | 'percentage';
+    type: 'fixed' | 'percentage' | 'per-hour';
     value: number;
     appliesTo: 'all' | 'min-wage'; // Condition for applying the benefit.
   }
