@@ -49,7 +49,11 @@ export default function CompanySettingsPage() {
         // Load Settings
         const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
         if(storedSettings) {
-            const allSettings: CompanySettings[] = JSON.parse(storedSettings);
+            let allSettings: CompanySettings[] = JSON.parse(storedSettings);
+            // Ensure allSettings is an array
+            if (!Array.isArray(allSettings)) {
+                allSettings = [allSettings];
+            }
             const foundSettings = allSettings.find(s => s.id === companyId);
             if(foundSettings) {
                 setSettings(foundSettings);
@@ -86,6 +90,9 @@ export default function CompanySettingsPage() {
         // Save Settings
         const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
         let allSettings: CompanySettings[] = storedSettings ? JSON.parse(storedSettings) : [];
+        if (!Array.isArray(allSettings)) {
+            allSettings = []; // If it's not an array, start fresh to avoid errors
+        }
         const settingsIndex = allSettings.findIndex(s => s.id === companyId);
 
         if (settingsIndex > -1) {
@@ -204,5 +211,6 @@ export default function CompanySettingsPage() {
       </main>
     </div>
   );
+}
 
     
