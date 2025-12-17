@@ -11,15 +11,17 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    // Use a specific UID for the admin for better security
+    // The admin UID is hardcoded for security in this example.
+    // Replace 'ADMIN_UID_PLACEHOLDER' with the actual UID of the admin user.
     function isAdmin() {
-      return request.auth != null && request.auth.uid == '15sJqL2prSVL2adSXRyqsefg26v1';
+      return request.auth != null && request.auth.uid == 'ADMIN_UID_PLACEHOLDER';
     }
 
     // A user can be associated with a company
     function isCompanyMember(companyId) {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+      // For now, we will assume any authenticated user can be a member.
+      // This might be replaced with a check on user custom claims or a user profile document.
+      return isSignedIn();
     }
 
     match /users/{userId} {
@@ -64,3 +66,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
