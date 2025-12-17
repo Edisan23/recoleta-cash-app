@@ -34,6 +34,23 @@ export type User = {
     holidayDayOvertimeRate?: number;
     holidayNightOvertimeRate?: number;
   };
+
+  export type Benefit = {
+    id: string;
+    companyId: string;
+    name: string;
+    type: 'fixed' | 'percentage';
+    value: number;
+    appliesTo: 'all' | 'min-wage'; // Condition for applying the benefit.
+  }
+  
+  export type Deduction = {
+    id: string;
+    companyId: string;
+    name: string;
+    type: 'fixed' | 'percentage';
+    value: number;
+  }
     
   export type Shift = {
     id: string;

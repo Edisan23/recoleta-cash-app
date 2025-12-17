@@ -15,12 +15,15 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import type { Company, CompanySettings } from '@/types/db-entities';
+import type { Company, CompanySettings, Benefit, Deduction } from '@/types/db-entities';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 
 const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
 const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
+const LOCAL_STORAGE_KEY_BENEFITS = 'fake_company_benefits_db';
+const LOCAL_STORAGE_KEY_DEDUCTIONS = 'fake_company_deductions_db';
+
 
 const initialSettings: Omit<CompanySettings, 'id'> = {
     payrollCycle: 'monthly',
@@ -37,6 +40,16 @@ const initialSettings: Omit<CompanySettings, 'id'> = {
     holidayNightOvertimeRate: 0,
 };
 
+const initialBenefits: Omit<Benefit, 'id' | 'companyId'>[] = [
+    { name: 'Subsidio de Transporte', type: 'fixed', value: 0, appliesTo: 'all' }
+];
+
+const initialDeductions: Omit<Deduction, 'id' | 'companyId'>[] = [
+    { name: 'Salud', type: 'percentage', value: 4 },
+    { name: 'Pensión', type: 'percentage', value: 4 }
+];
+
+
 export default function CompanySettingsPage() {
   const router = useRouter();
   const params = useParams();
@@ -45,6 +58,9 @@ export default function CompanySettingsPage() {
 
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<CompanySettings>({ id: companyId, ...initialSettings });
+  const [benefits, setBenefits] = useState<Benefit[]>([]);
+  const [deductions, setDeductions] = useState<Deduction[]>([]);
+
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -64,7 +80,6 @@ export default function CompanySettingsPage() {
         const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
         if(storedSettings) {
             let allSettings: CompanySettings[] = JSON.parse(storedSettings);
-            // Ensure allSettings is an array
             if (!Array.isArray(allSettings)) {
                 allSettings = [allSettings];
             }
@@ -73,6 +88,27 @@ export default function CompanySettingsPage() {
                 setSettings(foundSettings);
             }
         }
+        
+        // Load Benefits
+        const storedBenefits = localStorage.getItem(LOCAL_STORAGE_KEY_BENEFITS);
+        const allBenefits: Benefit[] = storedBenefits ? JSON.parse(storedBenefits) : [];
+        const companyBenefits = allBenefits.filter(b => b.companyId === companyId);
+        if (companyBenefits.length > 0) {
+            setBenefits(companyBenefits);
+        } else {
+             setBenefits(initialBenefits.map((b, i) => ({ ...b, id: `benefit_${i}`, companyId })));
+        }
+
+        // Load Deductions
+        const storedDeductions = localStorage.getItem(LOCAL_STORAGE_KEY_DEDUCTIONS);
+        const allDeductions: Deduction[] = storedDeductions ? JSON.parse(storedDeductions) : [];
+        const companyDeductions = allDeductions.filter(d => d.companyId === companyId);
+        if (companyDeductions.length > 0) {
+            setDeductions(companyDeductions);
+        } else {
+            setDeductions(initialDeductions.map((d, i) => ({ ...d, id: `deduction_${i}`, companyId })));
+        }
+
     } catch (error) {
         console.error("Could not access localStorage:", error);
     } finally {
@@ -105,16 +141,29 @@ export default function CompanySettingsPage() {
         const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
         let allSettings: CompanySettings[] = storedSettings ? JSON.parse(storedSettings) : [];
         if (!Array.isArray(allSettings)) {
-            allSettings = []; // If it's not an array, start fresh to avoid errors
+            allSettings = [];
         }
         const settingsIndex = allSettings.findIndex(s => s.id === companyId);
-
         if (settingsIndex > -1) {
             allSettings[settingsIndex] = settings;
         } else {
             allSettings.push(settings);
         }
         localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(allSettings));
+
+        // Save Benefits
+        const storedBenefits = localStorage.getItem(LOCAL_STORAGE_KEY_BENEFITS);
+        let allBenefits: Benefit[] = storedBenefits ? JSON.parse(storedBenefits) : [];
+        // Remove old benefits for this company and add the new ones
+        const otherCompanyBenefits = allBenefits.filter(b => b.companyId !== companyId);
+        localStorage.setItem(LOCAL_STORAGE_KEY_BENEFITS, JSON.stringify([...otherCompanyBenefits, ...benefits]));
+
+        // Save Deductions
+        const storedDeductions = localStorage.getItem(LOCAL_STORAGE_KEY_DEDUCTIONS);
+        let allDeductions: Deduction[] = storedDeductions ? JSON.parse(storedDeductions) : [];
+        const otherCompanyDeductions = allDeductions.filter(d => d.companyId !== companyId);
+        localStorage.setItem(LOCAL_STORAGE_KEY_DEDUCTIONS, JSON.stringify([...otherCompanyDeductions, ...deductions]));
+
         
         toast({
             title: '¡Guardado!',
@@ -140,6 +189,20 @@ export default function CompanySettingsPage() {
     } else if (value === '') {
         setSettings({ ...settings, [field]: 0 });
     }
+  };
+
+  const handleBenefitChange = (index: number, value: string) => {
+    const numericValue = parseFloat(value) || 0;
+    const updatedBenefits = [...benefits];
+    updatedBenefits[index].value = numericValue;
+    setBenefits(updatedBenefits);
+  };
+  
+  const handleDeductionChange = (index: number, value: string) => {
+    const numericValue = parseFloat(value) || 0;
+    const updatedDeductions = [...deductions];
+    updatedDeductions[index].value = numericValue;
+    setDeductions(updatedDeductions);
   };
 
 
@@ -300,6 +363,53 @@ export default function CompanySettingsPage() {
                 <div className="space-y-2">
                     <Label htmlFor="holidayNightOvertimeRate">Hora Extra Festiva Nocturna</Label>
                     <Input type="number" id="holidayNightOvertimeRate" placeholder="0.00" value={settings.holidayNightOvertimeRate || ''} onChange={(e) => handleRateChange('holidayNightOvertimeRate', e.target.value)} />
+                </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Deducciones y Beneficios</CardTitle>
+                <CardDescription>Configura subsidios y descuentos de ley para la empresa.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="space-y-4 p-4 border rounded-lg">
+                    <h3 className="font-semibold">Beneficios (Subsidios)</h3>
+                    {benefits.map((benefit, index) => (
+                        <div key={benefit.id} className="grid grid-cols-3 items-center gap-4">
+                            <Label htmlFor={`benefit-${benefit.id}`} className="text-right">{benefit.name}</Label>
+                             <div className='col-span-2 flex items-center gap-2'>
+                                <Input 
+                                    type="number" 
+                                    id={`benefit-${benefit.id}`} 
+                                    value={benefit.value}
+                                    onChange={(e) => handleBenefitChange(index, e.target.value)}
+                                    placeholder="0.00"
+                                />
+                                {benefit.type === 'fixed' && <span className='text-muted-foreground'>COP</span>}
+                                {benefit.type === 'percentage' && <span className='text-muted-foreground'>%</span>}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                 <div className="space-y-4 p-4 border rounded-lg">
+                    <h3 className="font-semibold">Deducciones de Ley</h3>
+                     {deductions.map((deduction, index) => (
+                        <div key={deduction.id} className="grid grid-cols-3 items-center gap-4">
+                            <Label htmlFor={`deduction-${deduction.id}`} className="text-right">{deduction.name}</Label>
+                            <div className='col-span-2 flex items-center gap-2'>
+                                <Input 
+                                    type="number" 
+                                    id={`deduction-${deduction.id}`} 
+                                    value={deduction.value}
+                                    onChange={(e) => handleDeductionChange(index, e.target.value)}
+                                    placeholder="0.0"
+                                />
+                                 {deduction.type === 'fixed' && <span className='text-muted-foreground'>COP</span>}
+                                {deduction.type === 'percentage' && <span className='text-muted-foreground'>%</span>}
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </CardContent>
         </Card>

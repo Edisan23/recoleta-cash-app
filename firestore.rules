@@ -45,6 +45,22 @@ service cloud.firestore {
         allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
         allow write: if isAdmin();
       }
+
+      // Settings, Benefits, Deductions can be read by company members but only written by admins.
+      match /settings/{settingsId} {
+        allow read: if isCompanyMember(companyId);
+        allow write: if isAdmin();
+      }
+
+      match /benefits/{benefitId} {
+        allow read: if isCompanyMember(companyId);
+        allow write: if isAdmin();
+      }
+
+      match /deductions/{deductionId} {
+        allow read: if isCompanyMember(companyId);
+        allow write: if isAdmin();
+      }
     }
   }
 }

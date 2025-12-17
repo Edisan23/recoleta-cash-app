@@ -106,6 +106,33 @@
         "holidayNightOvertimeRate": { "type": "number" }
       }
     },
+    "Benefit": {
+        "title": "Benefit",
+        "description": "Represents a company-specific benefit or subsidy (e.g., transportation allowance).",
+        "type": "object",
+        "properties": {
+            "id": { "type": "string" },
+            "companyId": { "type": "string" },
+            "name": { "type": "string" },
+            "type": { "type": "string", "enum": ["fixed", "percentage"] },
+            "value": { "type": "number" },
+            "appliesTo": { "type": "string", "enum": ["all", "min-wage"], "description": "Condition for applying the benefit."}
+        },
+        "required": ["id", "companyId", "name", "type", "value"]
+    },
+    "Deduction": {
+        "title": "Deduction",
+        "description": "Represents a company-specific or legal deduction (e.g., health insurance).",
+        "type": "object",
+        "properties": {
+            "id": { "type": "string" },
+            "companyId": { "type": "string" },
+            "name": { "type": "string" },
+            "type": { "type": "string", "enum": ["fixed", "percentage"] },
+            "value": { "type": "number" }
+        },
+        "required": ["id", "companyId", "name", "type", "value"]
+    },
     "CompanyItem": {
       "title": "Company Item",
       "description": "Represents an item for production-based payment (e.g., 'bulto movido') or a special condition for hourly payment.",
@@ -176,6 +203,20 @@
                 "definition": {
                     "schema": { "$ref": "#/entities/CompanySettings" },
                     "description": "Payment rules and settings for the company."
+                }
+            },
+            {
+                "path": "benefits/{benefitId}",
+                "definition": {
+                    "schema": { "$ref": "#/entities/Benefit" },
+                    "description": "Benefits and subsidies for the company."
+                }
+            },
+            {
+                "path": "deductions/{deductionId}",
+                "definition": {
+                    "schema": { "$ref": "#/entities/Deduction" },
+                    "description": "Deductions for the company."
                 }
             },
             {
