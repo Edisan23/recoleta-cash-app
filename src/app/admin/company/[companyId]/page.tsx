@@ -26,6 +26,7 @@ const initialSettings: Omit<CompanySettings, 'id'> = {
     payrollCycle: 'monthly',
     paymentModel: 'hourly',
     nightShiftStartHour: 21,
+    dailyHourLimit: 8,
     dayRate: 0,
     nightRate: 0,
     dayOvertimeRate: 0,
@@ -221,23 +222,43 @@ export default function CompanySettingsPage() {
                         </Label>
                     </RadioGroup>
                 </div>
-                 <div>
-                    <Label htmlFor="nightShiftStartHour" className='text-base'>Inicio del Turno Nocturno (Hora)</Label>
-                    <p className="text-sm text-muted-foreground">Define a partir de qué hora (0-23) se considera turno nocturno.</p>
-                    <Input 
-                        id="nightShiftStartHour"
-                        type="number"
-                        min="0"
-                        max="23"
-                        value={settings.nightShiftStartHour ?? 21}
-                        onChange={(e) => {
-                            const hour = parseInt(e.target.value);
-                            if (hour >= 0 && hour <= 23) {
-                                setSettings({...settings, nightShiftStartHour: hour});
-                            }
-                        }}
-                        className="mt-2 max-w-[120px]"
-                    />
+                 <div className='grid grid-cols-1 sm:grid-cols-2 gap-6'>
+                    <div>
+                        <Label htmlFor="nightShiftStartHour" className='text-base'>Inicio del Turno Nocturno (Hora)</Label>
+                        <p className="text-sm text-muted-foreground">Hora (0-23) desde la que aplica el recargo nocturno.</p>
+                        <Input 
+                            id="nightShiftStartHour"
+                            type="number"
+                            min="0"
+                            max="23"
+                            value={settings.nightShiftStartHour ?? 21}
+                            onChange={(e) => {
+                                const hour = parseInt(e.target.value);
+                                if (hour >= 0 && hour <= 23) {
+                                    setSettings({...settings, nightShiftStartHour: hour});
+                                }
+                            }}
+                            className="mt-2 max-w-[120px]"
+                        />
+                    </div>
+                     <div>
+                        <Label htmlFor="dailyHourLimit" className='text-base'>Inicio de Horas Extra (Horas)</Label>
+                         <p className="text-sm text-muted-foreground">Nº de horas diarias antes de contar como extra.</p>
+                        <Input 
+                            id="dailyHourLimit"
+                            type="number"
+                            min="1"
+                            max="24"
+                            value={settings.dailyHourLimit ?? 8}
+                            onChange={(e) => {
+                                const hour = parseInt(e.target.value);
+                                if (hour > 0 && hour <= 24) {
+                                    setSettings({...settings, dailyHourLimit: hour});
+                                }
+                            }}
+                            className="mt-2 max-w-[120px]"
+                        />
+                    </div>
                 </div>
             </CardContent>
         </Card>

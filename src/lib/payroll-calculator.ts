@@ -3,7 +3,6 @@ import { isHoliday } from './date-helpers';
 import { startOfDay, endOfDay, isWithinInterval, addDays, getMonth, getYear, getDate } from 'date-fns';
 
 const NIGHT_SHIFT_END_HOUR = 6;   // 6 AM
-const DAILY_HOUR_LIMIT = 8;
 
 function getNightIntervals(date: Date, nightShiftStartHour: number) {
   const dayStart = startOfDay(date);
@@ -62,6 +61,7 @@ export function calculateShiftSummary(shift: Shift, settings: CompanySettings, h
   summary.totalHours = totalShiftMinutes / 60;
   
   const nightShiftStartHour = settings.nightShiftStartHour ?? 21;
+  const dailyHourLimit = settings.dailyHourLimit ?? 8;
 
   for (let i = 0; i < totalShiftMinutes; i++) {
     const currentMinuteTime = new Date(start.getTime() + i * 60 * 1000);
@@ -70,7 +70,7 @@ export function calculateShiftSummary(shift: Shift, settings: CompanySettings, h
     const isCurrentMinuteHoliday = isHoliday(currentMinuteTime, holidays);
     const isNight = isNightHour(currentMinuteTime, nightShiftStartHour);
     const hoursSoFar = i / 60;
-    const isOvertime = hoursSoFar >= DAILY_HOUR_LIMIT;
+    const isOvertime = hoursSoFar >= dailyHourLimit;
     
     // Determine rate and hour category
     if (isOvertime) {

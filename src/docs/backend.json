@@ -92,6 +92,10 @@
             "type": "number",
             "description": "The hour (0-23) when the night shift begins."
         },
+        "dailyHourLimit": {
+            "type": "number",
+            "description": "Number of hours after which overtime rates apply."
+        },
         "dayRate": { "type": "number" },
         "nightRate": { "type": "number" },
         "dayOvertimeRate": { "type": "number" },

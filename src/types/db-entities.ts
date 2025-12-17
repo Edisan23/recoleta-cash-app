@@ -24,6 +24,7 @@ export type User = {
     paymentModel: 'hourly' | 'production';
     payrollCycle: 'monthly' | 'bi-weekly';
     nightShiftStartHour?: number; // The hour (0-23) when the night shift begins.
+    dailyHourLimit?: number; // Number of hours after which overtime rates apply.
     dayRate?: number;
     nightRate?: number;
     dayOvertimeRate?: number;
