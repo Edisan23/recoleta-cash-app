@@ -101,9 +101,16 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       
       // Load Company Settings
       const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
-      const allSettings: CompanySettings[] = storedSettings ? JSON.parse(storedSettings) : [];
-      const foundSettings = allSettings.find(s => s.id === companyId);
-      setSettings(foundSettings || { id: companyId, payrollCycle: 'monthly' });
+      if(storedSettings) {
+        let allSettings: CompanySettings[] = JSON.parse(storedSettings);
+        if (!Array.isArray(allSettings)) {
+          allSettings = [allSettings];
+        }
+        const foundSettings = allSettings.find(s => s.id === companyId);
+        setSettings(foundSettings || { id: companyId, payrollCycle: 'monthly' });
+      } else {
+        setSettings({ id: companyId, payrollCycle: 'monthly' });
+      }
 
 
     } catch(e) {
