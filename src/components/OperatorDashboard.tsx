@@ -57,6 +57,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [workedHoursSummary, setWorkedHoursSummary] = useState<string | null>(null);
+  const [accumulatedHoursSummary, setAccumulatedHoursSummary] = useState<string | null>(null);
 
   // --- DERIVED STATE ---
   const shiftForSelectedDate = useMemo(() => {
@@ -116,7 +117,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [shiftForSelectedDate]);
 
-  // Effect 3: Calculate worked hours summary
+  // Effect 3: Calculate worked hours summary for the selected day
   useEffect(() => {
     if (startTime && endTime && /^\d{2}:\d{2}$/.test(startTime) && /^\d{2}:\d{2}$/.test(endTime)) {
         const [startHours, startMinutes] = startTime.split(':').map(Number);
@@ -141,6 +142,45 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setWorkedHoursSummary(null);
     }
   }, [startTime, endTime]);
+
+  // Effect 4: Calculate accumulated hours for the current month
+  useEffect(() => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+
+    const monthlyShifts = allShifts.filter(shift => {
+        const shiftDate = new Date(shift.date);
+        return shift.userId === user.uid && 
+               shift.companyId === companyId &&
+               shiftDate.getMonth() === currentMonth &&
+               shiftDate.getFullYear() === currentYear;
+    });
+
+    let totalMs = 0;
+    monthlyShifts.forEach(shift => {
+        if (shift.startTime && shift.endTime) {
+             const [startHours, startMinutes] = shift.startTime.split(':').map(Number);
+             const [endHours, endMinutes] = shift.endTime.split(':').map(Number);
+
+             let start = new Date(shift.date);
+             start.setHours(startHours, startMinutes, 0, 0);
+
+             let end = new Date(shift.date);
+             end.setHours(endHours, endMinutes, 0, 0);
+
+             if (end < start) {
+                 end.setDate(end.getDate() + 1);
+             }
+             totalMs += end.getTime() - start.getTime();
+        }
+    });
+
+    const totalHours = Math.floor(totalMs / (1000 * 60 * 60));
+    const totalMins = Math.floor((totalMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    setAccumulatedHoursSummary(`${totalHours}h ${totalMins}m`);
+
+  }, [allShifts, user.uid, companyId]);
 
   const handleSave = async () => {
     if (!date || !user || (!startTime && !endTime)) {
@@ -326,6 +366,25 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                             <p className="text-sm text-muted-foreground">Total de Horas</p>
                             <p className="text-2xl font-bold">
                                 {workedHoursSummary || '--:--'}
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Acumulado Mensual</CardTitle>
+                    <CardDescription>
+                        Total de horas trabajadas en el mes actual.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex justify-around items-center text-center">
+                        <div>
+                            <p className="text-sm text-muted-foreground">Total de Horas Acumuladas</p>
+                            <p className="text-2xl font-bold">
+                                {accumulatedHoursSummary || '0h 0m'}
                             </p>
                         </div>
                     </div>
