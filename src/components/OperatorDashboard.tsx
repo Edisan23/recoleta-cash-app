@@ -1,11 +1,10 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Loader2, Trash2 } from 'lucide-react';
-import type { Company, Shift } from '@/types/db-entities';
+import type { Company, Shift, CompanySettings } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -26,6 +25,7 @@ const FAKE_OPERATOR_USER = {
 const COMPANIES_DB_KEY = 'fake_companies_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 const SHIFTS_DB_KEY = 'fake_shifts_db';
+const SETTINGS_DB_KEY = 'fake_company_settings_db';
 
 // --- HELPER FUNCTIONS ---
 function getInitials(name: string) {
@@ -50,6 +50,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   // Data from DB
   const [company, setCompany] = useState<Company | null>(null);
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [allShifts, setAllShifts] = useState<Shift[]>([]);
 
   // Shift state for the selected day
@@ -97,6 +98,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
       const parsedShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
       setAllShifts(parsedShifts);
+      
+      // Load Company Settings
+      const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
+      const allSettings: CompanySettings[] = storedSettings ? JSON.parse(storedSettings) : [];
+      const foundSettings = allSettings.find(s => s.id === companyId);
+      setSettings(foundSettings || { id: companyId, payrollCycle: 'monthly' });
+
 
     } catch(e) {
       console.error("Failed to load initial data from localStorage", e);
@@ -115,7 +123,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       setStartTime('');
       setEndTime('');
     }
-  }, [shiftForSelectedDate]);
+  }, [shiftForSelectedDate, date]);
 
   // Effect 3: Calculate worked hours summary for the selected day
   useEffect(() => {
@@ -143,21 +151,38 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [startTime, endTime]);
 
-  // Effect 4: Calculate accumulated hours for the current month
+  // Effect 4: Calculate accumulated hours for the current period (month/fortnight)
   useEffect(() => {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentDay = today.getDate();
 
-    const monthlyShifts = allShifts.filter(shift => {
-        const shiftDate = new Date(shift.date);
-        return shift.userId === user.uid && 
-               shift.companyId === companyId &&
-               shiftDate.getMonth() === currentMonth &&
-               shiftDate.getFullYear() === currentYear;
-    });
+    let periodShifts: Shift[] = [];
+
+    if (settings?.payrollCycle === 'bi-weekly') {
+        const isFirstFortnight = currentDay <= 15;
+        periodShifts = allShifts.filter(shift => {
+            const shiftDate = new Date(shift.date);
+            const shiftDay = shiftDate.getDate();
+            return shift.userId === user.uid &&
+                   shift.companyId === companyId &&
+                   shiftDate.getFullYear() === currentYear &&
+                   shiftDate.getMonth() === currentMonth &&
+                   (isFirstFortnight ? shiftDay <= 15 : shiftDay > 15);
+        });
+    } else { // monthly
+        periodShifts = allShifts.filter(shift => {
+            const shiftDate = new Date(shift.date);
+            return shift.userId === user.uid &&
+                   shift.companyId === companyId &&
+                   shiftDate.getFullYear() === currentYear &&
+                   shiftDate.getMonth() === currentMonth;
+        });
+    }
 
     let totalMs = 0;
-    monthlyShifts.forEach(shift => {
+    periodShifts.forEach(shift => {
         if (shift.startTime && shift.endTime) {
              const [startHours, startMinutes] = shift.startTime.split(':').map(Number);
              const [endHours, endMinutes] = shift.endTime.split(':').map(Number);
@@ -180,7 +205,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     
     setAccumulatedHoursSummary(`${totalHours}h ${totalMins}m`);
 
-  }, [allShifts, user.uid, companyId]);
+  }, [allShifts, user.uid, companyId, settings]);
 
   const handleSave = async () => {
     if (!date || !user || (!startTime && !endTime)) {
@@ -198,9 +223,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         new Date(s.date).toDateString() === date.toDateString()
     );
 
+    const shiftData = { startTime, endTime };
+
     if (shiftIndex > -1) {
         // Update existing shift
-        updatedShifts[shiftIndex] = { ...updatedShifts[shiftIndex], startTime, endTime };
+        updatedShifts[shiftIndex] = { ...updatedShifts[shiftIndex], ...shiftData };
     } else {
         // Create new shift
         const newShift: Shift = {
@@ -208,8 +235,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             userId: user.uid,
             companyId: companyId,
             date: date.toISOString(),
-            startTime,
-            endTime,
+            ...shiftData,
         };
         updatedShifts.push(newShift);
     }
@@ -314,7 +340,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 <CardHeader>
                     <CardTitle>Registrar Actividad</CardTitle>
                     <CardDescription>
-                        Selecciona una fecha y registra tus horas de trabajo. Los días con turnos guardados se marcan en el calendario.
+                        Selecciona una fecha y registra tus horas de trabajo. Los días con turnos guardados aparecen marcados.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -374,9 +400,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Acumulado Mensual</CardTitle>
+                    <CardTitle>
+                        {settings?.payrollCycle === 'bi-weekly' ? 'Acumulado Quincenal' : 'Acumulado Mensual'}
+                    </CardTitle>
                     <CardDescription>
-                        Total de horas trabajadas en el mes actual.
+                        Total de horas trabajadas en el período actual.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -15,9 +15,13 @@ import { Input } from '@/components/ui/input';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import type { Company } from '@/types/db-entities';
+import type { Company, CompanySettings } from '@/types/db-entities';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
+const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
+
 
 export default function CompanySettingsPage() {
   const router = useRouter();
@@ -26,17 +30,29 @@ export default function CompanySettingsPage() {
   const { toast } = useToast();
 
   const [company, setCompany] = useState<Company | null>(null);
+  const [settings, setSettings] = useState<CompanySettings>({ id: companyId, payrollCycle: 'monthly' });
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     try {
+        // Load Company
         const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY_COMPANIES);
         if (storedCompanies) {
             const allCompanies: Company[] = JSON.parse(storedCompanies);
             const foundCompany = allCompanies.find(c => c.id === companyId);
             if (foundCompany) {
                 setCompany(foundCompany);
+            }
+        }
+
+        // Load Settings
+        const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
+        if(storedSettings) {
+            const allSettings: CompanySettings[] = JSON.parse(storedSettings);
+            const foundSettings = allSettings.find(s => s.id === companyId);
+            if(foundSettings) {
+                setSettings(foundSettings);
             }
         }
     } catch (error) {
@@ -48,12 +64,13 @@ export default function CompanySettingsPage() {
 
 
   const handleSave = async () => {
-    if (!company) return;
+    if (!company || !settings) return;
 
     setIsSaving(true);
     await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate save
 
     try {
+        // Save Company Name
         const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY_COMPANIES);
         let allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
         const companyIndex = allCompanies.findIndex(c => c.id === companyId);
@@ -65,6 +82,18 @@ export default function CompanySettingsPage() {
             };
             localStorage.setItem(LOCAL_STORAGE_KEY_COMPANIES, JSON.stringify(allCompanies));
         }
+
+        // Save Settings
+        const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
+        let allSettings: CompanySettings[] = storedSettings ? JSON.parse(storedSettings) : [];
+        const settingsIndex = allSettings.findIndex(s => s.id === companyId);
+
+        if (settingsIndex > -1) {
+            allSettings[settingsIndex] = settings;
+        } else {
+            allSettings.push(settings);
+        }
+        localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(allSettings));
         
         toast({
             title: '¡Guardado!',
@@ -127,6 +156,40 @@ export default function CompanySettingsPage() {
                     value={company.name}
                     onChange={(e) => setCompany({...company, name: e.target.value})}
                 />
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Configuración de Nómina</CardTitle>
+                <CardDescription>Define cómo se calcularán y pagarán los períodos de trabajo.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <Label className='text-base'>Frecuencia de Pago</Label>
+                <RadioGroup 
+                    value={settings.payrollCycle} 
+                    onValueChange={(value) => setSettings({...settings, payrollCycle: value as 'monthly' | 'bi-weekly' })}
+                    className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4"
+                >
+                    <Label className="flex flex-col items-start gap-4 rounded-lg border p-4 cursor-pointer hover:bg-accent transition-colors">
+                        <div className='flex items-center gap-4'>
+                            <RadioGroupItem value="monthly" id="monthly" />
+                            <div className='text-left'>
+                                <p className="font-semibold">Mensual</p>
+                                <p className="text-sm text-muted-foreground">El período de pago cubre el mes calendario completo (día 1 al 30/31).</p>
+                            </div>
+                        </div>
+                    </Label>
+                     <Label className="flex flex-col items-start gap-4 rounded-lg border p-4 cursor-pointer hover:bg-accent transition-colors">
+                        <div className='flex items-center gap-4'>
+                            <RadioGroupItem value="bi-weekly" id="bi-weekly" />
+                            <div className='text-left'>
+                                <p className="font-semibold">Quincenal</p>
+                                <p className="text-sm text-muted-foreground">Dos períodos por mes: del 1 al 15 y del 16 al fin de mes.</p>
+                            </div>
+                        </div>
+                    </Label>
+                </RadioGroup>
             </CardContent>
         </Card>
         

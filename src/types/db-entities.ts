@@ -18,6 +18,11 @@ export type User = {
     isActive: boolean; // Whether the company is active or not.
     themeColor?: string; // A hex color code for the company's theme.
   };
+
+  export type CompanySettings = {
+    id: string; // Corresponds to companyId
+    payrollCycle: 'monthly' | 'bi-weekly';
+  };
     
   export type Shift = {
     id: string;
