@@ -122,7 +122,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
       if(storedSettings) {
         let allSettingsData = JSON.parse(storedSettings);
-        if (!Array.isArray(allSettingsData)) {
+        if (!Array.isArray(allSettingsData)) { // Ensure it's an array
             allSettingsData = [allSettingsData];
         }
         const foundSettings = allSettingsData.find((s: CompanySettings) => s.id === companyId);
@@ -305,6 +305,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </div>
                 )}
                 <div className="flex items-center gap-2">
+                    <Button variant="ghost" onClick={() => router.push('/select-company')} aria-label="Cambiar Empresa">
+                        Cambiar Empresa
+                    </Button>
                     <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
                         <LogOut className="mr-2 h-5 w-5" />
                         Salir

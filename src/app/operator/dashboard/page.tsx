@@ -20,11 +20,12 @@ export default function OperatorDashboardPage() {
         router.replace('/select-company');
       } else {
         setCompanyId(storedCompanyId);
-        setIsLoading(false);
       }
     } catch (error) {
       console.error("Could not access localStorage:", error);
       router.replace('/select-company');
+    } finally {
+        setIsLoading(false);
     }
   }, [router]);
 

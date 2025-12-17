@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 
 export function LandingPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-8">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gray-50 p-8 dark:bg-gray-900">
       <div className="flex flex-col items-center text-center mb-12">
         <Hexagon className="h-16 w-16 text-primary mx-auto mb-6" strokeWidth={1.5}/>
         <h1 className="text-5xl font-bold mb-4">Turno Pro</h1>
@@ -14,34 +14,29 @@ export function LandingPage() {
         </p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl">
-        <Card className="flex flex-col">
-          <CardHeader className="text-center">
+      <div className="w-full max-w-md">
+        <Card className="flex flex-col text-center">
+          <CardHeader>
             <CardTitle className="text-2xl">Portal del Operador</CardTitle>
             <CardDescription>Registra tus turnos y consulta tus pagos.</CardDescription>
           </CardHeader>
           <CardContent className="flex-grow flex items-center justify-center">
-            <Button asChild size="lg" className="w-full">
-              <Link href="/operator/dashboard">
+            <Button asChild size="lg" className="w-full sm:w-3/4">
+              <Link href="/select-company">
                 <LogIn className="mr-2" /> Ingresar como Operador
               </Link>
             </Button>
           </CardContent>
         </Card>
-        
-        <Card className="flex flex-col">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Panel de Administración</CardTitle>
-            <CardDescription>Gestiona empresas, operadores y configuraciones.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex-grow flex items-center justify-center">
-             <Button asChild size="lg" variant="outline" className="w-full">
-              <Link href="/admin">
-                <UserCog className="mr-2" /> Ingresar como Admin
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+      </div>
+      
+       <div className="absolute bottom-6 right-6">
+        <Button asChild variant="ghost" className="text-muted-foreground hover:text-primary">
+          <Link href="/admin" title="Acceso de Administrador">
+            <UserCog className="mr-2" />
+            <span className="hidden sm:inline">Admin</span>
+          </Link>
+        </Button>
       </div>
     </div>
   );
