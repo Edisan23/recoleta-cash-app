@@ -31,10 +31,13 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [adminUid, setAdminUid] = useState<string | null>(null);
+  const [adminExists, setAdminExists] = useState(true);
 
   useEffect(() => {
     try {
-      setAdminUid(localStorage.getItem(ADMIN_UID_KEY));
+      const storedAdminUid = localStorage.getItem(ADMIN_UID_KEY);
+      setAdminUid(storedAdminUid);
+      setAdminExists(!!storedAdminUid);
     } catch (error) {
       console.error("Could not access localStorage:", error);
     }
@@ -63,12 +66,21 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
       const storedAdminUid = localStorage.getItem(ADMIN_UID_KEY);
-      if (userCredential.user.uid === storedAdminUid) {
+      if (storedAdminUid && userCredential.user.uid === storedAdminUid) {
         toast({
           title: '¡Bienvenido Administrador!',
           description: 'Has iniciado sesión correctamente.',
         });
         router.push('/admin');
+      } else if (!storedAdminUid) {
+         // This case is unlikely if register page is used correctly, but good for safety
+         await auth.signOut();
+         toast({
+            variant: 'destructive',
+            title: 'Sistema no configurado',
+            description: 'No hay administrador registrado. Por favor, regístrate primero.',
+          });
+          router.push('/admin/register');
       } else {
         await auth.signOut();
         toast({
@@ -79,10 +91,14 @@ export default function AdminLoginPage() {
       }
     } catch (error: any) {
       console.error('Admin login error:', error);
+       let description = 'Las credenciales son incorrectas.';
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+        description = 'El usuario no existe o las credenciales son incorrectas. ¿Necesitas registrarte?';
+      }
       toast({
         variant: 'destructive',
         title: 'Error de Autenticación',
-        description: 'Las credenciales son incorrectas.',
+        description,
       });
     } finally {
       setIsSubmitting(false);
@@ -135,9 +151,9 @@ export default function AdminLoginPage() {
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ingresar
             </Button>
-             {!adminUid && (
+             {!adminExists && (
                  <p className="text-sm text-muted-foreground">
-                    No hay administrador registrado. <Link href="/admin/register" className="underline">Regístrate aquí</Link>.
+                    No hay administrador. <Link href="/admin/register" className="underline">Regístrate aquí</Link>.
                 </p>
             )}
           </CardFooter>

@@ -68,14 +68,21 @@ export default function AdminRegisterPage() {
         description: 'Tu cuenta ha sido creada. Ahora puedes iniciar sesión.',
       });
       
+      // Sign out the newly created user so they have to log in manually
+      await auth.signOut();
+
       router.push('/admin/login');
 
     } catch (error: any) {
       console.error('Admin registration error:', error);
+      let description = 'No se pudo crear la cuenta.';
+      if (error.code === 'auth/email-already-in-use') {
+        description = 'El correo electrónico ya está en uso. Intenta con otro.';
+      }
       toast({
         variant: 'destructive',
         title: 'Error de Registro',
-        description: 'No se pudo crear la cuenta. El correo puede que ya esté en uso.',
+        description,
       });
     } finally {
       setIsSubmitting(false);
