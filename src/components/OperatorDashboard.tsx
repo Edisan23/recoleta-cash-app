@@ -471,22 +471,26 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </div>
 
                     {companyItems.length > 0 && (
-                      <div className="space-y-4 pt-4 border-t">
-                        <h3 className="text-sm font-semibold text-muted-foreground">Detalles Adicionales</h3>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          {companyItems.map(item => (
-                            <div key={item.id}>
-                              <Label htmlFor={`item-detail-${item.id}`}>{item.name}</Label>
-                               <Input 
-                                id={`item-detail-${item.id}`}
-                                value={itemDetails[item.id] || ''}
-                                onChange={(e) => handleItemDetailChange(item.id, e.target.value)}
-                                placeholder={item.description || "Ingresa el detalle"}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                      <Accordion type="single" collapsible className="w-full pt-4 border-t">
+                        <AccordionItem value="item-details">
+                            <AccordionTrigger>Detalles Adicionales</AccordionTrigger>
+                            <AccordionContent>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                                  {companyItems.map(item => (
+                                    <div key={item.id}>
+                                      <Label htmlFor={`item-detail-${item.id}`}>{item.name}</Label>
+                                       <Input 
+                                        id={`item-detail-${item.id}`}
+                                        value={itemDetails[item.id] || ''}
+                                        onChange={(e) => handleItemDetailChange(item.id, e.target.value)}
+                                        placeholder={item.description || "Ingresa el detalle"}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
                     )}
 
                 </CardContent>
