@@ -84,6 +84,7 @@ export default function AdminLoginPage() {
           });
         }
       } else {
+        // First user to log in becomes the admin
         const newAdminUid = userCredential.user.uid;
         localStorage.setItem(ADMIN_UID_KEY, newAdminUid);
         setAdminUid(newAdminUid);
