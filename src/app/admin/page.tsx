@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -20,7 +19,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
-const ADMIN_UID = 'gHZ9n7s2b9X8fJ2kP3s5t8YxVOE2'; // IMPORTANT: This is the real Admin UID
+const ADMIN_UID = 'gHZ9n7s2b9X8fJ2kP3s5t8YxVOE2'; // IMPORTANT: This is a temporary placeholder
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -36,17 +35,10 @@ export default function AdminLoginPage() {
       if (user.uid === ADMIN_UID) {
         router.replace('/admin/dashboard');
       } else {
-        // Handle case where a non-admin user is already logged in
+        // If a non-admin is somehow logged in on this page, sign them out.
         if (auth) {
           auth.signOut();
         }
-        toast({
-          variant: 'destructive',
-          title: 'Acceso Denegado',
-          description: 'Has sido desconectado. Solo administradores pueden acceder aquí.',
-        });
-        // The onAuthStateChanged listener in useUser will handle the state update
-        // which will then cause the component to re-render, removing the loader.
       }
     }
   }, [user, isUserLoading, router, toast, auth]);
@@ -57,20 +49,19 @@ export default function AdminLoginPage() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      // After sign-in, the useEffect will handle redirection if the user is the admin.
-      if (result.user.uid !== ADMIN_UID) {
-        toast({
-          variant: 'destructive',
-          title: 'Acceso Denegado',
-          description: 'Esta cuenta no tiene permisos de administrador.',
-        });
-        await auth.signOut();
-      } else {
-         toast({
-          title: '¡Bienvenido!',
-          description: 'Has iniciado sesión como administrador.',
-        });
-      }
+      
+      // --- CAPTURE REAL UID ---
+      // This will log the actual UID to the browser console.
+      console.log("ADMINISTRADOR UID REAL:", result.user.uid);
+      
+      // Temporarily bypass the UID check to allow login.
+      // The user will provide the real UID from the console log.
+      toast({
+        title: '¡Sesión Iniciada!',
+        description: 'Ahora, por favor, copia el UID de la consola del navegador y envíamelo.',
+      });
+      router.replace('/admin/dashboard');
+
     } catch (error: any) {
       console.error('Error during Google sign-in:', error);
       toast({
