@@ -29,12 +29,26 @@ export default function AdminLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isUserLoading && user) {
+    if (isUserLoading) return; // Wait until user state is loaded
+
+    if (user) {
       if (user.uid === ADMIN_UID) {
         router.replace('/admin/dashboard');
+      } else {
+        // Handle case where a non-admin user is already logged in
+        if (auth) {
+          auth.signOut();
+        }
+        toast({
+          variant: 'destructive',
+          title: 'Acceso Denegado',
+          description: 'Has sido desconectado. Solo administradores pueden acceder aquí.',
+        });
+        // The onAuthStateChanged listener in useUser will handle the state update
+        // which will then cause the component to re-render, removing the loader.
       }
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, router, toast, auth]);
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
@@ -71,6 +85,7 @@ export default function AdminLoginPage() {
     }
   };
 
+  // Show loader while checking auth state or if a user is logged in (and redirection is in progress)
   if (isUserLoading || user) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
