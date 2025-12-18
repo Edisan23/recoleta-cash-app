@@ -31,7 +31,7 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [adminUid, setAdminUid] = useState<string | null>(null);
-  const [checkingAdmin, setCheckingAdmin] = useState(true);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   useEffect(() => {
     try {
@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
     } catch (error) {
       console.error("Could not access localStorage:", error);
     } finally {
-        setCheckingAdmin(false);
+        setIsCheckingAdmin(false);
     }
   }, []);
 
@@ -66,27 +66,45 @@ export default function AdminLoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
+      // Check if an admin is already registered in localStorage
       const storedAdminUid = localStorage.getItem(ADMIN_UID_KEY);
-      if (storedAdminUid && userCredential.user.uid === storedAdminUid) {
+      
+      if (storedAdminUid) {
+        // If an admin exists, verify if the logged-in user is that admin
+        if (userCredential.user.uid === storedAdminUid) {
+          toast({
+            title: '¡Bienvenido de nuevo!',
+            description: 'Has iniciado sesión correctamente.',
+          });
+          router.push('/admin');
+        } else {
+          // If a different user tries to log in, deny access
+          await auth.signOut();
+          toast({
+            variant: 'destructive',
+            title: 'Acceso Denegado',
+            description: 'Esta cuenta no tiene permisos de administrador.',
+          });
+        }
+      } else {
+        // If NO admin is registered, make this user the new admin
+        const newAdminUid = userCredential.user.uid;
+        localStorage.setItem(ADMIN_UID_KEY, newAdminUid);
+        setAdminUid(newAdminUid); // Update state to reflect the new admin
         toast({
-          title: '¡Bienvenido Administrador!',
-          description: 'Has iniciado sesión correctamente.',
+          title: '¡Administrador Registrado!',
+          description: 'Te has convertido en el administrador principal.',
         });
         router.push('/admin');
-      } else {
-        // This case handles a logged-in user who is NOT the admin.
-        await auth.signOut();
-        toast({
-          variant: 'destructive',
-          title: 'Acceso Denegado',
-          description: 'Esta cuenta no tiene permisos de administrador.',
-        });
       }
+
     } catch (error: any) {
       console.error('Admin login error:', error);
-       let description = 'Las credenciales son incorrectas.';
+       let description = 'Ocurrió un error inesperado.';
       if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
         description = 'El usuario no existe o las credenciales son incorrectas.';
+      } else if (error.code === 'auth/wrong-password') {
+        description = 'La contraseña es incorrecta.';
       }
       toast({
         variant: 'destructive',
@@ -98,33 +116,12 @@ export default function AdminLoginPage() {
     }
   };
 
-  if (isUserLoading || checkingAdmin || (user && user.uid === adminUid)) {
+  if (isUserLoading || isCheckingAdmin || (user && user.uid === adminUid)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
-  }
-
-  // If no admin is registered, prompt to register first.
-  if (!adminUid) {
-     return (
-          <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
-                <Card className="w-full max-w-md text-center">
-                    <CardHeader>
-                        <CardTitle>Sistema no Configurado</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p>No existe una cuenta de administrador. Debes registrar una para continuar.</p>
-                    </CardContent>
-                    <CardFooter>
-                        <Button asChild className="w-full">
-                            <Link href="/admin/register">Ir a Registrar Administrador</Link>
-                        </Button>
-                    </CardFooter>
-                </Card>
-           </div>
-      )
   }
 
   return (
@@ -134,7 +131,7 @@ export default function AdminLoginPage() {
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Acceso de Administrador</CardTitle>
             <CardDescription>
-              Inicia sesión para gestionar el sistema.
+              Inicia sesión para gestionar el sistema. La primera cuenta que ingrese se convertirá en el administrador.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -165,6 +162,9 @@ export default function AdminLoginPage() {
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ingresar
             </Button>
+            <p className="text-xs text-muted-foreground text-center px-4">
+              Nota: Aún no existe una cuenta de administrador. La primera cuenta que inicie sesión correctamente será designada como la administradora.
+            </p>
           </CardFooter>
         </form>
       </Card>
