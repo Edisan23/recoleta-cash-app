@@ -156,30 +156,26 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [companyId, router, toast]);
 
-    // Effect 1.5: Save/update user profile in localStorage
+    // Effect 1.5: Save/update user profile in localStorage for subscription management
     useEffect(() => {
-        if (user && user.uid && !user.isAnonymous) {
+        if (user && user.uid) {
             try {
                 const storedProfiles = localStorage.getItem(USER_PROFILES_DB_KEY);
                 const profiles: UserProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-                
-                const userProfile: UserProfile = {
-                    uid: user.uid,
-                    displayName: user.displayName || 'Operador',
-                    photoURL: user.photoURL || '',
-                    email: user.email || ''
-                };
-                
                 const existingProfileIndex = profiles.findIndex(p => p.uid === user.uid);
 
-                if (existingProfileIndex > -1) {
-                    // Update only if data has changed to avoid unnecessary writes
-                    if (JSON.stringify(profiles[existingProfileIndex]) !== JSON.stringify(userProfile)) {
-                         profiles[existingProfileIndex] = userProfile;
-                         localStorage.setItem(USER_PROFILES_DB_KEY, JSON.stringify(profiles));
-                    }
-                } else {
-                    profiles.push(userProfile);
+                if (existingProfileIndex === -1) {
+                    // Create a new profile if it's the first time
+                    const newUserProfile: UserProfile = {
+                        uid: user.uid,
+                        displayName: user.displayName || 'Operador Anónimo',
+                        photoURL: user.photoURL || '',
+                        email: user.email || '',
+                        isAnonymous: user.isAnonymous,
+                        createdAt: new Date().toISOString(),
+                        paymentStatus: 'trial',
+                    };
+                    profiles.push(newUserProfile);
                     localStorage.setItem(USER_PROFILES_DB_KEY, JSON.stringify(profiles));
                 }
             } catch (error) {
@@ -362,7 +358,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </AvatarFallback>
               </Avatar>
               <div className="text-left sm:hidden">
-                  <p className="font-semibold">{user?.isAnonymous ? 'Operador' : user?.displayName || 'Usuario'}</p>
+                  <p className="font-semibold">{user?.isAnonymous ? 'Operador Anónimo' : user?.displayName || 'Usuario'}</p>
                   <p className="text-sm text-muted-foreground">Operador</p>
               </div>
             </div>

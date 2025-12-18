@@ -17,6 +17,9 @@ export type User = {
     displayName: string;
     photoURL: string;
     email: string;
+    isAnonymous: boolean;
+    createdAt: string; // ISO date string
+    paymentStatus: "trial" | "paid" | "blocked";
   }
   
   export type Company = {

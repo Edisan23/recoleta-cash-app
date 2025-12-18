@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { CalendarDays } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
-import { OperatorList } from '@/components/admin/OperatorList';
+import { OperatorTable } from '@/components/admin/OperatorTable';
+import { Separator } from '@/components/ui/separator';
 
 const INITIAL_COMPANIES: Company[] = [
     { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },
@@ -74,13 +75,10 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-8">
-          <CompanyTable companies={companies} />
-        </div>
-        <div className="lg:col-span-1 space-y-8">
-          <OperatorList />
-        </div>
+      <main className="space-y-8">
+        <CompanyTable companies={companies} />
+        <Separator />
+        <OperatorTable />
       </main>
     </div>
   );
