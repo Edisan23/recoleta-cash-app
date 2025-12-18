@@ -32,17 +32,36 @@ export default function AdminRegisterPage() {
   const [isAdminRegistered, setIsAdminRegistered] = useState(true); // Assume yes until checked
 
   useEffect(() => {
+    checkAdminStatus();
+  }, []);
+
+  const checkAdminStatus = () => {
     try {
       const adminUid = localStorage.getItem(ADMIN_UID_KEY);
-      if (adminUid) {
-        setIsAdminRegistered(true);
-      } else {
-        setIsAdminRegistered(false);
-      }
+      setIsAdminRegistered(!!adminUid);
     } catch (error) {
        console.error("Could not access localStorage:", error);
+       setIsAdminRegistered(false); // Default to not registered on error
     }
-  }, []);
+  }
+
+  const handleResetAdmin = () => {
+      try {
+          localStorage.removeItem(ADMIN_UID_KEY);
+          toast({
+              title: "Reinicio Exitoso",
+              description: "Puedes registrar un nuevo administrador."
+          });
+          checkAdminStatus(); // Re-check the status to show the form
+      } catch (error) {
+          console.error("Could not clear localStorage:", error);
+          toast({
+              variant: "destructive",
+              title: "Error",
+              description: "No se pudo reiniciar el registro del administrador."
+          });
+      }
+  }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,8 +115,14 @@ export default function AdminRegisterPage() {
                     <CardHeader>
                         <CardTitle>Registro Deshabilitado</CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-4">
                         <p>Ya existe una cuenta de administrador para este sistema.</p>
+                        <p className="text-sm text-muted-foreground">
+                            ¿Problemas para acceder?{" "}
+                            <Button variant="link" onClick={handleResetAdmin} className="p-0 h-auto">
+                                Haz clic aquí para reiniciar el registro.
+                            </Button>
+                        </p>
                     </CardContent>
                     <CardFooter>
                         <Button asChild className="w-full">
