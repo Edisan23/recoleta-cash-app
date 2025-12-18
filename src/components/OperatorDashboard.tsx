@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2, Trash2, Download } from 'lucide-react';
-import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile } from '@/types/db-entities';
+import { LogOut, Loader2, Trash2, Download, ChevronsUpDown } from 'lucide-react';
+import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -12,6 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { DatePicker } from '@/components/DatePicker';
 import { TimeInput } from '@/components/TimeInput';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DeleteShiftDialog } from '@/components/operator/DeleteShiftDialog';
 import { calculateShiftSummary, calculatePeriodSummary, getPeriodDateRange } from '@/lib/payroll-calculator';
 import { PayrollBreakdown } from './operator/PayrollBreakdown';
@@ -32,6 +34,7 @@ const HOLIDAYS_DB_KEY = 'fake_holidays_db';
 const BENEFITS_DB_KEY = 'fake_company_benefits_db';
 const DEDUCTIONS_DB_KEY = 'fake_company_deductions_db';
 const USER_PROFILES_DB_KEY = 'fake_user_profiles_db';
+const ITEMS_DB_KEY = 'fake_company_items_db';
 
 
 // --- HELPER FUNCTIONS ---
@@ -68,12 +71,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [holidays, setHolidays] = useState<Date[]>([]);
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [deductions, setDeductions] = useState<Deduction[]>([]);
-
+  const [companyItems, setCompanyItems] = useState<CompanyItem[]>([]);
 
   // Shift state for the selected day
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
+  const [selectedItemId, setSelectedItemId] = useState<string>('');
+  const [itemDetail, setItemDetail] = useState<string>('');
   
   // Calculated Summaries
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
@@ -96,6 +101,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         .filter(s => s.userId === user.uid && s.companyId === companyId)
         .map(s => new Date(s.date));
   }, [allShifts, user?.uid, companyId]);
+
+  const selectedItem = useMemo(() => {
+      return companyItems.find(item => item.id === selectedItemId);
+  }, [selectedItemId, companyItems]);
 
 
   // Effect 1: Load all initial data from localStorage ONCE
@@ -148,6 +157,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       const allDeductions: Deduction[] = storedDeductions ? JSON.parse(storedDeductions) : [];
       setDeductions(allDeductions.filter(d => d.companyId === companyId));
 
+      // Load Company Items
+      const storedItems = localStorage.getItem(ITEMS_DB_KEY);
+      const allItems: CompanyItem[] = storedItems ? JSON.parse(storedItems) : [];
+      setCompanyItems(allItems.filter(item => item.companyId === companyId));
+
     } catch(e) {
       console.error("Failed to load initial data from localStorage", e);
       toast({ title: 'Error', description: 'No se pudieron cargar los datos iniciales.', variant: 'destructive' });
@@ -189,9 +203,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     if (shiftForSelectedDate) {
       setStartTime(shiftForSelectedDate.startTime || '');
       setEndTime(shiftForSelectedDate.endTime || '');
+      setSelectedItemId(shiftForSelectedDate.itemId || '');
+      setItemDetail(shiftForSelectedDate.itemDetail || '');
     } else {
       setStartTime('');
       setEndTime('');
+      setSelectedItemId('');
+      setItemDetail('');
     }
   }, [shiftForSelectedDate, date]);
 
@@ -216,8 +234,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }, [allShifts, user, companyId, settings, date, holidays, benefits, deductions]);
 
   const handleSave = async () => {
-    if (!date || !user || (!startTime && !endTime)) {
-        toast({ title: "Atención", description: "Debes ingresar al menos una hora para guardar.", variant: "destructive"});
+    if (!date || !user) {
+        toast({ title: "Error", description: "No se puede guardar sin fecha o usuario.", variant: "destructive"});
+        return;
+    }
+     if (!startTime && !endTime && !selectedItemId) {
+        toast({ title: "Atención", description: "Debes ingresar horas o seleccionar un item para guardar.", variant: "destructive"});
         return;
     }
 
@@ -231,7 +253,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         new Date(s.date).toDateString() === date.toDateString()
     );
 
-    const shiftData = { startTime, endTime };
+    const shiftData = { 
+        startTime, 
+        endTime,
+        itemId: selectedItemId,
+        itemName: selectedItem?.name || '',
+        itemDetail,
+    };
 
     if (shiftIndex > -1) {
         // Update existing shift
@@ -342,6 +370,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         companyName={company.name}
                         period={getPeriodDateRange(date, settings.payrollCycle)}
                         summary={periodSummary}
+                        shifts={allShifts.filter(s => s.userId === user.uid && s.companyId === companyId)}
                     />
                 )}
             </div>
@@ -408,7 +437,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 <CardHeader>
                     <CardTitle>Registrar Actividad</CardTitle>
                     <CardDescription>
-                        Selecciona una fecha y registra tus horas de trabajo. Los días con turnos guardados aparecen marcados.
+                        Selecciona una fecha y registra tus horas. Los días con turnos guardados aparecen marcados.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -428,6 +457,49 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                             />
                         </div>
                     </div>
+
+                    <Accordion type="single" collapsible className="w-full">
+                      <AccordionItem value="item-1">
+                        <AccordionTrigger>
+                          <span className="flex items-center gap-2 text-sm font-semibold">
+                            <ChevronsUpDown className="h-4 w-4" />
+                            Añadir Detalles Opcionales
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-4">
+                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div>
+                                <Label htmlFor="item-select">Item o Condición</Label>
+                                <Select value={selectedItemId} onValueChange={setSelectedItemId}>
+                                  <SelectTrigger id="item-select">
+                                    <SelectValue placeholder="Seleccionar item..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="">Ninguno</SelectItem>
+                                    {companyItems.map(item => (
+                                      <SelectItem key={item.id} value={item.id}>
+                                        {item.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {selectedItem?.description && <p className="text-xs text-muted-foreground mt-1">{selectedItem.description}</p>}
+                              </div>
+                              <div>
+                                <Label htmlFor="item-detail">{selectedItem?.requiresSupervisor ? "Nombre del Supervisor" : "Detalle"}</Label>
+                                <Input 
+                                  id="item-detail"
+                                  value={itemDetail}
+                                  onChange={(e) => setItemDetail(e.target.value)}
+                                  placeholder={selectedItem?.requiresSupervisor ? "Ingresa el nombre" : "Ej: Placa ABC-123"}
+                                />
+                              </div>
+                           </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+
+
                 </CardContent>
                 <CardFooter className="flex justify-between items-center">
                     <div>

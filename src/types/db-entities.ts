@@ -62,6 +62,14 @@ export type User = {
     type: 'fixed' | 'percentage';
     value: number;
   }
+  
+  export type CompanyItem = {
+    id: string;
+    companyId: string;
+    name: string;
+    description: string;
+    requiresSupervisor: boolean;
+  };
     
   export type Shift = {
     id: string;
@@ -71,8 +79,10 @@ export type User = {
     // For hourly model
     startTime?: string;
     endTime?: string;
-    // For production model
-    itemId?: string;
+    // For production model / custom fields
+    itemId?: string; // ID of the CompanyItem
+    itemName?: string; // Name of the CompanyItem (for display)
+    itemDetail?: string; // The value entered by user (e.g., supervisor name)
     quantity?: number;
     supervisor?: string;
   };
@@ -113,6 +123,4 @@ export type User = {
     benefitBreakdown: { name: string; value: number }[];
     deductionBreakdown: { name: string; value: number }[];
   }
-    
-
     

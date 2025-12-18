@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,10 +11,11 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Loader2, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import type { Company, CompanySettings, Benefit, Deduction } from '@/types/db-entities';
+import type { Company, CompanySettings, Benefit, Deduction, CompanyItem } from '@/types/db-entities';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,6 +24,7 @@ const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
 const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
 const LOCAL_STORAGE_KEY_BENEFITS = 'fake_company_benefits_db';
 const LOCAL_STORAGE_KEY_DEDUCTIONS = 'fake_company_deductions_db';
+const LOCAL_STORAGE_KEY_ITEMS = 'fake_company_items_db';
 
 
 const initialSettings: Omit<CompanySettings, 'id'> = {
@@ -61,6 +62,7 @@ export default function CompanySettingsPage() {
   const [settings, setSettings] = useState<CompanySettings>({ id: companyId, ...initialSettings });
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [deductions, setDeductions] = useState<Deduction[]>([]);
+  const [items, setItems] = useState<CompanyItem[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,6 +111,12 @@ export default function CompanySettingsPage() {
         } else {
             setDeductions(initialDeductions.map((d, i) => ({ ...d, id: `deduction_${Date.now()}_${i}`, companyId })));
         }
+
+        // Load Items
+        const storedItems = localStorage.getItem(LOCAL_STORAGE_KEY_ITEMS);
+        const allItems: CompanyItem[] = storedItems ? JSON.parse(storedItems) : [];
+        const companyItems = allItems.filter(item => item.companyId === companyId);
+        setItems(companyItems);
 
     } catch (error) {
         console.error("Could not access localStorage:", error);
@@ -164,6 +172,11 @@ export default function CompanySettingsPage() {
         const otherCompanyDeductions = allDeductions.filter(d => d.companyId !== companyId);
         localStorage.setItem(LOCAL_STORAGE_KEY_DEDUCTIONS, JSON.stringify([...otherCompanyDeductions, ...deductions]));
 
+        // Save Items
+        const storedItems = localStorage.getItem(LOCAL_STORAGE_KEY_ITEMS);
+        let allItems: CompanyItem[] = storedItems ? JSON.parse(storedItems) : [];
+        const otherCompanyItems = allItems.filter(item => item.companyId !== companyId);
+        localStorage.setItem(LOCAL_STORAGE_KEY_ITEMS, JSON.stringify([...otherCompanyItems, ...items]));
         
         toast({
             title: '¡Guardado!',
@@ -219,6 +232,28 @@ export default function CompanySettingsPage() {
     const updatedDeductions = [...deductions];
     updatedDeductions[index].value = numericValue;
     setDeductions(updatedDeductions);
+  };
+
+  const handleItemChange = (index: number, field: keyof CompanyItem, value: string | boolean) => {
+    const updatedItems = [...items];
+    (updatedItems[index] as any)[field] = value;
+    setItems(updatedItems);
+  };
+
+  const addItem = () => {
+      const newItem: CompanyItem = {
+          id: `item_${Date.now()}`,
+          companyId,
+          name: '',
+          description: '',
+          requiresSupervisor: false
+      };
+      setItems([...items, newItem]);
+  };
+
+  const removeItem = (index: number) => {
+      const updatedItems = items.filter((_, i) => i !== index);
+      setItems(updatedItems);
   };
 
 
@@ -380,6 +415,57 @@ export default function CompanySettingsPage() {
                     <Label htmlFor="holidayNightOvertimeRate">Hora Extra Festiva Nocturna</Label>
                     <Input type="number" id="holidayNightOvertimeRate" placeholder="0.00" value={settings.holidayNightOvertimeRate || ''} onChange={(e) => handleRateChange('holidayNightOvertimeRate', e.target.value)} />
                 </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Items de Producción y Condiciones Especiales</CardTitle>
+                <CardDescription>Define opciones que el operador puede registrar, como el nombre de un supervisor, placa de vehículo, etc.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                 <div className="flex justify-end">
+                    <Button variant="outline" size="sm" onClick={addItem}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Añadir Item
+                    </Button>
+                </div>
+                 {items.map((item, index) => (
+                    <div key={item.id} className="grid grid-cols-1 sm:grid-cols-12 items-center gap-2 p-2 rounded-lg border bg-muted/50">
+                        <div className="col-span-12 sm:col-span-5">
+                            <Label htmlFor={`item-name-${item.id}`}>Nombre del Item</Label>
+                            <Input
+                                id={`item-name-${item.id}`}
+                                value={item.name}
+                                onChange={(e) => handleItemChange(index, 'name', e.target.value)}
+                                placeholder="Ej: Supervisor de Turno"
+                            />
+                        </div>
+                        <div className="col-span-12 sm:col-span-5">
+                             <Label htmlFor={`item-desc-${item.id}`}>Descripción (Opcional)</Label>
+                            <Input
+                                id={`item-desc-${item.id}`}
+                                value={item.description}
+                                onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                                placeholder="Instrucciones para el operador"
+                            />
+                        </div>
+                        <div className="col-span-12 sm:col-span-2 flex items-center justify-between pt-5">
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id={`item-supervisor-${item.id}`}
+                                    checked={item.requiresSupervisor}
+                                    onCheckedChange={(checked) => handleItemChange(index, 'requiresSupervisor', !!checked)}
+                                />
+                                <Label htmlFor={`item-supervisor-${item.id}`} className="text-sm font-normal">Requiere Supervisor</Label>
+                            </div>
+                            <Button variant="ghost" size="icon" onClick={() => removeItem(index)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </div>
+                    </div>
+                ))}
+                {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No hay items definidos para esta empresa.</p>}
             </CardContent>
         </Card>
 
