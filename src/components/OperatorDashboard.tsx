@@ -253,11 +253,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         new Date(s.date).toDateString() === date.toDateString()
     );
 
+    const currentItemId = selectedItemId === 'none' ? '' : selectedItemId;
+    const currentItem = companyItems.find(item => item.id === currentItemId);
+
     const shiftData = { 
         startTime, 
         endTime,
-        itemId: selectedItemId,
-        itemName: selectedItem?.name || '',
+        itemId: currentItemId,
+        itemName: currentItem?.name || '',
         itemDetail,
     };
 
@@ -475,7 +478,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                     <SelectValue placeholder="Seleccionar item..." />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="">Ninguno</SelectItem>
+                                    <SelectItem value="none">Ninguno</SelectItem>
                                     {companyItems.map(item => (
                                       <SelectItem key={item.id} value={item.id}>
                                         {item.name}
