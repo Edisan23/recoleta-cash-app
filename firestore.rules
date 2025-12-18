@@ -11,17 +11,16 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    // The admin UID is hardcoded for security in this example.
-    // Replace 'ADMIN_UID_PLACEHOLDER' with the actual UID of the admin user.
-    function isAdmin() {
-      return request.auth != null && request.auth.uid == 'ADMIN_UID_PLACEHOLDER';
-    }
-
     // A user can be associated with a company
     function isCompanyMember(companyId) {
-      // For now, we will assume any authenticated user can be a member.
-      // This might be replaced with a check on user custom claims or a user profile document.
+      // This rule is a placeholder. For this fake data app, we'll
+      // assume any signed-in user is a member of any company.
       return isSignedIn();
+    }
+
+    // This is now a public access app for the admin section.
+    function isAdmin() {
+      return true;
     }
 
     match /users/{userId} {
@@ -29,17 +28,34 @@ service cloud.firestore {
       allow create: if isSignedIn();
     }
 
-    // Companies can be read by any signed-in user, but only created/updated/deleted by an admin.
     match /companies/{companyId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() || isAdmin();
       allow create, update, delete: if isAdmin();
 
-      // Shifts can be created by company members (operators) for themselves.
-      // Admins can read all shifts.
+      match /settings/{settingsId} {
+          allow read: if isCompanyMember(companyId) || isAdmin();
+          allow write: if isAdmin();
+      }
+      match /items/{itemId} {
+          allow read: if isCompanyMember(companyId) || isAdmin();
+          allow write: if isAdmin();
+      }
+       match /benefits/{benefitId} {
+          allow read: if isCompanyMember(companyId) || isAdmin();
+          allow write: if isAdmin();
+      }
+       match /deductions/{deductionId} {
+          allow read: if isCompanyMember(companyId) || isAdmin();
+          allow write: if isAdmin();
+      }
+
+
+      // Shifts can be created by a company member for themselves.
+      // They can only read their own shifts. Admins can read all shifts.
       match /shifts/{shiftId} {
           allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
           allow create: if isCompanyMember(companyId) && request.resource.data.userId == request.auth.uid;
-          allow update, delete: if isAdmin();
+          allow update, delete: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
       }
 
        // Payrolls can be read by the user they belong to, or by an admin.
@@ -47,24 +63,6 @@ service cloud.firestore {
         allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
         allow write: if isAdmin();
       }
-
-      // Settings, Benefits, Deductions can be read by company members but only written by admins.
-      match /settings/{settingsId} {
-        allow read: if isCompanyMember(companyId);
-        allow write: if isAdmin();
-      }
-
-      match /benefits/{benefitId} {
-        allow read: if isCompanyMember(companyId);
-        allow write: if isAdmin();
-      }
-
-      match /deductions/{deductionId} {
-        allow read: if isCompanyMember(companyId);
-        allow write: if isAdmin();
-      }
     }
   }
 }
-
-    

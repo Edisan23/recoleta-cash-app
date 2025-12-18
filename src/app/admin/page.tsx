@@ -1,132 +1,81 @@
+
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { CompanyTable } from '@/components/admin/CompanyTable';
+import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser } from '@/firebase';
-import {
-  signInWithPopup,
-  GoogleAuthProvider,
-} from 'firebase/auth';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import type { Company } from '@/types/db-entities';
 
-const ADMIN_UID = 'gHZ9n7s2b9X8fJ2kP3s5t8YxVOE2'; // IMPORTANT: This is a temporary placeholder
+const INITIAL_COMPANIES: Company[] = [
+    { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },
+    { id: '2', name: 'Transportes Rápidos', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#10b981' },
+    { id: '3', name: 'Servicios Generales S.A.', isActive: false, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#8b5cf6' },
+];
 
-export default function AdminLoginPage() {
+const LOCAL_STORAGE_KEY = 'fake_companies_db';
+
+
+export default function AdminDashboardPage() {
   const router = useRouter();
-  const auth = useAuth();
-  const { user, isUserLoading } = useUser();
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [companies, setCompanies] = useState<Company[]>([]);
 
+  // Load companies from localStorage on initial render
   useEffect(() => {
-    if (isUserLoading) return; // Wait until user state is loaded
-
-    if (user) {
-      if (user.uid === ADMIN_UID) {
-        router.replace('/admin/dashboard');
-      } else {
-        // If a non-admin is somehow logged in on this page, sign them out.
-        if (auth) {
-          auth.signOut();
-        }
-      }
-    }
-  }, [user, isUserLoading, router, toast, auth]);
-
-  const handleGoogleSignIn = async () => {
-    if (!auth) return;
-    setIsSubmitting(true);
-    const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      
-      // --- CAPTURE REAL UID ---
-      // This will log the actual UID to the browser console.
-      console.log("ADMINISTRADOR UID REAL:", result.user.uid);
-      
-      // Temporarily bypass the UID check to allow login.
-      // The user will provide the real UID from the console log.
-      toast({
-        title: '¡Sesión Iniciada!',
-        description: 'Ahora, por favor, copia el UID de la consola del navegador y envíamelo.',
-      });
-      router.replace('/admin/dashboard');
-
-    } catch (error: any) {
-      console.error('Error during Google sign-in:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error de Autenticación',
-        description:
-          error.code === 'auth/popup-closed-by-user'
-            ? 'El proceso de inicio de sesión fue cancelado.'
-            : 'Ocurrió un error al intentar iniciar sesión con Google.',
-      });
-    } finally {
-      setIsSubmitting(false);
+        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (storedCompanies) {
+            setCompanies(JSON.parse(storedCompanies));
+        } else {
+            // If nothing in localStorage, initialize with default data
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_COMPANIES));
+            setCompanies(INITIAL_COMPANIES);
+        }
+    } catch (error) {
+        console.error("Could not access localStorage:", error);
+        setCompanies(INITIAL_COMPANIES); // Fallback to initial data
     }
+  }, []);
+
+  const addCompany = (newCompanyData: Omit<Company, 'id'>) => {
+    const newCompany: Company = {
+        ...newCompanyData,
+        id: `comp_${Date.now()}`
+    };
+    
+    setCompanies(prevCompanies => {
+        const updatedCompanies = [...prevCompanies, newCompany];
+        try {
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedCompanies));
+        } catch (error) {
+            console.error("Could not save to localStorage:", error);
+        }
+        return updatedCompanies;
+    });
   };
 
-  // Show loader while checking auth state or if a user is logged in (and redirection is in progress)
-  if (isUserLoading || user) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Acceso de Administrador</CardTitle>
-          <CardDescription>
-            Inicia sesión para gestionar Turno Pro.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center gap-4">
-          <Button
-            className="w-full max-w-xs"
-            variant="outline"
-            onClick={handleGoogleSignIn}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
-            <svg
-              className="mr-2 h-4 w-4"
-              aria-hidden="true"
-              focusable="false"
-              data-prefix="fab"
-              data-icon="google"
-              role="img"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 488 512"
-            >
-              <path
-                fill="currentColor"
-                d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 61.9l-69.5 69.5c-24.3-23.6-58.3-38.3-99.8-38.3-87.3 0-157.8 70.5-157.8 157.8s70.5 157.8 157.8 157.8c105.8 0 138.8-78.4 142.8-108.3H248v-85.3h236.1c2.3 12.7 3.9 26.9 3.9 41.4z"
-              ></path>
-            </svg>}
-            Ingresar con Google
+    <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+      <header className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">Panel de Administración</h1>
+          <p className="text-muted-foreground">Gestión de empresas y configuración general.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" onClick={() => router.push('/admin/holidays')}>
+            <CalendarDays className="mr-2" />
+            Gestionar Feriados
           </Button>
-        </CardContent>
-         <CardFooter>
-            <Button variant="link" className="w-full" onClick={() => router.push('/')}>
-                Volver al inicio
-            </Button>
-        </CardFooter>
-      </Card>
+          <CreateCompanyDialog onCompanyCreated={addCompany} />
+        </div>
+      </header>
+
+      <main>
+        <CompanyTable companies={companies} />
+      </main>
     </div>
   );
 }
