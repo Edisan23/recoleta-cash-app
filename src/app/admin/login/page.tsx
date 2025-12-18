@@ -11,10 +11,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useAuth, useUser } from '@/firebase';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -27,8 +25,6 @@ export default function AdminLoginPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [adminUid, setAdminUid] = useState<string | null>(null);
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
@@ -51,31 +47,26 @@ export default function AdminLoginPage() {
   }, [user, isUserLoading, router, adminUid]);
   
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleSignIn = async () => {
     if (!auth) return;
-    if (!email || !password) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Por favor, ingresa tu correo y contraseña.',
-      });
-      return;
-    }
     setIsSubmitting(true);
+    const provider = new GoogleAuthProvider();
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      
+      const userCredential = await signInWithPopup(auth, provider);
+      const user = userCredential.user;
+
       const storedAdminUid = localStorage.getItem(ADMIN_UID_KEY);
       
       if (storedAdminUid) {
-        if (userCredential.user.uid === storedAdminUid) {
+        // If an admin already exists, only that user can log in
+        if (user.uid === storedAdminUid) {
           toast({
             title: '¡Bienvenido de nuevo!',
             description: 'Has iniciado sesión correctamente.',
           });
           router.push('/admin');
         } else {
+          // If a different user tries to log in, deny access
           await auth.signOut();
           toast({
             variant: 'destructive',
@@ -84,10 +75,9 @@ export default function AdminLoginPage() {
           });
         }
       } else {
-        // First user to log in becomes the admin
-        const newAdminUid = userCredential.user.uid;
-        localStorage.setItem(ADMIN_UID_KEY, newAdminUid);
-        setAdminUid(newAdminUid);
+        // If no admin exists, the first user to log in becomes the admin
+        localStorage.setItem(ADMIN_UID_KEY, user.uid);
+        setAdminUid(user.uid);
         toast({
           title: '¡Administrador Registrado!',
           description: 'Te has convertido en el administrador principal.',
@@ -98,10 +88,8 @@ export default function AdminLoginPage() {
     } catch (error: any) {
       console.error('Admin login error:', error);
        let description = 'Ocurrió un error inesperado.';
-      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
-        description = 'El usuario no existe o las credenciales son incorrectas.';
-      } else if (error.code === 'auth/wrong-password') {
-        description = 'La contraseña es incorrecta.';
+       if (error.code === 'auth/popup-closed-by-user') {
+        description = 'El proceso de inicio de sesión fue cancelado.';
       }
       toast({
         variant: 'destructive',
@@ -110,32 +98,6 @@ export default function AdminLoginPage() {
       });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handlePasswordReset = async () => {
-    if (!auth) return;
-    if (!email) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Por favor, ingresa tu correo electrónico para restablecer la contraseña.",
-      });
-      return;
-    }
-    try {
-      await sendPasswordResetEmail(auth, email);
-      toast({
-        title: "Correo Enviado",
-        description: "Se ha enviado un enlace para restablecer tu contraseña a tu correo electrónico.",
-      });
-    } catch (error: any) {
-      console.error("Password reset error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudo enviar el correo de restablecimiento. Verifica que el correo sea correcto.",
-      });
     }
   };
 
@@ -151,53 +113,42 @@ export default function AdminLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
       <Card className="w-full max-w-md">
-        <form onSubmit={handleLogin}>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Acceso de Administrador</CardTitle>
+            <CardTitle className="text-2xl">
+              {adminUid ? 'Acceso de Administrador' : 'Configurar Administrador Principal'}
+            </CardTitle>
             <CardDescription>
-              Inicia sesión para gestionar el sistema. La primera cuenta que ingrese se convertirá en el administrador.
+              {adminUid 
+                ? 'Inicia sesión para gestionar el sistema.' 
+                : 'La primera cuenta que inicie sesión con Google se convertirá en el administrador.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Correo Electrónico</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="admin@ejemplo.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Contraseña</Label>
-                <Button
-                  type="button"
-                  variant="link"
-                  className="h-auto p-0 text-xs"
-                  onClick={handlePasswordReset}
+             <Button
+                className="w-full"
+                variant="outline"
+                onClick={handleGoogleSignIn}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+                <svg
+                  className="mr-2 h-4 w-4"
+                  aria-hidden="true"
+                  focusable="false"
+                  data-prefix="fab"
+                  data-icon="google"
+                  role="img"
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 488 512"
                 >
-                  ¿Olvidaste tu contraseña?
-                </Button>
-              </div>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
+                  <path
+                    fill="currentColor"
+                    d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 61.9l-69.5 69.5c-24.3-23.6-58.3-38.3-99.8-38.3-87.3 0-157.8 70.5-157.8 157.8s70.5 157.8 157.8 157.8c105.8 0 138.8-78.4 142.8-108.3H248v-85.3h236.1c2.3 12.7 3.9 26.9 3.9 41.4z"
+                  ></path>
+                </svg>}
+                Ingresar con Google
+              </Button>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Ingresar
-            </Button>
-          </CardFooter>
-        </form>
       </Card>
     </div>
   );
