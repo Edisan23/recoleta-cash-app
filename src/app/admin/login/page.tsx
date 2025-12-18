@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth, useUser } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -66,11 +66,9 @@ export default function AdminLoginPage() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       
-      // Check if an admin is already registered in localStorage
       const storedAdminUid = localStorage.getItem(ADMIN_UID_KEY);
       
       if (storedAdminUid) {
-        // If an admin exists, verify if the logged-in user is that admin
         if (userCredential.user.uid === storedAdminUid) {
           toast({
             title: '¡Bienvenido de nuevo!',
@@ -78,7 +76,6 @@ export default function AdminLoginPage() {
           });
           router.push('/admin');
         } else {
-          // If a different user tries to log in, deny access
           await auth.signOut();
           toast({
             variant: 'destructive',
@@ -87,10 +84,9 @@ export default function AdminLoginPage() {
           });
         }
       } else {
-        // If NO admin is registered, make this user the new admin
         const newAdminUid = userCredential.user.uid;
         localStorage.setItem(ADMIN_UID_KEY, newAdminUid);
-        setAdminUid(newAdminUid); // Update state to reflect the new admin
+        setAdminUid(newAdminUid);
         toast({
           title: '¡Administrador Registrado!',
           description: 'Te has convertido en el administrador principal.',
@@ -115,6 +111,33 @@ export default function AdminLoginPage() {
       setIsSubmitting(false);
     }
   };
+
+  const handlePasswordReset = async () => {
+    if (!auth) return;
+    if (!email) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Por favor, ingresa tu correo electrónico para restablecer la contraseña.",
+      });
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({
+        title: "Correo Enviado",
+        description: "Se ha enviado un enlace para restablecer tu contraseña a tu correo electrónico.",
+      });
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudo enviar el correo de restablecimiento. Verifica que el correo sea correcto.",
+      });
+    }
+  };
+
 
   if (isUserLoading || isCheckingAdmin || (user && user.uid === adminUid)) {
     return (
@@ -147,7 +170,17 @@ export default function AdminLoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Contraseña</Label>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto p-0 text-xs"
+                  onClick={handlePasswordReset}
+                >
+                  ¿Olvidaste tu contraseña?
+                </Button>
+              </div>
               <Input
                 id="password"
                 type="password"
@@ -162,9 +195,6 @@ export default function AdminLoginPage() {
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Ingresar
             </Button>
-            <p className="text-xs text-muted-foreground text-center px-4">
-              Nota: Aún no existe una cuenta de administrador. La primera cuenta que inicie sesión correctamente será designada como la administradora.
-            </p>
           </CardFooter>
         </form>
       </Card>
