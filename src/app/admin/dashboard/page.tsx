@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,7 +11,7 @@ import type { Company } from '@/types/db-entities';
 import { useAuth, useUser } from '@/firebase';
 
 
-const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1';
+const ADMIN_UID = 'gHZ9n7s2b9X8fJ2kP3s5t8YxVOE2';
 
 const INITIAL_COMPANIES: Company[] = [
     { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },

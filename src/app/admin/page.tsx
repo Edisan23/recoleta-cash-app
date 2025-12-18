@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -19,7 +20,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
-const ADMIN_UID = '15sJqL2prSVL2adSXRyqsefg26v1'; // IMPORTANT: This is the real Admin UID
+const ADMIN_UID = 'gHZ9n7s2b9X8fJ2kP3s5t8YxVOE2'; // IMPORTANT: This is the real Admin UID
 
 export default function AdminLoginPage() {
   const router = useRouter();

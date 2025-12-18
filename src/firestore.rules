@@ -22,7 +22,7 @@ service cloud.firestore {
 
     // The admin UID is hardcoded for security in this example.
     function isAdmin() {
-      return request.auth != null && request.auth.uid == '15sJqL2prSVL2adSXRyqsefg26v1';
+      return request.auth != null && request.auth.uid == 'gHZ9n7s2b9X8fJ2kP3s5t8YxVOE2';
     }
 
     match /users/{userId} {
