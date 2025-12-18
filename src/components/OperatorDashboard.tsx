@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Loader2, Trash2, Download } from 'lucide-react';
-import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
+import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -31,6 +31,7 @@ const SETTINGS_DB_KEY = 'fake_company_settings_db';
 const HOLIDAYS_DB_KEY = 'fake_holidays_db';
 const BENEFITS_DB_KEY = 'fake_company_benefits_db';
 const DEDUCTIONS_DB_KEY = 'fake_company_deductions_db';
+const USER_PROFILES_DB_KEY = 'fake_user_profiles_db';
 
 
 // --- HELPER FUNCTIONS ---
@@ -154,6 +155,38 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       setIsLoading(false);
     }
   }, [companyId, router, toast]);
+
+    // Effect 1.5: Save/update user profile in localStorage
+    useEffect(() => {
+        if (user && user.uid && !user.isAnonymous) {
+            try {
+                const storedProfiles = localStorage.getItem(USER_PROFILES_DB_KEY);
+                const profiles: UserProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
+                
+                const userProfile: UserProfile = {
+                    uid: user.uid,
+                    displayName: user.displayName || 'Operador',
+                    photoURL: user.photoURL || '',
+                    email: user.email || ''
+                };
+                
+                const existingProfileIndex = profiles.findIndex(p => p.uid === user.uid);
+
+                if (existingProfileIndex > -1) {
+                    // Update only if data has changed to avoid unnecessary writes
+                    if (JSON.stringify(profiles[existingProfileIndex]) !== JSON.stringify(userProfile)) {
+                         profiles[existingProfileIndex] = userProfile;
+                         localStorage.setItem(USER_PROFILES_DB_KEY, JSON.stringify(profiles));
+                    }
+                } else {
+                    profiles.push(userProfile);
+                    localStorage.setItem(USER_PROFILES_DB_KEY, JSON.stringify(profiles));
+                }
+            } catch (error) {
+                console.error("Could not save user profile to localStorage:", error);
+            }
+        }
+    }, [user]);
 
   // Effect 2: Update inputs when date changes or shifts are updated
   useEffect(() => {

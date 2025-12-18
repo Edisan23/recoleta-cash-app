@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { CalendarDays } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
+import { OperatorList } from '@/components/admin/OperatorList';
 
 const INITIAL_COMPANIES: Company[] = [
     { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },
@@ -62,7 +63,7 @@ export default function AdminDashboardPage() {
       <header className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold">Panel de Administración</h1>
-          <p className="text-muted-foreground">Gestión de empresas y configuración general.</p>
+          <p className="text-muted-foreground">Gestión de empresas, operadores y configuración general.</p>
         </div>
         <div className="flex items-center gap-4">
           <Button variant="outline" onClick={() => router.push('/admin/holidays')}>
@@ -73,8 +74,13 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      <main>
-        <CompanyTable companies={companies} />
+      <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <CompanyTable companies={companies} />
+        </div>
+        <div className="lg:col-span-1 space-y-8">
+          <OperatorList />
+        </div>
       </main>
     </div>
   );

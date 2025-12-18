@@ -1,4 +1,5 @@
 
+
 // This file is auto-generated, do not edit.
 
 export type User = {
@@ -10,6 +11,13 @@ export type User = {
     createdAt: string; // The timestamp when the user account was created.
     paymentStatus: "trial" | "paid" | "blocked"; // The payment status of the user's account.
   };
+
+  export type UserProfile = {
+    uid: string;
+    displayName: string;
+    photoURL: string;
+    email: string;
+  }
   
   export type Company = {
     id: string; // Unique identifier for the company.
