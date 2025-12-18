@@ -1,13 +1,14 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { UserProfile, Shift, Company } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { Loader2, Users, MoreHorizontal, UserCheck, UserX, Star, Building } from 'lucide-react';
+import { Loader2, Users, MoreHorizontal, UserCheck, UserX, Star, Building, Search } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
 import {
   Table,
@@ -46,18 +47,17 @@ const statusMap: Record<UserProfile['paymentStatus'], { label: string; variant: 
 export function OperatorTable() {
     const [operators, setOperators] = useState<UserProfile[]>([]);
     const [companyMap, setCompanyMap] = useState<Record<string, string>>({});
+    const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
 
     const loadData = () => {
         setIsLoading(true);
         try {
-            // Load Profiles
             const storedProfiles = localStorage.getItem(USER_PROFILES_DB_KEY);
             const profiles: UserProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
             setOperators(profiles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
             
-            // Load Shifts and Companies to build the map
             const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
             const shifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
 
@@ -68,11 +68,10 @@ export function OperatorTable() {
                 return acc;
             }, {} as Record<string, string>);
 
-            // Create a map of userId -> companyName from the most recent shift
             const opCompanyMap = shifts
                 .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                 .reduce((acc, shift) => {
-                    if (!acc[shift.userId]) { // Only set the first time (which is the most recent)
+                    if (!acc[shift.userId]) { 
                         acc[shift.userId] = companiesById[shift.companyId] || 'Empresa Desconocida';
                     }
                     return acc;
@@ -92,18 +91,37 @@ export function OperatorTable() {
         loadData();
     }, [toast]);
     
+    const filteredOperators = useMemo(() => {
+        if (!searchQuery) {
+            return operators;
+        }
+        return operators.filter(op => 
+            op.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (op.email && op.email.toLowerCase().includes(searchQuery.toLowerCase()))
+        );
+    }, [operators, searchQuery]);
+
     return (
         <Card>
             <CardHeader>
-                <div className="flex justify-between items-start">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <CardTitle className="flex items-center gap-2">
                             <Users className="h-6 w-6" />
-                            Operadores
+                            Operadores Registrados
                         </CardTitle>
                         <CardDescription>
-                            Lista de operadores suscritos y su estado de pago.
+                            Lista de operadores suscritos, su estado y empresa.
                         </CardDescription>
+                    </div>
+                     <div className="relative w-full sm:max-w-xs">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Buscar por nombre o email..."
+                            className="pl-9"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
                 </div>
             </CardHeader>
@@ -127,8 +145,8 @@ export function OperatorTable() {
                                         <Loader2 className="mx-auto animate-spin text-muted-foreground" />
                                     </TableCell>
                                 </TableRow>
-                            ) : operators.length > 0 ? (
-                                operators.map((op) => {
+                            ) : filteredOperators.length > 0 ? (
+                                filteredOperators.map((op) => {
                                     const statusInfo = statusMap[op.paymentStatus] || statusMap.blocked;
                                     const companyName = companyMap[op.uid] || 'No asignada';
                                     return (
@@ -187,7 +205,7 @@ export function OperatorTable() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={6} className="h-24 text-center">
-                                        No hay operadores registrados.
+                                        No se encontraron operadores.
                                     </TableCell>
                                 </TableRow>
                             )}

@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
 import { OperatorTable } from '@/components/admin/OperatorTable';
 import { Separator } from '@/components/ui/separator';
+import { OperatorStats } from '@/components/admin/OperatorStats';
 
 const INITIAL_COMPANIES: Company[] = [
     { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },
@@ -78,6 +79,7 @@ export default function AdminDashboardPage() {
       <main className="space-y-8">
         <CompanyTable companies={companies} />
         <Separator />
+        <OperatorStats />
         <OperatorTable />
       </main>
     </div>
