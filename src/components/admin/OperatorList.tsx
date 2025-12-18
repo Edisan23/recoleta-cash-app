@@ -6,7 +6,9 @@ import type { UserProfile, Shift } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { Loader2, Users } from 'lucide-react';
+import { Loader2, Trash2, Users } from 'lucide-react';
+import { Button } from '../ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 const USER_PROFILES_DB_KEY = 'fake_user_profiles_db';
 const SHIFTS_DB_KEY = 'fake_shifts_db';
@@ -14,8 +16,10 @@ const SHIFTS_DB_KEY = 'fake_shifts_db';
 export function OperatorList() {
     const [operators, setOperators] = useState<UserProfile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const { toast } = useToast();
 
-    useEffect(() => {
+    const loadOperators = () => {
+        setIsLoading(true);
         try {
             const storedProfiles = localStorage.getItem(USER_PROFILES_DB_KEY);
             const profiles: UserProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
@@ -38,15 +42,43 @@ export function OperatorList() {
         } finally {
             setIsLoading(false);
         }
+    }
+
+    useEffect(() => {
+        loadOperators();
     }, []);
+
+    const handleClearOperators = () => {
+        try {
+            localStorage.removeItem(USER_PROFILES_DB_KEY);
+            localStorage.removeItem(SHIFTS_DB_KEY);
+            setOperators([]);
+            toast({
+                title: "¡Listo!",
+                description: "Se han eliminado los datos de turnos y operadores.",
+            });
+        } catch (error) {
+            console.error("Error clearing operator data from localStorage:", error);
+             toast({
+                title: "Error",
+                description: "No se pudieron eliminar los datos.",
+                variant: "destructive"
+            });
+        }
+    };
 
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Users className="h-6 w-6" />
-                    Operadores Registrados
-                </CardTitle>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center gap-2">
+                        <Users className="h-6 w-6" />
+                        Operadores
+                    </CardTitle>
+                    <Button variant="outline" size="icon" onClick={handleClearOperators} title="Limpiar Operadores y Turnos">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                </div>
                 <CardDescription>
                     Lista de operadores que han registrado actividad.
                 </CardDescription>
