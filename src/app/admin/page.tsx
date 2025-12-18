@@ -1,16 +1,16 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { CompanyTable } from '@/components/admin/CompanyTable';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { Button } from '@/components/ui/button';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, LogOut, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
 import { OperatorTable } from '@/components/admin/OperatorTable';
 import { Separator } from '@/components/ui/separator';
 import { OperatorStats } from '@/components/admin/OperatorStats';
+import { useAuth, useUser } from '@/firebase';
 
 const INITIAL_COMPANIES: Company[] = [
     { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },
@@ -18,28 +18,46 @@ const INITIAL_COMPANIES: Company[] = [
     { id: '3', name: 'Servicios Generales S.A.', isActive: false, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#8b5cf6' },
 ];
 
-const LOCAL_STORAGE_KEY = 'fake_companies_db';
-
+const COMPANIES_DB_KEY = 'fake_companies_db';
+const ADMIN_UID_KEY = 'fake_admin_uid';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
   
   const [companies, setCompanies] = useState<Company[]>([]);
+  
+  useEffect(() => {
+    if (!isUserLoading) {
+      if (!user) {
+        router.replace('/admin/login');
+        return;
+      }
+      try {
+        const adminUid = localStorage.getItem(ADMIN_UID_KEY);
+        if (user.uid !== adminUid) {
+          router.replace('/admin/login');
+        }
+      } catch (error) {
+        console.error("Could not access localStorage:", error);
+        router.replace('/admin/login');
+      }
+    }
+  }, [user, isUserLoading, router]);
 
-  // Load companies from localStorage on initial render
   useEffect(() => {
     try {
-        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY);
+        const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
         if (storedCompanies) {
             setCompanies(JSON.parse(storedCompanies));
         } else {
-            // If nothing in localStorage, initialize with default data
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(INITIAL_COMPANIES));
+            localStorage.setItem(COMPANIES_DB_KEY, JSON.stringify(INITIAL_COMPANIES));
             setCompanies(INITIAL_COMPANIES);
         }
     } catch (error) {
         console.error("Could not access localStorage:", error);
-        setCompanies(INITIAL_COMPANIES); // Fallback to initial data
+        setCompanies(INITIAL_COMPANIES);
     }
   }, []);
 
@@ -52,13 +70,28 @@ export default function AdminDashboardPage() {
     setCompanies(prevCompanies => {
         const updatedCompanies = [...prevCompanies, newCompany];
         try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedCompanies));
+            localStorage.setItem(COMPANIES_DB_KEY, JSON.stringify(updatedCompanies));
         } catch (error) {
             console.error("Could not save to localStorage:", error);
         }
         return updatedCompanies;
     });
   };
+
+  const handleSignOut = async () => {
+    if (auth) {
+      await auth.signOut();
+      router.push('/admin/login');
+    }
+  };
+  
+  if (isUserLoading || !user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -73,6 +106,10 @@ export default function AdminDashboardPage() {
             Gestionar Feriados
           </Button>
           <CreateCompanyDialog onCompanyCreated={addCompany} />
+           <Button variant="ghost" onClick={handleSignOut}>
+            <LogOut className="mr-2" />
+            Cerrar Sesión
+          </Button>
         </div>
       </header>
 
