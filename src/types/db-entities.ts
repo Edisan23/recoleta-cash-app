@@ -79,10 +79,15 @@ export type User = {
     // For hourly model
     startTime?: string;
     endTime?: string;
-    // For production model / custom fields
-    itemId?: string; // ID of the CompanyItem
-    itemName?: string; // Name of the CompanyItem (for display)
-    itemDetail?: string; // The value entered by user (e.g., supervisor name)
+    
+    // Custom fields for the shift
+    itemDetails?: { 
+      itemId: string; 
+      itemName: string; // Name of the CompanyItem (for display)
+      detail: string; // The value entered by user (e.g., supervisor name)
+    }[];
+
+    // Legacy/unused fields
     quantity?: number;
     supervisor?: string;
   };

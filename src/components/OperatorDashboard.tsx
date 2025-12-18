@@ -13,7 +13,6 @@ import { DatePicker } from '@/components/DatePicker';
 import { TimeInput } from '@/components/TimeInput';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DeleteShiftDialog } from '@/components/operator/DeleteShiftDialog';
 import { calculateShiftSummary, calculatePeriodSummary, getPeriodDateRange } from '@/lib/payroll-calculator';
 import { PayrollBreakdown } from './operator/PayrollBreakdown';
@@ -77,8 +76,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
-  const [selectedItemId, setSelectedItemId] = useState<string>('');
-  const [itemDetail, setItemDetail] = useState<string>('');
+  const [itemDetails, setItemDetails] = useState<Record<string, string>>({}); // { itemId: detail }
   
   // Calculated Summaries
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
@@ -101,11 +99,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         .filter(s => s.userId === user.uid && s.companyId === companyId)
         .map(s => new Date(s.date));
   }, [allShifts, user?.uid, companyId]);
-
-  const selectedItem = useMemo(() => {
-      return companyItems.find(item => item.id === selectedItemId);
-  }, [selectedItemId, companyItems]);
-
 
   // Effect 1: Load all initial data from localStorage ONCE
   useEffect(() => {
@@ -203,13 +196,16 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     if (shiftForSelectedDate) {
       setStartTime(shiftForSelectedDate.startTime || '');
       setEndTime(shiftForSelectedDate.endTime || '');
-      setSelectedItemId(shiftForSelectedDate.itemId || '');
-      setItemDetail(shiftForSelectedDate.itemDetail || '');
+      
+      const details = shiftForSelectedDate.itemDetails?.reduce((acc, item) => {
+          acc[item.itemId] = item.detail;
+          return acc;
+      }, {} as Record<string, string>) || {};
+      setItemDetails(details);
     } else {
       setStartTime('');
       setEndTime('');
-      setSelectedItemId('');
-      setItemDetail('');
+      setItemDetails({});
     }
   }, [shiftForSelectedDate, date]);
 
@@ -233,13 +229,20 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   }, [allShifts, user, companyId, settings, date, holidays, benefits, deductions]);
 
+
+  const handleItemDetailChange = (itemId: string, value: string) => {
+    setItemDetails(prev => ({ ...prev, [itemId]: value }));
+  };
+
   const handleSave = async () => {
     if (!date || !user) {
         toast({ title: "Error", description: "No se puede guardar sin fecha o usuario.", variant: "destructive"});
         return;
     }
-     if (!startTime && !endTime && !selectedItemId) {
-        toast({ title: "Atención", description: "Debes ingresar horas o seleccionar un item para guardar.", variant: "destructive"});
+
+    const hasItemDetails = Object.values(itemDetails).some(detail => detail.trim() !== '');
+     if (!startTime && !endTime && !hasItemDetails) {
+        toast({ title: "Atención", description: "Debes ingresar horas o añadir algún detalle para guardar.", variant: "destructive"});
         return;
     }
 
@@ -252,16 +255,22 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         s.companyId === companyId &&
         new Date(s.date).toDateString() === date.toDateString()
     );
-
-    const currentItemId = selectedItemId === 'none' ? '' : selectedItemId;
-    const currentItem = companyItems.find(item => item.id === currentItemId);
+    
+    const filledItemDetails = Object.entries(itemDetails)
+      .filter(([_, detail]) => detail.trim() !== '')
+      .map(([itemId, detail]) => {
+        const item = companyItems.find(i => i.id === itemId);
+        return {
+          itemId,
+          itemName: item?.name || 'Item Desconocido',
+          detail,
+        };
+      });
 
     const shiftData = { 
         startTime, 
         endTime,
-        itemId: currentItemId,
-        itemName: currentItem?.name || '',
-        itemDetail,
+        itemDetails: filledItemDetails,
     };
 
     if (shiftIndex > -1) {
@@ -461,47 +470,24 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         </div>
                     </div>
 
-                    <Accordion type="single" collapsible className="w-full">
-                      <AccordionItem value="item-1">
-                        <AccordionTrigger>
-                          <span className="flex items-center gap-2 text-sm font-semibold">
-                            <ChevronsUpDown className="h-4 w-4" />
-                            Añadir Detalles Opcionales
-                          </span>
-                        </AccordionTrigger>
-                        <AccordionContent className="pt-4">
-                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              <div>
-                                <Label htmlFor="item-select">Item o Condición</Label>
-                                <Select value={selectedItemId} onValueChange={setSelectedItemId}>
-                                  <SelectTrigger id="item-select">
-                                    <SelectValue placeholder="Seleccionar item..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="none">Ninguno</SelectItem>
-                                    {companyItems.map(item => (
-                                      <SelectItem key={item.id} value={item.id}>
-                                        {item.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                {selectedItem?.description && <p className="text-xs text-muted-foreground mt-1">{selectedItem.description}</p>}
-                              </div>
-                              <div>
-                                <Label htmlFor="item-detail">{selectedItem?.requiresSupervisor ? "Nombre del Supervisor" : "Detalle"}</Label>
-                                <Input 
-                                  id="item-detail"
-                                  value={itemDetail}
-                                  onChange={(e) => setItemDetail(e.target.value)}
-                                  placeholder={selectedItem?.requiresSupervisor ? "Ingresa el nombre" : "Ej: Placa ABC-123"}
-                                />
-                              </div>
-                           </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    </Accordion>
-
+                    {companyItems.length > 0 && (
+                      <div className="space-y-4 pt-4 border-t">
+                        <h3 className="text-sm font-semibold text-muted-foreground">Detalles Adicionales</h3>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {companyItems.map(item => (
+                            <div key={item.id}>
+                              <Label htmlFor={`item-detail-${item.id}`}>{item.name}</Label>
+                               <Input 
+                                id={`item-detail-${item.id}`}
+                                value={itemDetails[item.id] || ''}
+                                onChange={(e) => handleItemDetailChange(item.id, e.target.value)}
+                                placeholder={item.description || "Ingresa el detalle"}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                 </CardContent>
                 <CardFooter className="flex justify-between items-center">

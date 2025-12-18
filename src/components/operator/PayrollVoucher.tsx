@@ -29,7 +29,7 @@ const BreakdownRow = ({ label, value }: { label: string; value: number }) => {
 };
 
 export function PayrollVoucher({ operatorName, companyName, period, summary, shifts }: PayrollVoucherProps) {
-    const detailedShifts = shifts.filter(s => s.itemId && s.itemName && s.itemDetail);
+    const detailedShifts = shifts.filter(s => s.itemDetails && s.itemDetails.length > 0);
     
     return (
         <Card className="w-[800px] shadow-lg border-2 font-sans bg-white text-black">
@@ -102,10 +102,12 @@ export function PayrollVoucher({ operatorName, companyName, period, summary, shi
                              <h3 className="text-lg font-semibold border-b border-gray-200 pb-2 mb-2">Actividades Detalladas</h3>
                              <div className="text-sm text-gray-700 space-y-1">
                                 {detailedShifts.map(shift => (
-                                    <div key={shift.id} className="grid grid-cols-3 gap-2 border-b pb-1">
-                                        <p>{format(parseISO(shift.date), 'd MMM yyyy', {locale: es})}</p>
-                                        <p className="font-medium col-span-2">{shift.itemName}: <span className="font-normal text-gray-600">{shift.itemDetail}</span></p>
-                                    </div>
+                                    shift.itemDetails?.map(detail => (
+                                        <div key={`${shift.id}-${detail.itemId}`} className="grid grid-cols-3 gap-2 border-b pb-1">
+                                            <p>{format(parseISO(shift.date), 'd MMM yyyy', {locale: es})}</p>
+                                            <p className="font-medium col-span-2">{detail.itemName}: <span className="font-normal text-gray-600">{detail.detail}</span></p>
+                                        </div>
+                                    ))
                                 ))}
                              </div>
                         </div>
