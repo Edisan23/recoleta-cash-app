@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { OperatorDashboard } from '@/components/OperatorDashboard';
-import { Loader2 } from 'lucide-react';
 import { useUser } from '@/firebase';
+import { LogoSpinner } from '@/components/LogoSpinner';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -43,7 +43,7 @@ export default function OperatorDashboardPage() {
   if (isLoading || isUserLoading || !companyId || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <LogoSpinner />
       </div>
     );
   }

@@ -12,13 +12,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Loader2, PlusCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
 import type { Company, CompanySettings, Benefit, Deduction, CompanyItem } from '@/types/db-entities';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { LogoSpinner } from '@/components/LogoSpinner';
 
 const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
 const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
@@ -260,7 +261,7 @@ export default function CompanySettingsPage() {
   if (isLoading) {
     return (
         <div className="flex flex-col items-center justify-center h-screen">
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <LogoSpinner />
         </div>
     )
   }
@@ -556,7 +557,7 @@ export default function CompanySettingsPage() {
 
         <div className="flex justify-end">
             <Button onClick={handleSave} disabled={isSaving} size="lg">
-                {isSaving && <Loader2 className="mr-2 animate-spin" />}
+                {isSaving && <LogoSpinner className="mr-2" />}
                 Guardar Cambios
             </Button>
         </div>

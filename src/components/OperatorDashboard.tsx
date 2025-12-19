@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Loader2, Trash2, Download, ChevronsUpDown } from 'lucide-react';
+import { LogOut, Trash2, Download, ChevronsUpDown } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,6 +22,7 @@ import { ThemeToggle } from './ui/theme-toggle';
 import { PayrollVoucher } from './operator/PayrollVoucher';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { LogoSpinner } from './LogoSpinner';
 
 
 // --- FAKE DATA & KEYS ---
@@ -365,7 +366,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   if (isLoading || !company || !user || !settings) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin" />
+            <LogoSpinner />
         </div>
     );
   }
@@ -433,7 +434,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <div className="flex items-center gap-2">
                 <ThemeToggle />
                 <Button variant="outline" size="icon" onClick={handleDownload} disabled={isDownloading || !periodSummary}>
-                    {isDownloading ? <Loader2 className="animate-spin" /> : <Download />}
+                    {isDownloading ? <LogoSpinner /> : <Download />}
                     <span className="sr-only">Descargar Comprobante</span>
                 </Button>
                 <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
@@ -506,7 +507,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         )}
                     </div>
                     <Button onClick={handleSave} disabled={isSaving || !date}>
-                        {isSaving ? <Loader2 className="animate-spin mr-2" /> : null}
+                        {isSaving ? <LogoSpinner className="mr-2" /> : null}
                         Guardar Turno
                     </Button>
                 </CardFooter>

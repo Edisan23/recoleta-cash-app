@@ -6,7 +6,7 @@ import type { UserProfile, Shift, Company } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { Loader2, Users, MoreHorizontal, UserCheck, UserX, Star, Building, Search } from 'lucide-react';
+import { Users, MoreHorizontal, UserCheck, UserX, Star, Building, Search } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { LogoSpinner } from '../LogoSpinner';
 
 const USER_PROFILES_DB_KEY = 'fake_user_profiles_db';
 const SHIFTS_DB_KEY = 'fake_shifts_db';
@@ -142,7 +143,7 @@ export function OperatorTable() {
                             {isLoading ? (
                                 <TableRow>
                                     <TableCell colSpan={6} className="h-24 text-center">
-                                        <Loader2 className="mx-auto animate-spin text-muted-foreground" />
+                                        <LogoSpinner />
                                     </TableCell>
                                 </TableRow>
                             ) : filteredOperators.length > 0 ? (

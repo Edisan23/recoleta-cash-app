@@ -14,7 +14,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import { LogoSpinner } from '@/components/LogoSpinner';
 
 export default function OperatorLoginPage() {
   const router = useRouter();
@@ -59,7 +60,7 @@ export default function OperatorLoginPage() {
   if (isUserLoading || user) {
      return (
       <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <LogoSpinner />
       </div>
     );
   }
@@ -80,7 +81,7 @@ export default function OperatorLoginPage() {
             onClick={handleGoogleSignIn}
             disabled={isSubmitting}
           >
-            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+            {isSubmitting ? <LogoSpinner className="mr-2" /> : 
             <svg
               className="mr-2 h-4 w-4"
               aria-hidden="true"

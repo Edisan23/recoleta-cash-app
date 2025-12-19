@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { Hexagon, LogIn, UserCog } from 'lucide-react';
+import { LogIn, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ThemeToggle } from './ui/theme-toggle';
+import { LogoIcon } from './icons/logo';
 
 export function LandingPage() {
   return (
@@ -20,7 +21,7 @@ export function LandingPage() {
 
 
       <div className="flex flex-col items-center text-center mb-12">
-        <Hexagon className="h-16 w-16 text-primary mx-auto mb-6" strokeWidth={1.5}/>
+        <LogoIcon className="h-16 w-16 text-primary mx-auto mb-6" strokeWidth={1.5}/>
         <h1 className="text-5xl font-bold mb-4">Turno Pro</h1>
         <p className="text-xl text-muted-foreground max-w-md mx-auto">
           Plataforma de Gestión de Turnos y Nómina.

@@ -14,8 +14,9 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useUser } from '@/firebase';
+import { LogoSpinner } from '@/components/LogoSpinner';
 
 const COMPANIES_DB_KEY = 'fake_companies_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
@@ -77,7 +78,7 @@ export default function SelectCompanyPage() {
   if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <LogoSpinner />
       </div>
     );
   }
@@ -98,7 +99,7 @@ export default function SelectCompanyPage() {
         <CardContent>
           {isLoading ? (
             <div className="flex justify-center items-center h-40">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              <LogoSpinner />
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">

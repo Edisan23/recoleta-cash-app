@@ -4,7 +4,8 @@
 import { useState, useEffect } from 'react';
 import type { UserProfile, Shift, Company } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Star, User, UserCheck, Briefcase, Loader2 } from 'lucide-react';
+import { Users, Star, User, UserCheck, Briefcase } from 'lucide-react';
+import { LogoSpinner } from '../LogoSpinner';
 
 const USER_PROFILES_DB_KEY = 'fake_user_profiles_db';
 const SHIFTS_DB_KEY = 'fake_shifts_db';
@@ -73,7 +74,7 @@ export function OperatorStats() {
                     <CardTitle>Estadísticas de Operadores</CardTitle>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-24">
-                    <Loader2 className="animate-spin text-muted-foreground" />
+                    <LogoSpinner />
                 </CardContent>
             </Card>
         );

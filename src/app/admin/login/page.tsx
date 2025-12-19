@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { LogoSpinner } from '@/components/LogoSpinner';
 
 const ADMIN_UID_KEY = 'fake_admin_uid';
 
@@ -103,7 +103,7 @@ export default function AdminLoginPage() {
   if (isUserLoading || isCheckingAdmin || (user && user.uid === adminUid)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <LogoSpinner />
       </div>
     );
   }
@@ -128,7 +128,7 @@ export default function AdminLoginPage() {
                 onClick={handleGoogleSignIn}
                 disabled={isSubmitting}
               >
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 
+                {isSubmitting ? <LogoSpinner className="mr-2" /> : 
                 <svg
                   className="mr-2 h-4 w-4"
                   aria-hidden="true"

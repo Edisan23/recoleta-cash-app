@@ -14,9 +14,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, PlusCircle, Upload } from 'lucide-react';
+import { PlusCircle, Upload } from 'lucide-react';
 import Image from 'next/image';
 import type { Company } from '@/types/db-entities';
+import { LogoSpinner } from '../LogoSpinner';
 
 interface CreateCompanyDialogProps {
     onCompanyCreated: (companyData: Omit<Company, 'id'>) => void;
@@ -160,7 +161,7 @@ export function CreateCompanyDialog({ onCompanyCreated }: CreateCompanyDialogPro
                 Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {isSubmitting ? <LogoSpinner className="mr-2 h-4 w-4" /> : null}
               Guardar
             </Button>
           </DialogFooter>

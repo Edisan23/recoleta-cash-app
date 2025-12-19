@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import { CompanyTable } from '@/components/admin/CompanyTable';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, LogOut, Loader2 } from 'lucide-react';
+import { CalendarDays, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
 import { OperatorTable } from '@/components/admin/OperatorTable';
 import { Separator } from '@/components/ui/separator';
 import { OperatorStats } from '@/components/admin/OperatorStats';
 import { useAuth, useUser } from '@/firebase';
+import { LogoSpinner } from '@/components/LogoSpinner';
 
 const INITIAL_COMPANIES: Company[] = [
     { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },
@@ -88,7 +89,7 @@ export default function AdminDashboardPage() {
   if (isUserLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+        <LogoSpinner />
       </div>
     );
   }
