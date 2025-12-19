@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { LogIn, UserCog } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ThemeToggle } from './ui/theme-toggle';
@@ -9,14 +9,8 @@ export function LandingPage() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-gray-50 p-8 dark:bg-gray-900">
       
-      <div className="absolute top-6 right-6 flex items-center gap-2">
+      <div className="absolute top-6 right-6">
         <ThemeToggle />
-        <Button asChild variant="ghost" className="text-muted-foreground hover:text-primary">
-          <Link href="/admin" title="Acceso de Administrador">
-            <UserCog className="mr-2" />
-            <span className="hidden sm:inline">Admin</span>
-          </Link>
-        </Button>
       </div>
 
 
@@ -43,6 +37,15 @@ export function LandingPage() {
           </CardContent>
         </Card>
       </div>
+
+      <footer className="absolute bottom-4 text-center text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+            <p>Edward Santiago Riascos Cwl. 3213118124</p>
+            <Link href="/admin" title="Acceso de Administrador">
+                <LogoIcon className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors" />
+            </Link>
+        </div>
+      </footer>
       
     </div>
   );
