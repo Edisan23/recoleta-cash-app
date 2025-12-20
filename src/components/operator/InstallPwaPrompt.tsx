@@ -2,75 +2,107 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Smartphone, ArrowDownToLine, Share, X } from 'lucide-react';
-import { useTheme } from 'next-themes';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
-const PWA_PROMPT_DISMISSED_KEY = 'pwa_prompt_dismissed';
+// Define the event type for beforeinstallprompt
+interface BeforeInstallPromptEvent extends Event {
+    readonly platforms: Array<string>;
+    readonly userChoice: Promise<{
+        outcome: 'accepted' | 'dismissed',
+        platform: string
+    }>;
+    prompt(): Promise<void>;
+}
 
 export function InstallPwaPrompt() {
     const [isVisible, setIsVisible] = useState(false);
+    const [installPromptEvent, setInstallPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
     const [isIos, setIsIos] = useState(false);
-    const { theme } = useTheme();
-
+    
     useEffect(() => {
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-        const dismissed = localStorage.getItem(PWA_PROMPT_DISMISSED_KEY);
+        const handleBeforeInstallPrompt = (e: Event) => {
+            e.preventDefault(); // Prevent the mini-infobar
+            setIsVisible(true);
+            setInstallPromptEvent(e as BeforeInstallPromptEvent);
+        };
         
-        if (!isStandalone && !dismissed) {
-            const userAgent = window.navigator.userAgent.toLowerCase();
-            const isMobile = /iphone|ipad|ipod|android/.test(userAgent);
-            
-            if (isMobile) {
-                setIsIos(/iphone|ipad|ipod/.test(userAgent));
-                setIsVisible(true);
-            }
+        // Detect if it's iOS
+        const userAgent = window.navigator.userAgent.toLowerCase();
+        const isIosDevice = /iphone|ipad|ipod/.test(userAgent);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+
+        setIsIos(isIosDevice);
+
+        if (isIosDevice && !isStandalone) {
+            setIsVisible(true); // On iOS, we always show the button to provide instructions
+        } else {
+             window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
         }
+
+        return () => {
+             window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
     }, []);
 
-    const handleDismiss = () => {
-        localStorage.setItem(PWA_PROMPT_DISMISSED_KEY, 'true');
+    const handleInstallClick = async () => {
+        if (!installPromptEvent) return;
+
+        installPromptEvent.prompt();
+        const { outcome } = await installPromptEvent.userChoice;
+        if (outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+        } else {
+            console.log('User dismissed the install prompt');
+        }
         setIsVisible(false);
+        setInstallPromptEvent(null);
     };
 
     if (!isVisible) {
         return null;
     }
+    
+    if (isIos) {
+        return (
+             <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                        className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl animate-in slide-in-from-bottom-10 fade-in-50 duration-500"
+                        size="icon"
+                    >
+                        <ArrowDownToLine className="h-6 w-6" />
+                        <span className="sr-only">Instalar Aplicación</span>
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 mr-4 mb-2">
+                    <div className="grid gap-4">
+                        <div className="space-y-2">
+                            <h4 className="font-medium leading-none">Instalar Aplicación</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Para instalar, toca el icono de <Share className="inline h-4 w-4 mx-1" />
+                                y luego {' '}
+                                <strong className="font-semibold">&apos;Añadir a la pantalla de inicio&apos;</strong>.
+                            </p>
+                        </div>
+                    </div>
+                </PopoverContent>
+            </Popover>
+        )
+    }
 
     return (
-        <div className="fixed bottom-4 right-4 z-50 w-[calc(100%-2rem)] max-w-sm">
-            <Card className="shadow-2xl animate-in slide-in-from-bottom-10 fade-in-50 duration-500">
-                <button 
-                    onClick={handleDismiss} 
-                    className="absolute top-2 right-2 p-1 rounded-full text-muted-foreground hover:bg-accent"
-                >
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">Cerrar</span>
-                </button>
-                <CardHeader className="flex-row items-center gap-4 pb-2">
-                    <div className="p-3 bg-primary/10 text-primary rounded-full">
-                         <ArrowDownToLine className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <CardTitle className="text-base">Instalar Aplicación</CardTitle>
-                        <CardDescription className="text-xs">Accede más rápido desde tu pantalla de inicio.</CardDescription>
-                    </div>
-                </CardHeader>
-                <CardContent className="text-sm pt-2">
-                    {isIos ? (
-                        <p>
-                            Para instalar la app, toca el icono de <Share className="inline h-4 w-4 mx-1" />
-                            Compartir y luego {' '}
-                            <strong className="font-semibold">&apos;Añadir a la pantalla de inicio&apos;</strong>.
-                        </p>
-                    ) : (
-                         <p>
-                            Para instalar la app, toca el menú (tres puntos) y luego {' '}
-                            <strong className="font-semibold">&apos;Instalar aplicación&apos;</strong>.
-                        </p>
-                    )}
-                </CardContent>
-            </Card>
-        </div>
+        <Button
+            onClick={handleInstallClick}
+            className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl animate-in slide-in-from-bottom-10 fade-in-50 duration-500"
+            size="icon"
+        >
+            <ArrowDownToLine className="h-6 w-6" />
+            <span className="sr-only">Instalar Aplicación</span>
+        </Button>
     );
 }
