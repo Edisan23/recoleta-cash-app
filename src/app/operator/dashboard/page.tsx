@@ -24,21 +24,19 @@ export default function OperatorDashboardPage() {
       return;
     }
     
+    let storedCompanyId: string | null = null;
     try {
-      const storedCompanyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
-      if (!storedCompanyId) {
-        // If no company is selected, redirect to the selection page
-        router.replace('/select-company');
-      } else {
-        setCompanyId(storedCompanyId);
-      }
+      storedCompanyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
     } catch (error) {
-      console.error("Could not access localStorage:", error);
-      // In a browser-less environment or with localStorage disabled, this is a safe fallback.
-      // We can't proceed without a company ID.
+       console.error("Could not access localStorage:", error);
+    }
+
+    if (!storedCompanyId) {
+      // If no company is selected, redirect to the selection page
       router.replace('/select-company');
-    } finally {
-        setIsLoading(false);
+    } else {
+      setCompanyId(storedCompanyId);
+      setIsLoading(false);
     }
   }, [user, isUserLoading, router]);
 

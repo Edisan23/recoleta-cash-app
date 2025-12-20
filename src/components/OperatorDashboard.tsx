@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Trash2, Download, ChevronsUpDown } from 'lucide-react';
+import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -70,7 +70,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // --- Firestore Data ---
   const companyRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
-  const { data: company, isLoading: companyLoading } = useDoc<Company>(companyRef);
+  const { data: company, isLoading: companyLoading, error: companyError } = useDoc<Company>(companyRef);
 
   const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId]);
   const { data: settings, isLoading: settingsLoading } = useDoc<CompanySettings>(settingsRef);
@@ -106,35 +106,26 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     return allShifts?.map(s => new Date(s.date)) || [];
   }, [allShifts]);
 
-  // Effect 1: Check for company existence
+  // Effect to save/update user profile in firestore for subscription management
   useEffect(() => {
-      if (!companyLoading && !company) {
-        toast({ title: 'Error', description: 'Empresa no encontrada.', variant: 'destructive' });
-        localStorage.removeItem(OPERATOR_COMPANY_KEY);
-        router.replace('/select-company');
+      if (user && user.uid && firestore) {
+          const profileRef = doc(firestore, "users", user.uid);
+          const userProfileData: Omit<UserProfile, 'id'> = {
+                uid: user.uid,
+                displayName: user.displayName || 'Operador Anónimo',
+                photoURL: user.photoURL || '',
+                email: user.email || '',
+                isAnonymous: user.isAnonymous,
+                createdAt: user.metadata.creationTime || new Date().toISOString(),
+                paymentStatus: 'trial', // default value
+          };
+          
+          // Use setDoc with merge to create or update
+          setDoc(profileRef, userProfileData, { merge: true }).catch(err => {
+              console.error("Error saving user profile:", err);
+          });
       }
-  }, [company, companyLoading, router, toast]);
-
-    // Effect 1.5: Save/update user profile in firestore for subscription management
-    useEffect(() => {
-        if (user && user.uid && firestore) {
-            const profileRef = doc(firestore, "users", user.uid);
-            const userProfileData: Omit<UserProfile, 'id'> = {
-                 uid: user.uid,
-                 displayName: user.displayName || 'Operador Anónimo',
-                 photoURL: user.photoURL || '',
-                 email: user.email || '',
-                 isAnonymous: user.isAnonymous,
-                 createdAt: user.metadata.creationTime || new Date().toISOString(),
-                 paymentStatus: 'trial', // default value
-            };
-            
-            // Use setDoc with merge to create or update
-            setDoc(profileRef, userProfileData, { merge: true }).catch(err => {
-                console.error("Error saving user profile:", err);
-            });
-        }
-    }, [user, firestore]);
+  }, [user, firestore]);
 
   // Effect 2: Update inputs when date changes or shifts are updated
   useEffect(() => {
@@ -283,14 +274,32 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             setIsDownloading(false);
         }
     };
+    
+    const handleGoBackToSelection = () => {
+        localStorage.removeItem(OPERATOR_COMPANY_KEY);
+        router.replace('/select-company');
+    };
 
 
-  if (isLoading || !company || !user || !settings) {
+  if (isLoading || !user) {
     return (
         <div className="flex h-screen w-full items-center justify-center">
             <LogoSpinner />
         </div>
     );
+  }
+  
+  if (!companyLoading && !company) {
+    return (
+        <div className="flex flex-col items-center justify-center h-screen text-center p-4">
+            <h2 className="text-2xl font-bold mb-2">Empresa no encontrada</h2>
+            <p className="text-lg text-muted-foreground mb-6">La empresa que seleccionaste ya no está disponible. Por favor, vuelve y elige otra.</p>
+            <Button onClick={handleGoBackToSelection}>
+                <ArrowLeft className="mr-2" />
+                Volver a la selección
+            </Button>
+        </div>
+    )
   }
   
   return (
