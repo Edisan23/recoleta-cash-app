@@ -24,7 +24,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
-import { collection, doc, query, where, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 
 // --- FAKE DATA & KEYS ---
@@ -119,23 +119,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     useEffect(() => {
         if (user && user.uid && firestore) {
             const profileRef = doc(firestore, "users", user.uid);
-            updateDoc(profileRef, {
-                uid: user.uid,
-                displayName: user.displayName || 'Operador Anónimo',
-                photoURL: user.photoURL || '',
-                email: user.email || '',
-                isAnonymous: user.isAnonymous,
-            }).catch(() => {
-                // If doc doesn't exist, it will fail, so we create it.
-                addDoc(collection(firestore, "users"), {
-                     uid: user.uid,
-                     displayName: user.displayName || 'Operador Anónimo',
-                     photoURL: user.photoURL || '',
-                     email: user.email || '',
-                     isAnonymous: user.isAnonymous,
-                     createdAt: new Date().toISOString(),
-                     paymentStatus: 'trial',
-                });
+            const userProfileData: Omit<UserProfile, 'id'> = {
+                 uid: user.uid,
+                 displayName: user.displayName || 'Operador Anónimo',
+                 photoURL: user.photoURL || '',
+                 email: user.email || '',
+                 isAnonymous: user.isAnonymous,
+                 createdAt: user.metadata.creationTime || new Date().toISOString(),
+                 paymentStatus: 'trial', // default value
+            };
+            
+            // Use setDoc with merge to create or update
+            setDoc(profileRef, userProfileData, { merge: true }).catch(err => {
+                console.error("Error saving user profile:", err);
             });
         }
     }, [user, firestore]);
