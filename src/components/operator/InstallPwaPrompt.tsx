@@ -85,7 +85,7 @@ export function InstallPwaPrompt() {
                         <h4 className="font-medium leading-none">Instalar Aplicación</h4>
                         <p className="text-sm text-muted-foreground">
                             Para instalar, toca el icono de <Share className="inline h-4 w-4 mx-1" />
-                            y luego {' '}
+                            y luego{' '}
                             <strong className="font-semibold">&apos;Añadir a la pantalla de inicio&apos;</strong>.
                         </p>
                     </div>
