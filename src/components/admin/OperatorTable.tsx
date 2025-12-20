@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
     DropdownMenu,
@@ -154,6 +154,9 @@ export function OperatorTable() {
                                 filteredOperators.map((op) => {
                                     const statusInfo = statusMap[op.paymentStatus] || statusMap.blocked;
                                     const companyName = companyMap[op.uid] || 'No disponible';
+                                    
+                                    const createdAtDate = op.createdAt ? new Date(op.createdAt) : null;
+
                                     return (
                                         <TableRow key={op.id}>
                                             <TableCell className="font-medium">
@@ -186,7 +189,7 @@ export function OperatorTable() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">
-                                                {op.createdAt && typeof op.createdAt === 'string' ? format(parseISO(op.createdAt), 'dd MMM, yyyy', { locale: es }) : 'Fecha no disponible'}
+                                                {createdAtDate && isValid(createdAtDate) ? format(createdAtDate, 'dd MMM, yyyy', { locale: es }) : 'Fecha no disponible'}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                  <DropdownMenu>
