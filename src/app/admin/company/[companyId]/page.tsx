@@ -100,7 +100,7 @@ export default function CompanySettingsPage() {
         if(benefitsData.length > 0) {
             setBenefits(benefitsData);
         } else {
-            setBenefits(initialBenefits.map((b) => ({ ...b, id: `benefit_${Date.now()}`, companyId })));
+            setBenefits(initialBenefits.map((b, i) => ({ ...b, id: `benefit_${Date.now()}_${i}`, companyId })));
         }
     }
   }, [benefitsData, companyId]);
@@ -110,7 +110,7 @@ export default function CompanySettingsPage() {
         if (deductionsData.length > 0) {
             setDeductions(deductionsData);
         } else {
-            setDeductions(initialDeductions.map((d) => ({ ...d, id: `deduction_${Date.now()}`, companyId })));
+            setDeductions(initialDeductions.map((d, i) => ({ ...d, id: `deduction_${Date.now()}_${i}`, companyId })));
         }
     }
   }, [deductionsData, companyId]);
