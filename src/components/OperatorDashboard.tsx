@@ -44,6 +44,15 @@ function formatCurrency(value: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
 
+const emptySummary = (): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> => ({
+    totalHours: 0,
+    grossPay: 0,
+    dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
+    holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
+    dayPay: 0, nightPay: 0, dayOvertimePay: 0, nightOvertimePay: 0,
+    holidayDayPay: 0, holidayNightPay: 0, holidayDayOvertimePay: 0, holidayNightOvertimePay: 0,
+});
+
 
 // --- COMPONENT ---
 export function OperatorDashboard({ companyId }: { companyId: string }) {
@@ -103,7 +112,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   useEffect(() => {
       if (user && user.uid && firestore) {
           const profileRef = doc(firestore, "users", user.uid);
-          const userProfileData: Omit<UserProfile, 'id'> = {
+          const userProfileData: Omit<UserProfile, 'id' | 'paymentStatus' | 'isAnonymous'> & { paymentStatus: UserProfile['paymentStatus'], isAnonymous: boolean, email: string | null } = {
                 uid: user.uid,
                 displayName: user.displayName || 'Operador Anónimo',
                 photoURL: user.photoURL || '',
@@ -334,7 +343,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       );
     }
     
-    if (!companyLoading && !company) {
+    if (!company && !companyLoading) {
       return (
           <div className="flex flex-col items-center justify-center h-screen text-center p-4">
               <h2 className="text-2xl font-bold mb-2">Empresa no encontrada</h2>

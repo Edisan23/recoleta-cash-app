@@ -30,7 +30,7 @@ function isNightHour(dateTime: Date, nightShiftStartHour: number) {
     return isWithinInterval(dateTime, intervals[0]) || isWithinInterval(dateTime, intervals[1]);
 }
 
-const emptySummary = (): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> => ({
+const emptyShiftSummary = (): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> => ({
     totalHours: 0,
     grossPay: 0,
     dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
@@ -41,7 +41,7 @@ const emptySummary = (): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'tota
 
 
 export function calculateShiftSummary(shift: Shift, settings: CompanySettings, holidays: Date[]): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> {
-  const summary = emptySummary();
+  const summary = emptyShiftSummary();
 
   if (!shift.startTime || !shift.endTime || !settings) {
     return summary;
@@ -188,7 +188,7 @@ export function calculatePeriodSummary(
     acc.holidayNightOvertimePay += shiftSummary.holidayNightOvertimePay;
     return acc;
   }, {
-    ...emptySummary(),
+    ...emptyShiftSummary(),
     netPay: 0,
     totalBenefits: 0,
     totalDeductions: 0,
