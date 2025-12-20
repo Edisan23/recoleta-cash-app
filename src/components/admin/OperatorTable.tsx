@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format, parseISO, isValid } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
     DropdownMenu,
@@ -35,7 +35,8 @@ import { collection, doc, updateDoc } from 'firebase/firestore';
 type StatusVariant = "default" | "secondary" | "destructive" | "outline";
 
 const statusMap: Record<UserProfile['paymentStatus'], { label: string; variant: StatusVariant; icon: React.ReactNode }> = {
-    trial: { label: 'Gratis', variant: 'secondary', icon: <Star className="mr-2 h-3 w-3" /> },
+    trial: { label: 'Prueba', variant: 'outline', icon: <Star className="mr-2 h-3 w-3" /> },
+    free: { label: 'Gratis', variant: 'secondary', icon: <Star className="mr-2 h-3 w-3" /> },
     paid: { label: 'Premium', variant: 'default', icon: <UserCheck className="mr-2 h-3 w-3" /> },
     blocked: { label: 'Bloqueado', variant: 'destructive', icon: <UserX className="mr-2 h-3 w-3" /> },
 };
@@ -47,8 +48,16 @@ export function OperatorTable() {
     const { toast } = useToast();
 
     const profilesRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-    const { data: operators, isLoading: profilesLoading, error: profilesError } = useCollection<UserProfile>(profilesRef);
+    const { data: initialOperators, isLoading: profilesLoading, error: profilesError } = useCollection<UserProfile>(profilesRef);
     
+    const [operators, setOperators] = useState<UserProfile[] | null>(null);
+
+    useEffect(() => {
+        if(initialOperators) {
+            setOperators(initialOperators);
+        }
+    }, [initialOperators]);
+
     const companiesRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies') : null, [firestore]);
     const { data: companies, isLoading: companiesLoading, error: companiesError } = useCollection<Company>(companiesRef);
 
@@ -94,9 +103,18 @@ export function OperatorTable() {
         const userDocRef = doc(firestore, 'users', userId);
         try {
             await updateDoc(userDocRef, { paymentStatus: newStatus });
+            
+            // Update local state to reflect the change immediately
+            setOperators(prevOperators => {
+                if (!prevOperators) return null;
+                return prevOperators.map(op => 
+                    op.id === userId ? { ...op, paymentStatus: newStatus } : op
+                );
+            });
+
             toast({
                 title: "Estado actualizado",
-                description: `El estado del operador ha sido cambiado a ${newStatus}.`
+                description: `El estado del operador ha sido cambiado a ${statusMap[newStatus].label}.`
             });
         } catch (error) {
             console.error("Error updating user status:", error);
@@ -104,7 +122,7 @@ export function OperatorTable() {
         }
     };
 
-    const isLoading = profilesLoading || companiesLoading;
+    const isLoading = profilesLoading || companiesLoading || !operators;
 
     return (
         <Card>
@@ -155,7 +173,12 @@ export function OperatorTable() {
                                     const statusInfo = statusMap[op.paymentStatus] || statusMap.blocked;
                                     const companyName = companyMap[op.uid] || 'No disponible';
                                     
-                                    const createdAtDate = op.createdAt ? new Date(op.createdAt) : null;
+                                    let createdAtDate: Date | null = null;
+                                    if (op.createdAt) {
+                                        // Handle both string and Firestore Timestamp
+                                        // @ts-ignore
+                                        createdAtDate = op.createdAt.toDate ? op.createdAt.toDate() : new Date(op.createdAt);
+                                    }
 
                                     return (
                                         <TableRow key={op.id}>
@@ -202,6 +225,7 @@ export function OperatorTable() {
                                                         <DropdownMenuLabel>Acciones de Pago</DropdownMenuLabel>
                                                         <DropdownMenuSeparator />
                                                         <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'paid')}>Marcar como Premium</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'free')}>Marcar como Gratis</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'blocked')}>Marcar como Bloqueado</DropdownMenuItem>
                                                         <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'trial')}>Restablecer a Prueba</DropdownMenuItem>
                                                     </DropdownMenuContent>

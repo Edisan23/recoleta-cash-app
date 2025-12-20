@@ -20,7 +20,7 @@ export type User = {
     email: string;
     isAnonymous: boolean;
     createdAt: string; // ISO date string
-    paymentStatus: "trial" | "paid" | "blocked";
+    paymentStatus: "trial" | "free" | "paid" | "blocked";
   }
   
   export type Company = {
