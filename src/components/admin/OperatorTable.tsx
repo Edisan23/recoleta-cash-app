@@ -175,9 +175,17 @@ export function OperatorTable() {
                                     
                                     let createdAtDate: Date | null = null;
                                     if (op.createdAt) {
-                                        // Handle both string and Firestore Timestamp
-                                        // @ts-ignore
-                                        createdAtDate = op.createdAt.toDate ? op.createdAt.toDate() : new Date(op.createdAt);
+                                        try {
+                                            // Handle both string and Firestore Timestamp
+                                            // @ts-ignore
+                                            const dateSource = op.createdAt.toDate ? op.createdAt.toDate() : op.createdAt;
+                                            const parsedDate = new Date(dateSource);
+                                            if (isValid(parsedDate)) {
+                                                createdAtDate = parsedDate;
+                                            }
+                                        } catch (e) {
+                                            // Invalid date will be handled by the check below
+                                        }
                                     }
 
                                     return (
@@ -212,7 +220,7 @@ export function OperatorTable() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">
-                                                {createdAtDate && isValid(createdAtDate) ? format(createdAtDate, 'dd MMM, yyyy', { locale: es }) : 'Fecha no disponible'}
+                                                {createdAtDate ? format(createdAtDate, 'dd MMM, yyyy', { locale: es }) : 'Fecha no disponible'}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                  <DropdownMenu>
