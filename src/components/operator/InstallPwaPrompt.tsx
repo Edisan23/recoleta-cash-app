@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Smartphone, ArrowDownToLine, Share, X } from 'lucide-react';
+import { ArrowDownToLine, Share } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -24,10 +24,11 @@ export function InstallPwaPrompt() {
     const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
+        // This ensures we're on the client side, where window is available.
         setIsClient(true);
 
         const handleBeforeInstallPrompt = (e: Event) => {
-            e.preventDefault(); // Prevent the mini-infobar
+            e.preventDefault(); // Prevent the default browser install prompt
             setInstallPromptEvent(e as BeforeInstallPromptEvent);
         };
         
@@ -40,16 +41,41 @@ export function InstallPwaPrompt() {
 
     const handleInstallClick = async () => {
         if (!installPromptEvent) return;
+        
+        // This will show the native installation prompt.
         installPromptEvent.prompt();
+        
+        // Wait for the user to respond to the prompt.
+        const { outcome } = await installPromptEvent.userChoice;
+        
+        // We can optionally log the outcome.
+        if (outcome === 'accepted') {
+            console.log('User accepted the install prompt');
+        } else {
+            console.log('User dismissed the install prompt');
+        }
+        
+        // The prompt can only be used once. Clear it.
+        setInstallPromptEvent(null);
     };
 
-    // Determine if we should show the button
-    const isStandalone = isClient && window.matchMedia('(display-mode: standalone)').matches;
-    const userAgent = isClient ? window.navigator.userAgent.toLowerCase() : '';
+    // --- RENDER LOGIC ---
+
+    // Don't render anything on the server.
+    if (!isClient) {
+        return null;
+    }
+
+    // Don't render if the app is already installed (in standalone mode).
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (isStandalone) {
+        return null;
+    }
+
+    // Don't render on non-mobile devices.
+    const userAgent = window.navigator.userAgent.toLowerCase();
     const isMobile = /iphone|ipad|ipod|android/.test(userAgent);
-    
-    // Don't show if installed or not on a mobile device
-    if (!isClient || isStandalone || !isMobile) {
+    if (!isMobile) {
         return null;
     }
 
@@ -60,6 +86,7 @@ export function InstallPwaPrompt() {
                 onClick={handleInstallClick}
                 className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl animate-in slide-in-from-bottom-10 fade-in-50 duration-500"
                 size="icon"
+                title="Instalar Aplicación"
             >
                 <ArrowDownToLine className="h-6 w-6" />
                 <span className="sr-only">Instalar Aplicación</span>
@@ -67,13 +94,14 @@ export function InstallPwaPrompt() {
         );
     }
 
-    // If on mobile but no prompt (iOS), show the instructions popover.
+    // If on mobile but no prompt (likely iOS), show the instructions popover.
     return (
         <Popover>
             <PopoverTrigger asChild>
                 <Button
                     className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-2xl animate-in slide-in-from-bottom-10 fade-in-50 duration-500"
                     size="icon"
+                    title="Instalar Aplicación"
                 >
                     <ArrowDownToLine className="h-6 w-6" />
                     <span className="sr-only">Instalar Aplicación</span>
