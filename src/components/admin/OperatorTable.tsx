@@ -73,7 +73,11 @@ export function OperatorTable() {
 
     const filteredOperators = useMemo(() => {
         const sortedOperators = operators 
-            ? [...operators].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            ? [...operators].sort((a, b) => {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateB - dateA;
+            })
             : [];
 
         if (!searchQuery) {
@@ -182,7 +186,7 @@ export function OperatorTable() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">
-                                                {format(parseISO(op.createdAt), 'dd MMM, yyyy', { locale: es })}
+                                                {op.createdAt && typeof op.createdAt === 'string' ? format(parseISO(op.createdAt), 'dd MMM, yyyy', { locale: es }) : 'Fecha no disponible'}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                  <DropdownMenu>
