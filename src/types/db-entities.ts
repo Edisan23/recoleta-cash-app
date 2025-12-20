@@ -19,7 +19,7 @@ export type User = {
     photoURL: string;
     email: string;
     isAnonymous: boolean;
-    createdAt: string; // ISO date string
+    createdAt: string | object; // Can be string or Firestore Timestamp
     paymentStatus: "trial" | "free" | "paid" | "blocked";
   }
   
@@ -71,26 +71,27 @@ export type User = {
     description: string;
     requiresSupervisor: boolean;
   };
+
+  export type DailyShiftEntry = {
+    id: string;
+    startTime: string;
+    endTime: string;
+  }
     
   export type Shift = {
     id: string;
     userId: string;
     companyId: string;
-    date: string;
-    // For hourly model
-    startTime?: string;
-    endTime?: string;
+    date: string; // ISO String
+    startTime: string;
+    endTime: string;
     
-    // Custom fields for the shift
+    // Custom fields for the shift day
     itemDetails?: { 
       itemId: string; 
       itemName: string; // Name of the CompanyItem (for display)
       detail: string; // The value entered by user (e.g., supervisor name)
     }[];
-
-    // Legacy/unused fields
-    quantity?: number;
-    supervisor?: string;
   };
   
   export type Payroll = {

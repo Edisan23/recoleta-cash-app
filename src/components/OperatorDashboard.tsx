@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft } from 'lucide-react';
-import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
+import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft, PlusCircle } from 'lucide-react';
+import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem, DailyShiftEntry } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -24,7 +24,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
-import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 
 
 // --- FAKE DATA & KEYS ---
@@ -58,10 +58,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   
-  // Form state for the selected day
+  // Form state
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [startTime, setStartTime] = useState<string>('');
-  const [endTime, setEndTime] = useState<string>('');
+  const [dailyShifts, setDailyShifts] = useState<DailyShiftEntry[]>([]);
   const [itemDetails, setItemDetails] = useState<Record<string, string>>({}); // { itemId: detail }
   
   // Calculated Summaries
@@ -96,12 +95,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const isLoading = companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || itemsLoading;
 
-  // --- DERIVED STATE ---
-  const shiftForSelectedDate = useMemo(() => {
-    if (!date || !allShifts) return null;
-    return allShifts.find(s => new Date(s.date).toDateString() === date.toDateString());
-  }, [date, allShifts]);
-  
   const shiftDays = useMemo(() => {
     return allShifts?.map(s => new Date(s.date)) || [];
   }, [allShifts]);
@@ -120,68 +113,90 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 paymentStatus: 'trial', // default value
           };
           
-          // Use setDoc with merge to create or update
           setDoc(profileRef, userProfileData, { merge: true }).catch(err => {
               console.error("Error saving user profile:", err);
           });
       }
   }, [user, firestore]);
 
-  // Effect 2: Update inputs when date changes or shifts are updated
+  // Effect to update inputs when date changes or shifts are updated
   useEffect(() => {
-    if (shiftForSelectedDate) {
-      setStartTime(shiftForSelectedDate.startTime || '');
-      setEndTime(shiftForSelectedDate.endTime || '');
-      
-      const details = shiftForSelectedDate.itemDetails?.reduce((acc, item) => {
-          acc[item.itemId] = item.detail;
-          return acc;
-      }, {} as Record<string, string>) || {};
-      setItemDetails(details);
+    if (!date || !allShifts) {
+        setDailyShifts([]);
+        setItemDetails({});
+        return;
+    };
+    const shiftsForDate = allShifts.filter(s => new Date(s.date).toDateString() === date.toDateString());
+    
+    if (shiftsForDate.length > 0) {
+        setDailyShifts(shiftsForDate.map(s => ({ id: s.id, startTime: s.startTime || '', endTime: s.endTime || '' })));
+        
+        const details = shiftsForDate[0].itemDetails?.reduce((acc, item) => {
+            acc[item.itemId] = item.detail;
+            return acc;
+        }, {} as Record<string, string>) || {};
+        setItemDetails(details);
     } else {
-      setStartTime('');
-      setEndTime('');
-      setItemDetails({});
+        setDailyShifts([]);
+        setItemDetails({});
     }
-  }, [shiftForSelectedDate, date]);
+  }, [date, allShifts]);
 
-  // Effect 3: Calculate daily summary for the selected day
+  // Effect to calculate daily summary for the selected day
   useEffect(() => {
-    if (shiftForSelectedDate && settings) {
-        const summary = calculateShiftSummary(shiftForSelectedDate, settings, holidays);
-        setDailySummary(summary);
+    if (!date || !allShifts || !settings) {
+        setDailySummary(null);
+        return;
+    }
+
+    const shiftsForDate = allShifts.filter(s => new Date(s.date).toDateString() === date.toDateString());
+    
+    if (shiftsForDate.length > 0) {
+        const totalSummary = shiftsForDate.reduce((acc, shift) => {
+            const shiftSummary = calculateShiftSummary(shift, settings, holidays);
+            Object.keys(shiftSummary).forEach(key => {
+                const typedKey = key as keyof typeof shiftSummary;
+                acc[typedKey] = (acc[typedKey] || 0) + shiftSummary[typedKey];
+            });
+            return acc;
+        }, emptySummary());
+        setDailySummary(totalSummary);
     } else {
         setDailySummary(null);
     }
-  }, [shiftForSelectedDate, settings, holidays]);
+  }, [date, allShifts, settings, holidays]);
 
 
-  // Effect 4: Calculate accumulated hours for the current period (month/fortnight)
+  // Effect to calculate accumulated hours for the current period (month/fortnight)
   useEffect(() => {
     if (!date || !settings || !user || !allShifts || !benefits || !deductions) return;
     const summary = calculatePeriodSummary(allShifts, settings, holidays, benefits, deductions, user.uid, companyId, date);
     setPeriodSummary(summary);
   }, [allShifts, user, companyId, settings, date, holidays, benefits, deductions]);
 
+  const handleDailyShiftChange = (index: number, field: 'startTime' | 'endTime', value: string) => {
+    const updatedShifts = [...dailyShifts];
+    updatedShifts[index][field] = value;
+    setDailyShifts(updatedShifts);
+  };
+
+  const addDailyShift = () => {
+    setDailyShifts([...dailyShifts, { id: `new_${Date.now()}`, startTime: '', endTime: '' }]);
+  };
+
 
   const handleItemDetailChange = (itemId: string, value: string) => {
     setItemDetails(prev => ({ ...prev, [itemId]: value }));
   };
 
-  const handleSave = async () => {
+  const handleSave = async (shiftIndex?: number) => {
     if (!date || !user || !firestore) {
-        toast({ title: "Error", description: "No se puede guardar sin fecha, usuario o conexión.", variant: "destructive"});
-        return;
+      toast({ title: "Error", description: "No se puede guardar sin fecha, usuario o conexión.", variant: "destructive" });
+      return;
     }
-
-    const hasItemDetails = Object.values(itemDetails).some(detail => detail.trim() !== '');
-     if (!startTime && !endTime && !hasItemDetails) {
-        toast({ title: "Atención", description: "Debes ingresar horas o añadir algún detalle para guardar.", variant: "destructive"});
-        return;
-    }
-
+  
     setIsSaving(true);
-    
+  
     const filledItemDetails = Object.entries(itemDetails)
       .filter(([_, detail]) => detail.trim() !== '')
       .map(([itemId, detail]) => {
@@ -192,38 +207,68 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           detail,
         };
       });
-
-    const shiftData = { 
-        userId: user.uid,
-        companyId: companyId,
-        date: date.toISOString(),
-        startTime, 
-        endTime,
-        itemDetails: filledItemDetails,
-    };
-
+  
     try {
-        const shiftsCollection = collection(firestore, 'companies', companyId, 'shifts');
-        if (shiftForSelectedDate) {
-            const shiftDoc = doc(shiftsCollection, shiftForSelectedDate.id);
-            await updateDoc(shiftDoc, shiftData);
-        } else {
-            await addDoc(shiftsCollection, shiftData);
+      const shiftsCollection = collection(firestore, 'companies', companyId, 'shifts');
+      
+      // If a specific shift is being saved (from its own save button)
+      if (shiftIndex !== undefined) {
+        const shiftToSave = dailyShifts[shiftIndex];
+        if (!shiftToSave.startTime && !shiftToSave.endTime) {
+            toast({ title: "Atención", description: "Debes ingresar hora de entrada o salida para guardar el turno.", variant: "destructive"});
+            setIsSaving(false);
+            return;
         }
-        toast({ title: "¡Guardado!", description: "Tu turno se ha guardado correctamente." });
-    } catch(e) {
-        console.error("Error saving shift to Firestore", e);
-        toast({ title: "Error", description: "No se pudo guardar tu turno.", variant: "destructive" });
+
+        const shiftData: Omit<Shift, 'id'> = {
+          userId: user.uid,
+          companyId: companyId,
+          date: date.toISOString(),
+          startTime: shiftToSave.startTime,
+          endTime: shiftToSave.endTime,
+          itemDetails: filledItemDetails,
+        };
+  
+        if (shiftToSave.id.startsWith('new_')) {
+          await addDoc(shiftsCollection, shiftData);
+        } else {
+          const shiftDoc = doc(shiftsCollection, shiftToSave.id);
+          await updateDoc(shiftDoc, shiftData);
+        }
+      } else { 
+        // This is the main "Guardar Turno" button, now it saves details for all shifts
+        const batch = writeBatch(firestore);
+        const shiftsForDate = allShifts?.filter(s => new Date(s.date).toDateString() === date.toDateString()) || [];
+        
+        shiftsForDate.forEach(dbShift => {
+            const shiftDocRef = doc(shiftsCollection, dbShift.id);
+            batch.update(shiftDocRef, { itemDetails: filledItemDetails });
+        });
+        
+        await batch.commit();
+      }
+      
+      toast({ title: "¡Guardado!", description: "Tu actividad se ha guardado correctamente." });
+    } catch (e) {
+      console.error("Error saving shift to Firestore", e);
+      toast({ title: "Error", description: "No se pudo guardar tu actividad.", variant: "destructive" });
     } finally {
-        setIsSaving(false);
+      setIsSaving(false);
     }
   };
+  
 
-  const handleDelete = async () => {
-    if (!date || !user || !shiftForSelectedDate || !firestore) return;
+  const handleDelete = async (shiftId: string, index: number) => {
+    if (!user || !firestore) return;
+
+    // If it's a new shift not yet saved, just remove from UI
+    if (shiftId.startsWith('new_')) {
+        setDailyShifts(dailyShifts.filter((_, i) => i !== index));
+        return;
+    }
 
     setIsSaving(true);
-    const shiftDoc = doc(firestore, 'companies', companyId, 'shifts', shiftForSelectedDate.id);
+    const shiftDoc = doc(firestore, 'companies', companyId, 'shifts', shiftId);
     try {
         await deleteDoc(shiftDoc);
         toast({ title: "¡Eliminado!", description: "El turno ha sido eliminado." });
@@ -281,26 +326,26 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     };
 
 
-  if (isLoading || !user) {
-    return (
-        <div className="flex h-screen w-full items-center justify-center">
-            <LogoSpinner />
-        </div>
-    );
-  }
-  
-  if (!companyLoading && !company) {
-    return (
-        <div className="flex flex-col items-center justify-center h-screen text-center p-4">
-            <h2 className="text-2xl font-bold mb-2">Empresa no encontrada</h2>
-            <p className="text-lg text-muted-foreground mb-6">La empresa que seleccionaste ya no está disponible. Por favor, vuelve y elige otra.</p>
-            <Button onClick={handleGoBackToSelection}>
-                <ArrowLeft className="mr-2" />
-                Volver a la selección
-            </Button>
-        </div>
-    )
-  }
+    if (isLoading || !user) {
+      return (
+          <div className="flex h-screen w-full items-center justify-center">
+              <LogoSpinner />
+          </div>
+      );
+    }
+    
+    if (!companyLoading && !company) {
+      return (
+          <div className="flex flex-col items-center justify-center h-screen text-center p-4">
+              <h2 className="text-2xl font-bold mb-2">Empresa no encontrada</h2>
+              <p className="text-lg text-muted-foreground mb-6">La empresa que seleccionaste ya no está disponible. Por favor, vuelve y elige otra.</p>
+              <Button onClick={handleGoBackToSelection}>
+                  <ArrowLeft className="mr-2" />
+                  Volver a la selección
+              </Button>
+          </div>
+      )
+    }
   
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
@@ -314,7 +359,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         companyName={company.name}
                         period={getPeriodDateRange(date, settings.payrollCycle)}
                         summary={periodSummary}
-                        shifts={allShifts}
+                        shifts={allShifts.filter(s => new Date(s.date).toDateString() === date?.toDateString())}
                     />
                 )}
             </div>
@@ -381,31 +426,54 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 <CardHeader>
                     <CardTitle>Registrar Actividad</CardTitle>
                     <CardDescription>
-                        Selecciona una fecha y registra tus horas. Los días con turnos guardados aparecen marcados.
+                        Selecciona una fecha, registra tus turnos y añade detalles. Los días con turnos guardados aparecen marcados.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-6">
-                        <DatePicker date={date} setDate={setDate} highlightedDays={shiftDays} />
-                        
-                        <div className="grid grid-cols-2 gap-4 w-full">
-                           <TimeInput 
-                                label="Hora de Entrada"
-                                value={startTime}
-                                onChange={setStartTime}
-                            />
-                           <TimeInput 
-                                label="Hora de Salida"
-                                value={endTime}
-                                onChange={setEndTime}
-                            />
-                        </div>
+                    <div className="flex justify-center">
+                      <DatePicker date={date} setDate={setDate} highlightedDays={shiftDays} />
+                    </div>
+
+                    <div className="space-y-4">
+                        {dailyShifts.map((shift, index) => (
+                             <div key={shift.id} className="grid grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-muted/50">
+                                <div className="col-span-12 sm:col-span-5">
+                                   <TimeInput 
+                                        label={`Entrada Turno ${index + 1}`}
+                                        value={shift.startTime}
+                                        onChange={(val) => handleDailyShiftChange(index, 'startTime', val)}
+                                    />
+                                </div>
+                                <div className="col-span-12 sm:col-span-5">
+                                   <TimeInput 
+                                        label={`Salida Turno ${index + 1}`}
+                                        value={shift.endTime}
+                                        onChange={(val) => handleDailyShiftChange(index, 'endTime', val)}
+                                    />
+                                </div>
+                                <div className="col-span-12 sm:col-span-2 flex items-center justify-end gap-2">
+                                     <Button size="sm" onClick={() => handleSave(index)} disabled={isSaving}>
+                                        {isSaving ? <LogoSpinner className="mr-2 h-4 w-4" /> : null}
+                                        Guardar
+                                    </Button>
+                                    <DeleteShiftDialog onConfirm={() => handleDelete(shift.id, index)}>
+                                        <Button variant="ghost" size="icon" disabled={isSaving}>
+                                            <Trash2 className="h-4 w-4 text-destructive"/>
+                                        </Button>
+                                    </DeleteShiftDialog>
+                                </div>
+                            </div>
+                        ))}
+                         <Button variant="outline" onClick={addDailyShift} className="w-full">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Añadir Turno
+                        </Button>
                     </div>
 
                     {(companyItems || []).length > 0 && (
                       <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-details">
-                            <AccordionTrigger>Detalles Adicionales</AccordionTrigger>
+                            <AccordionTrigger>Detalles Adicionales (para todo el día)</AccordionTrigger>
                             <AccordionContent>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                                   {companyItems?.map(item => (
@@ -420,33 +488,21 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                     </div>
                                   ))}
                                 </div>
+                                <Button onClick={() => handleSave()} disabled={isSaving} size="sm" className="mt-4">
+                                    {isSaving ? <LogoSpinner className="mr-2" /> : null}
+                                    Guardar Detalles
+                                </Button>
                             </AccordionContent>
                         </AccordionItem>
                       </Accordion>
                     )}
 
                 </CardContent>
-                <CardFooter className="flex justify-between items-center">
-                    <div>
-                        {shiftForSelectedDate && (
-                            <DeleteShiftDialog onConfirm={handleDelete}>
-                                <Button variant="destructive" size="icon" disabled={isSaving}>
-                                    <Trash2 className="h-4 w-4"/>
-                                    <span className="sr-only">Eliminar Turno</span>
-                                </Button>
-                            </DeleteShiftDialog>
-                        )}
-                    </div>
-                    <Button onClick={handleSave} disabled={isSaving || !date}>
-                        {isSaving ? <LogoSpinner className="mr-2" /> : null}
-                        Guardar Turno
-                    </Button>
-                </CardFooter>
             </Card>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Resumen del Turno</CardTitle>
+                    <CardTitle>Resumen del Día</CardTitle>
                     <CardDescription>
                         Cálculo para el día seleccionado. Los subsidios y deducciones se aplican en el resumen del período.
                     </CardDescription>
