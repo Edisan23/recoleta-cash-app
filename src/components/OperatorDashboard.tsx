@@ -472,7 +472,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </div>
 
                     {companyItems.length > 0 && (
-                      <Accordion type="single" collapsible className="w-full pt-4 border-t">
+                      <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-details">
                             <AccordionTrigger>Detalles Adicionales</AccordionTrigger>
                             <AccordionContent>
