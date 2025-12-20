@@ -155,7 +155,7 @@ export function OperatorTable() {
                                     const statusInfo = statusMap[op.paymentStatus] || statusMap.blocked;
                                     const companyName = companyMap[op.uid] || 'No disponible';
                                     return (
-                                        <TableRow key={op.uid}>
+                                        <TableRow key={op.id}>
                                             <TableCell className="font-medium">
                                                 <div className="flex items-center gap-3">
                                                     <Avatar>
@@ -198,9 +198,9 @@ export function OperatorTable() {
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuLabel>Acciones de Pago</DropdownMenuLabel>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.uid, 'paid')}>Marcar como Premium</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.uid, 'blocked')}>Marcar como Bloqueado</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.uid, 'trial')}>Restablecer a Prueba</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'paid')}>Marcar como Premium</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'blocked')}>Marcar como Bloqueado</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'trial')}>Restablecer a Prueba</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>

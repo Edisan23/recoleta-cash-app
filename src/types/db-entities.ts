@@ -13,6 +13,7 @@ export type User = {
   };
 
   export type UserProfile = {
+    id: string;
     uid: string;
     displayName: string;
     photoURL: string;
