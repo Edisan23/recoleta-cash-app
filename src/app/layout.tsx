@@ -10,6 +10,7 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'Turno Pro',
   description: 'Shift and Payroll Management',
+  manifest: '/manifest.json',
   icons: {
     icon: '/icon.svg',
     shortcut: '/favicon.ico',

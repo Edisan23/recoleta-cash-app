@@ -23,6 +23,7 @@ import { PayrollVoucher } from './operator/PayrollVoucher';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { LogoSpinner } from './LogoSpinner';
+import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 
 
 // --- FAKE DATA & KEYS ---
@@ -592,6 +593,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </Card>
         </main>
       </div>
+      <InstallPwaPrompt />
     </div>
   );
 }
