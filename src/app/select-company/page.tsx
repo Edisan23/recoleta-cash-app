@@ -15,45 +15,29 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
+import { collection } from 'firebase/firestore';
 
-const COMPANIES_DB_KEY = 'fake_companies_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
 export default function SelectCompanyPage() {
   const router = useRouter();
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const { toast } = useToast();
   
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const companiesRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies') : null, [firestore]);
+  const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
+
 
   useEffect(() => {
     if(!isUserLoading && !user) {
       router.replace('/login');
     }
   }, [user, isUserLoading, router]);
-
-  useEffect(() => {
-    try {
-        const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
-        if (storedCompanies) {
-            setCompanies(JSON.parse(storedCompanies));
-        }
-    } catch(e) {
-        console.error("Failed to load companies from localStorage", e);
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'No se pudieron cargar las empresas.',
-        });
-    } finally {
-        setIsLoading(false);
-    }
-  }, [toast]);
-
 
   const handleSelectCompany = (companyId: string) => {
     setIsSubmitting(true);
@@ -75,7 +59,7 @@ export default function SelectCompanyPage() {
     }
   };
 
-  if (isUserLoading || !user) {
+  if (isUserLoading || !user || areCompaniesLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
@@ -97,7 +81,7 @@ export default function SelectCompanyPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {areCompaniesLoading ? (
             <div className="flex justify-center items-center h-40">
               <LogoSpinner />
             </div>
@@ -130,7 +114,7 @@ export default function SelectCompanyPage() {
               ))}
             </div>
           )}
-           {companies && companies.filter(c => c.isActive).length === 0 && !isLoading && (
+           {companies && companies.filter(c => c.isActive).length === 0 && !areCompaniesLoading && (
                <p className="text-center text-muted-foreground col-span-full py-10">No hay empresas activas disponibles. Contacta a un administrador.</p>
            )}
         </CardContent>
@@ -141,5 +125,3 @@ export default function SelectCompanyPage() {
     </div>
   );
 }
-
-    

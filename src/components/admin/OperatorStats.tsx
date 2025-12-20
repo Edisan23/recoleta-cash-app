@@ -1,15 +1,12 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { UserProfile, Shift, Company } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Star, User, UserCheck, Briefcase } from 'lucide-react';
 import { LogoSpinner } from '../LogoSpinner';
-
-const USER_PROFILES_DB_KEY = 'fake_user_profiles_db';
-const SHIFTS_DB_KEY = 'fake_shifts_db';
-const COMPANIES_DB_KEY = 'fake_companies_db';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection } from 'firebase/firestore';
 
 interface Stats {
     totalOperators: number;
@@ -21,31 +18,44 @@ interface Stats {
 
 export function OperatorStats() {
     const [stats, setStats] = useState<Stats | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const firestore = useFirestore();
+
+    const profilesRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+    const { data: profiles, isLoading: profilesLoading } = useCollection<UserProfile>(profilesRef);
+    
+    // We need all shifts from all companies to map users to companies
+    // A better approach for larger scale would be to store companyId on user profile.
+    const companiesRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies') : null, [firestore]);
+    const { data: companies, isLoading: companiesLoading } = useCollection<Company>(companiesRef);
+    
+    // This is inefficient but necessary with the current data model.
+    const allShiftsRef = useMemoFirebase(() => firestore ? collection(firestore, 'shifts') : null, [firestore]);
+    const { data: allShifts, isLoading: shiftsLoading } = useCollection<Shift>(allShiftsRef);
+
+    const isLoading = profilesLoading || companiesLoading; // shiftsLoading is not critical for initial render
 
     useEffect(() => {
+        if (!profiles || !companies) return;
+
         try {
-            const storedProfiles = localStorage.getItem(USER_PROFILES_DB_KEY);
-            const profiles: UserProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-
-            const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-            const shifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-
-            const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
-            const companies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
             const companiesById = companies.reduce((acc, company) => {
                 acc[company.id] = company.name;
                 return acc;
             }, {} as Record<string, string>);
 
-            const operatorsByCompany = shifts.reduce((acc, shift) => {
-                const companyName = companiesById[shift.companyId] || 'Empresa Desconocida';
-                if (!acc[companyName]) {
-                    acc[companyName] = new Set();
-                }
-                acc[companyName].add(shift.userId);
-                return acc;
-            }, {} as Record<string, Set<string>>);
+            // This part is slow and inefficient, especially without all shifts loaded.
+            // This logic should be moved to a backend or improved with a better data model.
+            // For now, we'll compute it on the client.
+            const operatorsByCompany: Record<string, Set<string>> = {};
+            if (allShifts) {
+                 allShifts.forEach(shift => {
+                    const companyName = companiesById[shift.companyId] || 'Empresa Desconocida';
+                    if (!operatorsByCompany[companyName]) {
+                        operatorsByCompany[companyName] = new Set();
+                    }
+                    operatorsByCompany[companyName].add(shift.userId);
+                 });
+            }
             
             const finalOperatorsByCompany: Record<string, number> = {};
             for (const companyName in operatorsByCompany) {
@@ -62,10 +72,8 @@ export function OperatorStats() {
 
         } catch (error) {
             console.error("Error calculating stats:", error);
-        } finally {
-            setIsLoading(false);
         }
-    }, []);
+    }, [profiles, companies, allShifts]);
 
     if (isLoading) {
         return (
@@ -145,4 +153,3 @@ export function OperatorStats() {
         </Card>
     );
 }
-

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   Card,
@@ -20,12 +20,9 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LogoSpinner } from '@/components/LogoSpinner';
-
-const LOCAL_STORAGE_KEY_COMPANIES = 'fake_companies_db';
-const LOCAL_STORAGE_KEY_SETTINGS = 'fake_company_settings_db';
-const LOCAL_STORAGE_KEY_BENEFITS = 'fake_company_benefits_db';
-const LOCAL_STORAGE_KEY_DEDUCTIONS = 'fake_company_deductions_db';
-const LOCAL_STORAGE_KEY_ITEMS = 'fake_company_items_db';
+import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, collection, writeBatch } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 const initialSettings: Omit<CompanySettings, 'id'> = {
@@ -57,134 +54,126 @@ export default function CompanySettingsPage() {
   const router = useRouter();
   const params = useParams();
   const companyId = params.companyId as string;
+  const firestore = useFirestore();
   const { toast } = useToast();
 
   const [company, setCompany] = useState<Company | null>(null);
-  const [settings, setSettings] = useState<CompanySettings>({ id: companyId, ...initialSettings });
+  const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [benefits, setBenefits] = useState<Benefit[]>([]);
   const [deductions, setDeductions] = useState<Deduction[]>([]);
   const [items, setItems] = useState<CompanyItem[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+
+  // Firestore Hooks
+  const companyRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
+  const { data: companyData, isLoading: isCompanyLoading } = useDoc<Company>(companyRef);
+
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId]);
+  const { data: settingsData, isLoading: isSettingsLoading } = useDoc<CompanySettings>(settingsRef);
+  
+  const benefitsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId]);
+  const { data: benefitsData, isLoading: isBenefitsLoading } = useCollection<Benefit>(benefitsRef);
+
+  const deductionsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
+  const { data: deductionsData, isLoading: isDeductionsLoading } = useCollection<Deduction>(deductionsRef);
+  
+  const itemsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId]);
+  const { data: itemsData, isLoading: isItemsLoading } = useCollection<CompanyItem>(itemsRef);
+  
+  const isLoading = isCompanyLoading || isSettingsLoading || isBenefitsLoading || isDeductionsLoading || isItemsLoading;
+  
+  useEffect(() => {
+    if (companyData) setCompany(companyData);
+  }, [companyData]);
 
   useEffect(() => {
-    try {
-        // Load Company
-        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY_COMPANIES);
-        if (storedCompanies) {
-            const allCompanies: Company[] = JSON.parse(storedCompanies);
-            const foundCompany = allCompanies.find(c => c.id === companyId);
-            if (foundCompany) {
-                setCompany(foundCompany);
-            }
-        }
-
-        // Load Settings
-        const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
-        if(storedSettings) {
-            let allSettings: CompanySettings[] = JSON.parse(storedSettings);
-            if (!Array.isArray(allSettings)) {
-                allSettings = [allSettings];
-            }
-            const foundSettings = allSettings.find(s => s.id === companyId);
-            if(foundSettings) {
-                setSettings(foundSettings);
-            }
-        }
-        
-        // Load Benefits
-        const storedBenefits = localStorage.getItem(LOCAL_STORAGE_KEY_BENEFITS);
-        const allBenefits: Benefit[] = storedBenefits ? JSON.parse(storedBenefits) : [];
-        const companyBenefits = allBenefits.filter(b => b.companyId === companyId);
-        if (companyBenefits.length > 0) {
-            setBenefits(companyBenefits);
-        } else {
-             setBenefits(initialBenefits.map((b, i) => ({ ...b, id: `benefit_${Date.now()}_${i}`, companyId })));
-        }
-
-        // Load Deductions
-        const storedDeductions = localStorage.getItem(LOCAL_STORAGE_KEY_DEDUCTIONS);
-        const allDeductions: Deduction[] = storedDeductions ? JSON.parse(storedDeductions) : [];
-        const companyDeductions = allDeductions.filter(d => d.companyId === companyId);
-        if (companyDeductions.length > 0) {
-            setDeductions(companyDeductions);
-        } else {
-            setDeductions(initialDeductions.map((d, i) => ({ ...d, id: `deduction_${Date.now()}_${i}`, companyId })));
-        }
-
-        // Load Items
-        const storedItems = localStorage.getItem(LOCAL_STORAGE_KEY_ITEMS);
-        const allItems: CompanyItem[] = storedItems ? JSON.parse(storedItems) : [];
-        const companyItems = allItems.filter(item => item.companyId === companyId);
-        setItems(companyItems);
-
-    } catch (error) {
-        console.error("Could not access localStorage:", error);
-    } finally {
-        setIsLoading(false);
+    if (settingsData) {
+        setSettings(settingsData);
+    } else if (!isSettingsLoading) {
+        setSettings({ id: 'main', ...initialSettings });
     }
-  }, [companyId]);
+  }, [settingsData, isSettingsLoading]);
 
+  useEffect(() => {
+    if (benefitsData) {
+        if(benefitsData.length > 0) {
+            setBenefits(benefitsData);
+        } else {
+            setBenefits(initialBenefits.map((b) => ({ ...b, id: `benefit_${Date.now()}`, companyId })));
+        }
+    }
+  }, [benefitsData, companyId]);
+
+  useEffect(() => {
+    if (deductionsData) {
+        if (deductionsData.length > 0) {
+            setDeductions(deductionsData);
+        } else {
+            setDeductions(initialDeductions.map((d) => ({ ...d, id: `deduction_${Date.now()}`, companyId })));
+        }
+    }
+  }, [deductionsData, companyId]);
+
+  useEffect(() => {
+    if (itemsData) setItems(itemsData);
+  }, [itemsData]);
 
   const handleSave = async () => {
-    if (!company || !settings) return;
+    if (!firestore || !company || !settings) return;
 
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate save
-
+    
     try {
-        // Save Company Name
-        const storedCompanies = localStorage.getItem(LOCAL_STORAGE_KEY_COMPANIES);
-        let allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
-        const companyIndex = allCompanies.findIndex(c => c.id === companyId);
+        const batch = writeBatch(firestore);
 
-        if (companyIndex > -1) {
-            allCompanies[companyIndex] = {
-                ...allCompanies[companyIndex],
-                name: company.name,
-            };
-            localStorage.setItem(LOCAL_STORAGE_KEY_COMPANIES, JSON.stringify(allCompanies));
+        // Save Company Name
+        if(companyRef) {
+          batch.update(companyRef, { name: company.name });
         }
 
         // Save Settings
-        const storedSettings = localStorage.getItem(LOCAL_STORAGE_KEY_SETTINGS);
-        let allSettings: CompanySettings[] = storedSettings ? JSON.parse(storedSettings) : [];
-        if (!Array.isArray(allSettings)) {
-            allSettings = [];
+        if(settingsRef) {
+          const { id, ...settingsToSave } = settings;
+          batch.set(settingsRef, settingsToSave);
         }
-        const settingsIndex = allSettings.findIndex(s => s.id === companyId);
-        if (settingsIndex > -1) {
-            allSettings[settingsIndex] = settings;
-        } else {
-            allSettings.push(settings);
-        }
-        localStorage.setItem(LOCAL_STORAGE_KEY_SETTINGS, JSON.stringify(allSettings));
+        
+        // Handle collections (delete old, add new)
+        const benefitsCollectionRef = collection(firestore, 'companies', companyId, 'benefits');
+        const oldBenefits = benefitsData || [];
+        oldBenefits.forEach(b => batch.delete(doc(benefitsCollectionRef, b.id)));
+        benefits.forEach(b => {
+            const { companyId: _, ...benefitToSave } = b;
+            const newDocRef = doc(benefitsCollectionRef, b.id);
+            batch.set(newDocRef, benefitToSave);
+        });
 
-        // Save Benefits
-        const storedBenefits = localStorage.getItem(LOCAL_STORAGE_KEY_BENEFITS);
-        let allBenefits: Benefit[] = storedBenefits ? JSON.parse(storedBenefits) : [];
-        const otherCompanyBenefits = allBenefits.filter(b => b.companyId !== companyId);
-        localStorage.setItem(LOCAL_STORAGE_KEY_BENEFITS, JSON.stringify([...otherCompanyBenefits, ...benefits]));
-
-        // Save Deductions
-        const storedDeductions = localStorage.getItem(LOCAL_STORAGE_KEY_DEDUCTIONS);
-        let allDeductions: Deduction[] = storedDeductions ? JSON.parse(storedDeductions) : [];
-        const otherCompanyDeductions = allDeductions.filter(d => d.companyId !== companyId);
-        localStorage.setItem(LOCAL_STORAGE_KEY_DEDUCTIONS, JSON.stringify([...otherCompanyDeductions, ...deductions]));
-
-        // Save Items
-        const storedItems = localStorage.getItem(LOCAL_STORAGE_KEY_ITEMS);
-        let allItems: CompanyItem[] = storedItems ? JSON.parse(storedItems) : [];
-        const otherCompanyItems = allItems.filter(item => item.companyId !== companyId);
-        localStorage.setItem(LOCAL_STORAGE_KEY_ITEMS, JSON.stringify([...otherCompanyItems, ...items]));
+        const deductionsCollectionRef = collection(firestore, 'companies', companyId, 'deductions');
+        const oldDeductions = deductionsData || [];
+        oldDeductions.forEach(d => batch.delete(doc(deductionsCollectionRef, d.id)));
+        deductions.forEach(d => {
+            const { companyId: _, ...deductionToSave } = d;
+            const newDocRef = doc(deductionsCollectionRef, d.id);
+            batch.set(newDocRef, deductionToSave);
+        });
+        
+        const itemsCollectionRef = collection(firestore, 'companies', companyId, 'items');
+        const oldItems = itemsData || [];
+        oldItems.forEach(i => batch.delete(doc(itemsCollectionRef, i.id)));
+        items.forEach(item => {
+            const { companyId: _, ...itemToSave } = item;
+            const newDocRef = doc(itemsCollectionRef, item.id);
+            batch.set(newDocRef, itemToSave);
+        });
+        
+        await batch.commit();
         
         toast({
             title: '¡Guardado!',
             description: `La configuración de ${company?.name} ha sido actualizada.`,
         });
     } catch (error) {
-        console.error("Error saving to localStorage:", error);
+        console.error("Error saving to Firestore:", error);
         toast({
             variant: 'destructive',
             title: 'Error',
@@ -197,6 +186,7 @@ export default function CompanySettingsPage() {
   };
 
   const handleRateChange = (field: keyof CompanySettings, value: string) => {
+    if (!settings) return;
     const numericValue = parseFloat(value);
     if (!isNaN(numericValue)) {
         setSettings({ ...settings, [field]: numericValue });
@@ -258,7 +248,7 @@ export default function CompanySettingsPage() {
   };
 
 
-  if (isLoading) {
+  if (isLoading || !settings) {
     return (
         <div className="flex flex-col items-center justify-center h-screen">
             <LogoSpinner />

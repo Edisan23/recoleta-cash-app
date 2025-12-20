@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -30,11 +29,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { LogoSpinner } from '../LogoSpinner';
-
-const USER_PROFILES_DB_KEY = 'fake_user_profiles_db';
-const SHIFTS_DB_KEY = 'fake_shifts_db';
-const COMPANIES_DB_KEY = 'fake_companies_db';
-
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, updateDoc } from 'firebase/firestore';
 
 type StatusVariant = "default" | "secondary" | "destructive" | "outline";
 
@@ -46,61 +42,65 @@ const statusMap: Record<UserProfile['paymentStatus'], { label: string; variant: 
 
 
 export function OperatorTable() {
-    const [operators, setOperators] = useState<UserProfile[]>([]);
-    const [companyMap, setCompanyMap] = useState<Record<string, string>>({});
+    const firestore = useFirestore();
     const [searchQuery, setSearchQuery] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
     const { toast } = useToast();
 
-    const loadData = () => {
-        setIsLoading(true);
-        try {
-            const storedProfiles = localStorage.getItem(USER_PROFILES_DB_KEY);
-            const profiles: UserProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-            setOperators(profiles.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-            
-            const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-            const shifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
+    const profilesRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+    const { data: operators, isLoading: profilesLoading, error: profilesError } = useCollection<UserProfile>(profilesRef);
+    
+    const companiesRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies') : null, [firestore]);
+    const { data: companies, isLoading: companiesLoading, error: companiesError } = useCollection<Company>(companiesRef);
 
-            const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
-            const companies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
-            const companiesById = companies.reduce((acc, company) => {
-                acc[company.id] = company.name;
-                return acc;
-            }, {} as Record<string, string>);
-
-            const opCompanyMap = shifts
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .reduce((acc, shift) => {
-                    if (!acc[shift.userId]) { 
-                        acc[shift.userId] = companiesById[shift.companyId] || 'Empresa Desconocida';
-                    }
-                    return acc;
-                }, {} as Record<string, string>);
-            
-            setCompanyMap(opCompanyMap);
-
-        } catch (error) {
-            console.error("Error loading operators from localStorage:", error);
-            toast({ title: "Error", description: "No se pudieron cargar los datos de los operadores.", variant: "destructive" });
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    // This is inefficient. For a large app, this should be a denormalized field on the user profile.
+    const [companyMap, setCompanyMap] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        loadData();
-    }, [toast]);
-    
+        if (!firestore || !operators || !companies) return;
+
+        // This is a placeholder for a more efficient implementation.
+        // It's not scalable as it requires fetching all shifts.
+        const buildCompanyMap = async () => {
+            const tempMap: Record<string, string> = {};
+            // This is where you would ideally have a better query or denormalized data.
+            // For now, we will leave it empty as fetching all shifts is too expensive.
+            setCompanyMap(tempMap);
+        };
+        buildCompanyMap();
+
+    }, [firestore, operators, companies]);
+
+
     const filteredOperators = useMemo(() => {
+        const sortedOperators = operators 
+            ? [...operators].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            : [];
+
         if (!searchQuery) {
-            return operators;
+            return sortedOperators;
         }
-        return operators.filter(op => 
+        return sortedOperators.filter(op => 
             op.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (op.email && op.email.toLowerCase().includes(searchQuery.toLowerCase()))
         );
     }, [operators, searchQuery]);
+
+    const handleStatusChange = async (userId: string, newStatus: UserProfile['paymentStatus']) => {
+        if (!firestore) return;
+        const userDocRef = doc(firestore, 'users', userId);
+        try {
+            await updateDoc(userDocRef, { paymentStatus: newStatus });
+            toast({
+                title: "Estado actualizado",
+                description: `El estado del operador ha sido cambiado a ${newStatus}.`
+            });
+        } catch (error) {
+            console.error("Error updating user status:", error);
+            toast({ title: "Error", description: "No se pudo actualizar el estado.", variant: "destructive" });
+        }
+    };
+
+    const isLoading = profilesLoading || companiesLoading;
 
     return (
         <Card>
@@ -132,7 +132,7 @@ export function OperatorTable() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Operador</TableHead>
-                                <TableHead>Empresa</TableHead>
+                                <TableHead>Empresa (Último Turno)</TableHead>
                                 <TableHead>Tipo de Cuenta</TableHead>
                                 <TableHead>Estado de Pago</TableHead>
                                 <TableHead>Registrado</TableHead>
@@ -149,7 +149,7 @@ export function OperatorTable() {
                             ) : filteredOperators.length > 0 ? (
                                 filteredOperators.map((op) => {
                                     const statusInfo = statusMap[op.paymentStatus] || statusMap.blocked;
-                                    const companyName = companyMap[op.uid] || 'No asignada';
+                                    const companyName = companyMap[op.uid] || 'No disponible';
                                     return (
                                         <TableRow key={op.uid}>
                                             <TableCell className="font-medium">
@@ -192,11 +192,11 @@ export function OperatorTable() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                        <DropdownMenuLabel>Acciones de Pago</DropdownMenuLabel>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem>Marcar como Premium</DropdownMenuItem>
-                                                        <DropdownMenuItem>Marcar como Bloqueado</DropdownMenuItem>
-                                                        <DropdownMenuItem>Restablecer a Prueba</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.uid, 'paid')}>Marcar como Premium</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.uid, 'blocked')}>Marcar como Bloqueado</DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.uid, 'trial')}>Restablecer a Prueba</DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>

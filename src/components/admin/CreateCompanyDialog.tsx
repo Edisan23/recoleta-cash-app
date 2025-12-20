@@ -20,7 +20,7 @@ import type { Company } from '@/types/db-entities';
 import { LogoSpinner } from '../LogoSpinner';
 
 interface CreateCompanyDialogProps {
-    onCompanyCreated: (companyData: Omit<Company, 'id'>) => void;
+    onCompanyCreated: (companyData: Omit<Company, 'id'>) => Promise<void>;
 }
 
 export function CreateCompanyDialog({ onCompanyCreated }: CreateCompanyDialogProps) {
@@ -66,12 +66,9 @@ export function CreateCompanyDialog({ onCompanyCreated }: CreateCompanyDialogPro
     }
     
     setIsSubmitting(true);
-
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
     
-    // The logoUrl is now the base64 preview or a placeholder.
-    // In a real app, this would be an URL from a storage service.
+    // In a real app, you would upload the logoFile to Firebase Storage and get a URL.
+    // For this example, we'll continue to use the base64 data URI or a placeholder.
     const newCompanyData: Omit<Company, 'id'> = {
         name: companyName,
         logoUrl: logoPreview || 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo',
@@ -79,9 +76,7 @@ export function CreateCompanyDialog({ onCompanyCreated }: CreateCompanyDialogPro
         themeColor: '#2563eb' // Default theme color
     };
 
-    // This function now updates the state in the parent (AdminPage)
-    // which in turn will update localStorage.
-    onCompanyCreated(newCompanyData);
+    await onCompanyCreated(newCompanyData);
 
     toast({
       title: '¡Éxito!',

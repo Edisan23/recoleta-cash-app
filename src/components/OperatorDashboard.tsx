@@ -17,25 +17,18 @@ import { DeleteShiftDialog } from '@/components/operator/DeleteShiftDialog';
 import { calculateShiftSummary, calculatePeriodSummary, getPeriodDateRange } from '@/lib/payroll-calculator';
 import { PayrollBreakdown } from './operator/PayrollBreakdown';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { ThemeToggle } from './ui/theme-toggle';
 import { PayrollVoucher } from './operator/PayrollVoucher';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
+import { collection, doc, query, where, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 
 // --- FAKE DATA & KEYS ---
-const COMPANIES_DB_KEY = 'fake_companies_db';
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
-const SHIFTS_DB_KEY = 'fake_shifts_db';
-const SETTINGS_DB_KEY = 'fake_company_settings_db';
-const HOLIDAYS_DB_KEY = 'fake_holidays_db';
-const BENEFITS_DB_KEY = 'fake_company_benefits_db';
-const DEDUCTIONS_DB_KEY = 'fake_company_deductions_db';
-const USER_PROFILES_DB_KEY = 'fake_user_profiles_db';
-const ITEMS_DB_KEY = 'fake_company_items_db';
 
 
 // --- HELPER FUNCTIONS ---
@@ -57,24 +50,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
   const auth = useAuth();
   const { user } = useUser();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const voucherRef = useRef<HTMLDivElement>(null);
   
-  // Global state
-  const [isLoading, setIsLoading] = useState(true);
+  // Local state
   const [isSaving, setIsSaving] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   
-  // Data from DB
-  const [company, setCompany] = useState<Company | null>(null);
-  const [settings, setSettings] = useState<CompanySettings | null>(null);
-  const [allShifts, setAllShifts] = useState<Shift[]>([]);
-  const [holidays, setHolidays] = useState<Date[]>([]);
-  const [benefits, setBenefits] = useState<Benefit[]>([]);
-  const [deductions, setDeductions] = useState<Deduction[]>([]);
-  const [companyItems, setCompanyItems] = useState<CompanyItem[]>([]);
-
-  // Shift state for the selected day
+  // Form state for the selected day
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
@@ -84,114 +68,77 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
 
+  // --- Firestore Data ---
+  const companyRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
+  const { data: company, isLoading: companyLoading } = useDoc<Company>(companyRef);
+
+  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId]);
+  const { data: settings, isLoading: settingsLoading } = useDoc<CompanySettings>(settingsRef);
+  
+  const shiftsQuery = useMemoFirebase(() => {
+    if (!firestore || !user?.uid) return null;
+    return query(collection(firestore, 'companies', companyId, 'shifts'), where('userId', '==', user.uid));
+  }, [firestore, companyId, user?.uid]);
+  const { data: allShifts, isLoading: shiftsLoading } = useCollection<Shift>(shiftsQuery);
+
+  const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
+  const { data: holidaysData, isLoading: holidaysLoading } = useCollection<{ date: string }>(holidaysRef);
+  const holidays = useMemo(() => holidaysData?.map(h => new Date(h.date)) || [], [holidaysData]);
+
+  const benefitsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId]);
+  const { data: benefits, isLoading: benefitsLoading } = useCollection<Benefit>(benefitsRef);
+
+  const deductionsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
+  const { data: deductions, isLoading: deductionsLoading } = useCollection<Deduction>(deductionsRef);
+
+  const companyItemsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId]);
+  const { data: companyItems, isLoading: itemsLoading } = useCollection<CompanyItem>(companyItemsRef);
+
+  const isLoading = companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || itemsLoading;
 
   // --- DERIVED STATE ---
   const shiftForSelectedDate = useMemo(() => {
-    if (!date || !user) return null;
-    return allShifts.find(s => 
-        s.userId === user.uid && 
-        s.companyId === companyId &&
-        new Date(s.date).toDateString() === date.toDateString()
-    );
-  }, [date, allShifts, companyId, user?.uid]);
+    if (!date || !allShifts) return null;
+    return allShifts.find(s => new Date(s.date).toDateString() === date.toDateString());
+  }, [date, allShifts]);
   
   const shiftDays = useMemo(() => {
-    if (!user) return [];
-    return allShifts
-        .filter(s => s.userId === user.uid && s.companyId === companyId)
-        .map(s => new Date(s.date));
-  }, [allShifts, user?.uid, companyId]);
+    return allShifts?.map(s => new Date(s.date)) || [];
+  }, [allShifts]);
 
-  // Effect 1: Load all initial data from localStorage ONCE
+  // Effect 1: Check for company existence
   useEffect(() => {
-    setIsLoading(true);
-    try {
-      // Load Company
-      const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
-      const allCompanies: Company[] = storedCompanies ? JSON.parse(storedCompanies) : [];
-      const foundCompany = allCompanies.find(c => c.id === companyId);
-      
-      if (!foundCompany) {
+      if (!companyLoading && !company) {
         toast({ title: 'Error', description: 'Empresa no encontrada.', variant: 'destructive' });
         localStorage.removeItem(OPERATOR_COMPANY_KEY);
         router.replace('/select-company');
-        return;
       }
-      setCompany(foundCompany);
+  }, [company, companyLoading, router, toast]);
 
-      // Load all shifts for this user
-      const storedShifts = localStorage.getItem(SHIFTS_DB_KEY);
-      const parsedShifts: Shift[] = storedShifts ? JSON.parse(storedShifts) : [];
-      setAllShifts(parsedShifts);
-      
-      // Load Company Settings
-      const storedSettings = localStorage.getItem(SETTINGS_DB_KEY);
-      if(storedSettings) {
-        let allSettingsData = JSON.parse(storedSettings);
-        if (!Array.isArray(allSettingsData)) { // Ensure it's an array for robustness
-            allSettingsData = [allSettingsData];
-        }
-        const foundSettings = allSettingsData.find((s: CompanySettings) => s.id === companyId);
-        setSettings(foundSettings || null);
-      }
-      
-      // Load Holidays
-      const storedHolidays = localStorage.getItem(HOLIDAYS_DB_KEY);
-      if (storedHolidays) {
-        const holidayStrings: string[] = JSON.parse(storedHolidays);
-        setHolidays(holidayStrings.map(dateString => new Date(dateString)));
-      }
-
-      // Load Benefits
-      const storedBenefits = localStorage.getItem(BENEFITS_DB_KEY);
-      const allBenefits: Benefit[] = storedBenefits ? JSON.parse(storedBenefits) : [];
-      setBenefits(allBenefits.filter(b => b.companyId === companyId));
-
-      // Load Deductions
-      const storedDeductions = localStorage.getItem(DEDUCTIONS_DB_KEY);
-      const allDeductions: Deduction[] = storedDeductions ? JSON.parse(storedDeductions) : [];
-      setDeductions(allDeductions.filter(d => d.companyId === companyId));
-
-      // Load Company Items
-      const storedItems = localStorage.getItem(ITEMS_DB_KEY);
-      const allItems: CompanyItem[] = storedItems ? JSON.parse(storedItems) : [];
-      setCompanyItems(allItems.filter(item => item.companyId === companyId));
-
-    } catch(e) {
-      console.error("Failed to load initial data from localStorage", e);
-      toast({ title: 'Error', description: 'No se pudieron cargar los datos iniciales.', variant: 'destructive' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [companyId, router, toast]);
-
-    // Effect 1.5: Save/update user profile in localStorage for subscription management
+    // Effect 1.5: Save/update user profile in firestore for subscription management
     useEffect(() => {
-        if (user && user.uid) {
-            try {
-                const storedProfiles = localStorage.getItem(USER_PROFILES_DB_KEY);
-                const profiles: UserProfile[] = storedProfiles ? JSON.parse(storedProfiles) : [];
-                const existingProfileIndex = profiles.findIndex(p => p.uid === user.uid);
-
-                if (existingProfileIndex === -1) {
-                    // Create a new profile if it's the first time
-                    const newUserProfile: UserProfile = {
-                        uid: user.uid,
-                        displayName: user.displayName || 'Operador Anónimo',
-                        photoURL: user.photoURL || '',
-                        email: user.email || '',
-                        isAnonymous: user.isAnonymous,
-                        createdAt: new Date().toISOString(),
-                        paymentStatus: 'trial',
-                    };
-                    profiles.push(newUserProfile);
-                    localStorage.setItem(USER_PROFILES_DB_KEY, JSON.stringify(profiles));
-                }
-            } catch (error) {
-                console.error("Could not save user profile to localStorage:", error);
-            }
+        if (user && user.uid && firestore) {
+            const profileRef = doc(firestore, "users", user.uid);
+            updateDoc(profileRef, {
+                uid: user.uid,
+                displayName: user.displayName || 'Operador Anónimo',
+                photoURL: user.photoURL || '',
+                email: user.email || '',
+                isAnonymous: user.isAnonymous,
+            }).catch(() => {
+                // If doc doesn't exist, it will fail, so we create it.
+                addDoc(collection(firestore, "users"), {
+                     uid: user.uid,
+                     displayName: user.displayName || 'Operador Anónimo',
+                     photoURL: user.photoURL || '',
+                     email: user.email || '',
+                     isAnonymous: user.isAnonymous,
+                     createdAt: new Date().toISOString(),
+                     paymentStatus: 'trial',
+                });
+            });
         }
-    }, [user]);
+    }, [user, firestore]);
 
   // Effect 2: Update inputs when date changes or shifts are updated
   useEffect(() => {
@@ -224,11 +171,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // Effect 4: Calculate accumulated hours for the current period (month/fortnight)
   useEffect(() => {
-    if (!date || !settings || !user) return;
-
+    if (!date || !settings || !user || !allShifts || !benefits || !deductions) return;
     const summary = calculatePeriodSummary(allShifts, settings, holidays, benefits, deductions, user.uid, companyId, date);
     setPeriodSummary(summary);
-
   }, [allShifts, user, companyId, settings, date, holidays, benefits, deductions]);
 
 
@@ -237,8 +182,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   };
 
   const handleSave = async () => {
-    if (!date || !user) {
-        toast({ title: "Error", description: "No se puede guardar sin fecha o usuario.", variant: "destructive"});
+    if (!date || !user || !firestore) {
+        toast({ title: "Error", description: "No se puede guardar sin fecha, usuario o conexión.", variant: "destructive"});
         return;
     }
 
@@ -249,19 +194,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
 
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate save
-
-    let updatedShifts = [...allShifts];
-    const shiftIndex = updatedShifts.findIndex(s => 
-        s.userId === user.uid && 
-        s.companyId === companyId &&
-        new Date(s.date).toDateString() === date.toDateString()
-    );
     
     const filledItemDetails = Object.entries(itemDetails)
       .filter(([_, detail]) => detail.trim() !== '')
       .map(([itemId, detail]) => {
-        const item = companyItems.find(i => i.id === itemId);
+        const item = companyItems?.find(i => i.id === itemId);
         return {
           itemId,
           itemName: item?.name || 'Item Desconocido',
@@ -270,32 +207,25 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       });
 
     const shiftData = { 
+        userId: user.uid,
+        companyId: companyId,
+        date: date.toISOString(),
         startTime, 
         endTime,
         itemDetails: filledItemDetails,
     };
 
-    if (shiftIndex > -1) {
-        // Update existing shift
-        updatedShifts[shiftIndex] = { ...updatedShifts[shiftIndex], ...shiftData };
-    } else {
-        // Create new shift
-        const newShift: Shift = {
-            id: `shift_${Date.now()}`,
-            userId: user.uid,
-            companyId: companyId,
-            date: date.toISOString(),
-            ...shiftData,
-        };
-        updatedShifts.push(newShift);
-    }
-    
     try {
-        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
-        setAllShifts(updatedShifts);
+        const shiftsCollection = collection(firestore, 'companies', companyId, 'shifts');
+        if (shiftForSelectedDate) {
+            const shiftDoc = doc(shiftsCollection, shiftForSelectedDate.id);
+            await updateDoc(shiftDoc, shiftData);
+        } else {
+            await addDoc(shiftsCollection, shiftData);
+        }
         toast({ title: "¡Guardado!", description: "Tu turno se ha guardado correctamente." });
     } catch(e) {
-        console.error("Error saving shifts to localStorage", e);
+        console.error("Error saving shift to Firestore", e);
         toast({ title: "Error", description: "No se pudo guardar tu turno.", variant: "destructive" });
     } finally {
         setIsSaving(false);
@@ -303,26 +233,21 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   };
 
   const handleDelete = async () => {
-    if (!date || !user || !shiftForSelectedDate) return;
+    if (!date || !user || !shiftForSelectedDate || !firestore) return;
 
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const updatedShifts = allShifts.filter(s => s.id !== shiftForSelectedDate.id);
-
+    const shiftDoc = doc(firestore, 'companies', companyId, 'shifts', shiftForSelectedDate.id);
     try {
-        localStorage.setItem(SHIFTS_DB_KEY, JSON.stringify(updatedShifts));
-        setAllShifts(updatedShifts);
+        await deleteDoc(shiftDoc);
         toast({ title: "¡Eliminado!", description: "El turno ha sido eliminado." });
     } catch (e) {
-        console.error("Error deleting shift from localStorage", e);
+        console.error("Error deleting shift from Firestore", e);
         toast({ title: "Error", description: "No se pudo eliminar el turno.", variant: "destructive" });
     } finally {
         setIsSaving(false);
     }
   };
   
-
   const handleSignOut = async () => {
     try {
         if(auth) await auth.signOut();
@@ -339,8 +264,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
         try {
             const canvas = await html2canvas(voucherRef.current, {
-                scale: 2, // Higher scale for better quality
-                backgroundColor: '#ffffff', // Force white background
+                scale: 2,
+                backgroundColor: '#ffffff',
             });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF({
@@ -378,13 +303,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
        {/* Hidden element for PDF generation */}
        <div className="absolute left-[-9999px] top-[-9999px]">
             <div ref={voucherRef} className="bg-white text-black p-8">
-                {company && user && date && periodSummary && settings && (
+                {company && user && date && periodSummary && settings && allShifts && (
                     <PayrollVoucher 
                         operatorName={user.displayName || 'Operador'}
                         companyName={company.name}
                         period={getPeriodDateRange(date, settings.payrollCycle)}
                         summary={periodSummary}
-                        shifts={allShifts.filter(s => s.userId === user.uid && s.companyId === companyId)}
+                        shifts={allShifts}
                     />
                 )}
             </div>
@@ -472,13 +397,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         </div>
                     </div>
 
-                    {companyItems.length > 0 && (
+                    {(companyItems || []).length > 0 && (
                       <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-details">
                             <AccordionTrigger>Detalles Adicionales</AccordionTrigger>
                             <AccordionContent>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                                  {companyItems.map(item => (
+                                  {companyItems?.map(item => (
                                     <div key={item.id}>
                                       <Label htmlFor={`item-detail-${item.id}`}>{item.name}</Label>
                                        <Input 

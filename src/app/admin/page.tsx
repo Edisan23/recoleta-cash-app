@@ -10,33 +10,24 @@ import type { Company } from '@/types/db-entities';
 import { OperatorTable } from '@/components/admin/OperatorTable';
 import { Separator } from '@/components/ui/separator';
 import { OperatorStats } from '@/components/admin/OperatorStats';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
+import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
 
-const INITIAL_COMPANIES: Company[] = [
-    { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },
-    { id: '2', name: 'Transportes Rápidos', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#10b981' },
-    { id: '3', name: 'Servicios Generales S.A.', isActive: false, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#8b5cf6' },
-];
-
-const COMPANIES_DB_KEY = 'fake_companies_db';
 const ADMIN_UID_KEY = 'fake_admin_uid';
-const SHIFTS_DB_KEY = 'fake_shifts_db';
-const SETTINGS_DB_KEY = 'fake_company_settings_db';
-const BENEFITS_DB_KEY = 'fake_company_benefits_db';
-const DEDUCTIONS_DB_KEY = 'fake_company_deductions_db';
-const ITEMS_DB_KEY = 'fake_company_items_db';
 
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
-  const [companies, setCompanies] = useState<Company[]>([]);
-  
+  const companiesRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies') : null, [firestore]);
+  const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
+
   useEffect(() => {
     if (!isUserLoading) {
       if (!user) {
@@ -55,77 +46,35 @@ export default function AdminDashboardPage() {
     }
   }, [user, isUserLoading, router]);
 
-  useEffect(() => {
-    try {
-        const storedCompanies = localStorage.getItem(COMPANIES_DB_KEY);
-        if (storedCompanies) {
-            setCompanies(JSON.parse(storedCompanies));
-        } else {
-            localStorage.setItem(COMPANIES_DB_KEY, JSON.stringify(INITIAL_COMPANIES));
-            setCompanies(INITIAL_COMPANIES);
-        }
-    } catch (error) {
-        console.error("Could not access localStorage:", error);
-        setCompanies(INITIAL_COMPANIES);
-    }
-  }, []);
 
-  const addCompany = (newCompanyData: Omit<Company, 'id'>) => {
-    const newCompany: Company = {
-        ...newCompanyData,
-        id: `comp_${Date.now()}`
-    };
-    
-    setCompanies(prevCompanies => {
-        const updatedCompanies = [...prevCompanies, newCompany];
-        try {
-            localStorage.setItem(COMPANIES_DB_KEY, JSON.stringify(updatedCompanies));
-        } catch (error) {
-            console.error("Could not save to localStorage:", error);
-        }
-        return updatedCompanies;
-    });
+  const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {
+    if (!firestore) return;
+    const companiesCollectionRef = collection(firestore, 'companies');
+    try {
+      await addDoc(companiesCollectionRef, newCompanyData);
+    } catch (error) {
+      console.error("Could not save to Firestore:", error);
+       toast({
+          variant: "destructive",
+          title: "Error",
+          description: "No se pudo crear la empresa.",
+      });
+    }
   };
 
-  const deleteCompany = (companyId: string, companyName: string) => {
+  const deleteCompany = async (companyId: string, companyName: string) => {
+    if (!firestore) return;
+    const companyDocRef = doc(firestore, 'companies', companyId);
     try {
-        // Delete company from companies list
-        const updatedCompanies = companies.filter(c => c.id !== companyId);
-        setCompanies(updatedCompanies);
-        localStorage.setItem(COMPANIES_DB_KEY, JSON.stringify(updatedCompanies));
-        
-        // Delete associated data
-        const keysToDelete = [
-            SHIFTS_DB_KEY, 
-            SETTINGS_DB_KEY, 
-            BENEFITS_DB_KEY, 
-            DEDUCTIONS_DB_KEY, 
-            ITEMS_DB_KEY
-        ];
-
-        keysToDelete.forEach(key => {
-            const storedData = localStorage.getItem(key);
-            if (storedData) {
-                let dataArray = JSON.parse(storedData);
-                 // The settings is not an array for some reason in some places.
-                if (!Array.isArray(dataArray)) {
-                    if (typeof dataArray === 'object' && dataArray !== null && dataArray.id === companyId) {
-                         localStorage.removeItem(key);
-                    }
-                    return;
-                }
-                const filteredData = dataArray.filter((item: any) => item.companyId !== companyId);
-                localStorage.setItem(key, JSON.stringify(filteredData));
-            }
-        });
-
+        // Note: Subcollections are NOT automatically deleted.
+        // For a production app, a Cloud Function would be needed to recursively delete subcollections.
+        await deleteDoc(companyDocRef);
         toast({
             title: "Empresa Eliminada",
-            description: `La empresa "${companyName}" y todos sus datos han sido eliminados.`,
+            description: `La empresa "${companyName}" ha sido eliminada.`,
         });
-
     } catch (error) {
-        console.error("Error deleting company and its data:", error);
+        console.error("Error deleting company:", error);
         toast({
             variant: "destructive",
             title: "Error",
@@ -142,7 +91,7 @@ export default function AdminDashboardPage() {
     }
   };
   
-  if (isUserLoading || !user) {
+  if (isUserLoading || !user || areCompaniesLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
@@ -171,7 +120,7 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="space-y-8">
-        <CompanyTable companies={companies} onDeleteCompany={deleteCompany} />
+        <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} />
         <Separator />
         <OperatorStats />
         <OperatorTable />

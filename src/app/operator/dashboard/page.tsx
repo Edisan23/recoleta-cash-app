@@ -34,6 +34,8 @@ export default function OperatorDashboardPage() {
       }
     } catch (error) {
       console.error("Could not access localStorage:", error);
+      // In a browser-less environment or with localStorage disabled, this is a safe fallback.
+      // We can't proceed without a company ID.
       router.replace('/select-company');
     } finally {
         setIsLoading(false);

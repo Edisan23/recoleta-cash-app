@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -10,36 +9,48 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { es } from 'date-fns/locale';
 import { format, isSameDay, startOfDay } from 'date-fns';
-
-const HOLIDAYS_DB_KEY = 'fake_holidays_db';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, writeBatch } from 'firebase/firestore';
 
 export default function HolidaysPage() {
   const router = useRouter();
+  const firestore = useFirestore();
   const { toast } = useToast();
   const [holidays, setHolidays] = useState<Date[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  
+  const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
+  const { data: holidaysData, isLoading } = useCollection<{ date: string }>(holidaysRef);
 
   useEffect(() => {
-    try {
-      const storedHolidays = localStorage.getItem(HOLIDAYS_DB_KEY);
-      if (storedHolidays) {
-        const holidayStrings: string[] = JSON.parse(storedHolidays);
-        setHolidays(holidayStrings.map(dateString => new Date(dateString)));
-      }
-    } catch (e) {
-      console.error("Failed to load holidays from localStorage", e);
-      toast({ title: "Error", description: "No se pudieron cargar los feriados.", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
+    if (holidaysData) {
+      const dates = holidaysData.map(h => new Date(h.date));
+      setHolidays(dates);
     }
-  }, [toast]);
+  }, [holidaysData]);
 
-  const saveHolidaysToStorage = (updatedHolidays: Date[]) => {
+
+  const saveHolidaysToFirestore = async (updatedHolidays: Date[]) => {
+    if (!firestore) return;
     try {
-      const holidayStrings = updatedHolidays.map(d => d.toISOString());
-      localStorage.setItem(HOLIDAYS_DB_KEY, JSON.stringify(holidayStrings));
+      const batch = writeBatch(firestore);
+      
+      // Delete old holidays
+      holidaysData?.forEach(h => {
+        const docRef = doc(firestore, 'holidays', h.id);
+        batch.delete(docRef);
+      });
+
+      // Add new holidays
+      updatedHolidays.forEach(d => {
+        const dateString = d.toISOString();
+        const docRef = doc(firestore, 'holidays', dateString);
+        batch.set(docRef, { date: dateString });
+      });
+
+      await batch.commit();
+
     } catch (e) {
-      console.error("Failed to save holidays to localStorage", e);
+      console.error("Failed to save holidays to Firestore", e);
       toast({ title: "Error", description: "No se pudieron guardar los cambios.", variant: "destructive" });
     }
   };
@@ -69,13 +80,13 @@ export default function HolidaysPage() {
 
     const updatedHolidays = dates.map(d => startOfDay(d)).sort((a, b) => a.getTime() - b.getTime());
     setHolidays(updatedHolidays);
-    saveHolidaysToStorage(updatedHolidays);
+    saveHolidaysToFirestore(updatedHolidays);
   };
 
   const handleRemoveHoliday = (dateToRemove: Date) => {
     const updatedHolidays = holidays.filter(h => !isSameDay(h, dateToRemove));
     setHolidays(updatedHolidays);
-    saveHolidaysToStorage(updatedHolidays);
+    saveHolidaysToFirestore(updatedHolidays);
     toast({ title: "Feriado eliminado", description: `Se quitó el ${format(dateToRemove, 'PPP', { locale: es })}.` });
   };
 
