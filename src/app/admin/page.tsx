@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { OperatorStats } from '@/components/admin/OperatorStats';
 import { useAuth, useUser } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
+import { useToast } from '@/hooks/use-toast';
 
 const INITIAL_COMPANIES: Company[] = [
     { id: '1', name: 'Constructora XYZ', isActive: true, logoUrl: 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo', themeColor: '#3b82f6' },
@@ -21,11 +22,18 @@ const INITIAL_COMPANIES: Company[] = [
 
 const COMPANIES_DB_KEY = 'fake_companies_db';
 const ADMIN_UID_KEY = 'fake_admin_uid';
+const SHIFTS_DB_KEY = 'fake_shifts_db';
+const SETTINGS_DB_KEY = 'fake_company_settings_db';
+const BENEFITS_DB_KEY = 'fake_company_benefits_db';
+const DEDUCTIONS_DB_KEY = 'fake_company_deductions_db';
+const ITEMS_DB_KEY = 'fake_company_items_db';
+
 
 export default function AdminDashboardPage() {
   const router = useRouter();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
   
   const [companies, setCompanies] = useState<Company[]>([]);
   
@@ -79,6 +87,54 @@ export default function AdminDashboardPage() {
     });
   };
 
+  const deleteCompany = (companyId: string, companyName: string) => {
+    try {
+        // Delete company from companies list
+        const updatedCompanies = companies.filter(c => c.id !== companyId);
+        setCompanies(updatedCompanies);
+        localStorage.setItem(COMPANIES_DB_KEY, JSON.stringify(updatedCompanies));
+        
+        // Delete associated data
+        const keysToDelete = [
+            SHIFTS_DB_KEY, 
+            SETTINGS_DB_KEY, 
+            BENEFITS_DB_KEY, 
+            DEDUCTIONS_DB_KEY, 
+            ITEMS_DB_KEY
+        ];
+
+        keysToDelete.forEach(key => {
+            const storedData = localStorage.getItem(key);
+            if (storedData) {
+                let dataArray = JSON.parse(storedData);
+                 // The settings is not an array for some reason in some places.
+                if (!Array.isArray(dataArray)) {
+                    if (typeof dataArray === 'object' && dataArray !== null && dataArray.id === companyId) {
+                         localStorage.removeItem(key);
+                    }
+                    return;
+                }
+                const filteredData = dataArray.filter((item: any) => item.companyId !== companyId);
+                localStorage.setItem(key, JSON.stringify(filteredData));
+            }
+        });
+
+        toast({
+            title: "Empresa Eliminada",
+            description: `La empresa "${companyName}" y todos sus datos han sido eliminados.`,
+        });
+
+    } catch (error) {
+        console.error("Error deleting company and its data:", error);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No se pudo eliminar la empresa.",
+        });
+    }
+  };
+
+
   const handleSignOut = async () => {
     if (auth) {
       await auth.signOut();
@@ -115,7 +171,7 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="space-y-8">
-        <CompanyTable companies={companies} />
+        <CompanyTable companies={companies} onDeleteCompany={deleteCompany} />
         <Separator />
         <OperatorStats />
         <OperatorTable />

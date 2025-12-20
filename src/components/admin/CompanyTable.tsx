@@ -11,27 +11,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Pencil } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { DeleteCompanyDialog } from './DeleteCompanyDialog';
 
 interface CompanyTableProps {
     companies: Company[];
+    onDeleteCompany: (companyId: string, companyName: string) => void;
 }
 
-export function CompanyTable({ companies }: CompanyTableProps) {
+export function CompanyTable({ companies, onDeleteCompany }: CompanyTableProps) {
   
-  // The loading state is no longer needed here as data is passed via props.
-  // if (isLoading) {
-  //   return (
-  //     <div className="space-y-2">
-  //       <Skeleton className="h-12 w-full" />
-  //       <Skeleton className="h-12 w-full" />
-  //       <Skeleton className="h-12 w-full" />
-  //     </div>
-  //   )
-  // }
-
   return (
     <div className="rounded-lg border">
       <Table>
@@ -68,12 +59,20 @@ export function CompanyTable({ companies }: CompanyTableProps) {
                     {company.isActive ? 'Activa' : 'Inactiva'}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right space-x-2">
                    <Link href={`/admin/company/${company.id}`} passHref>
                         <Button variant="ghost" size="icon">
                            <Pencil className="h-4 w-4" />
                         </Button>
                     </Link>
+                    <DeleteCompanyDialog 
+                      companyName={company.name} 
+                      onConfirm={() => onDeleteCompany(company.id, company.name)}
+                    >
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </DeleteCompanyDialog>
                 </TableCell>
               </TableRow>
             ))
