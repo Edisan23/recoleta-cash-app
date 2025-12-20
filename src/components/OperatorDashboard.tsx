@@ -460,7 +460,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                             </p>
                         </div>
                         <div>
-                            <p className="text-sm text-muted-foreground">Pago Bruto del Turno</p>
+                            <p className="text-sm text-muted-foreground">Valor del Turno</p>
                             <p className="text-2xl font-bold text-green-600">
                                 {dailySummary ? formatCurrency(dailySummary.grossPay) : '$0'}
                             </p>
