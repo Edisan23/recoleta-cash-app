@@ -145,7 +145,7 @@ export function OperatorTable() {
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow>
+                                <TableRow key="loading-row">
                                     <TableCell colSpan={6} className="h-24 text-center">
                                         <LogoSpinner />
                                     </TableCell>
@@ -208,7 +208,7 @@ export function OperatorTable() {
                                     );
                                 })
                             ) : (
-                                <TableRow>
+                                <TableRow key="no-results-row">
                                     <TableCell colSpan={6} className="h-24 text-center">
                                         No se encontraron operadores.
                                     </TableCell>
