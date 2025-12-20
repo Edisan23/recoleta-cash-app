@@ -5,7 +5,7 @@ import type { UserProfile, Shift, Company } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { Users, MoreHorizontal, UserCheck, UserX, Star, Building, Search } from 'lucide-react';
+import { Users, MoreHorizontal, UserCheck, UserX, Star, Building, Search, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -27,10 +27,14 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
+    DropdownMenuSub,
+    DropdownMenuSubTrigger,
+    DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 import { LogoSpinner } from '../LogoSpinner';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, updateDoc } from 'firebase/firestore';
+import { collection, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { DeleteUserDialog } from './DeleteUserDialog';
 
 type StatusVariant = "default" | "secondary" | "destructive" | "outline";
 
@@ -81,13 +85,13 @@ export function OperatorTable() {
 
 
     const filteredOperators = useMemo(() => {
-        const sortedOperators = operators 
-            ? [...operators].sort((a, b) => {
+        if (!operators) return [];
+
+        const sortedOperators = [...operators].sort((a, b) => {
                 const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
                 const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                 return dateB - dateA;
-            })
-            : [];
+            });
 
         if (!searchQuery) {
             return sortedOperators;
@@ -104,7 +108,6 @@ export function OperatorTable() {
         try {
             await updateDoc(userDocRef, { paymentStatus: newStatus });
             
-            // Update local state to reflect the change immediately
             setOperators(prevOperators => {
                 if (!prevOperators) return null;
                 return prevOperators.map(op => 
@@ -119,6 +122,22 @@ export function OperatorTable() {
         } catch (error) {
             console.error("Error updating user status:", error);
             toast({ title: "Error", description: "No se pudo actualizar el estado.", variant: "destructive" });
+        }
+    };
+    
+    const handleDeleteUser = async (userId: string, userName: string) => {
+        if (!firestore) return;
+        const userDocRef = doc(firestore, 'users', userId);
+        try {
+            await deleteDoc(userDocRef);
+            setOperators(prev => prev ? prev.filter(op => op.id !== userId) : null);
+            toast({
+                title: "Usuario Eliminado",
+                description: `El operador "${userName}" ha sido eliminado.`,
+            });
+        } catch (error) {
+             console.error("Error deleting user:", error);
+            toast({ title: "Error", description: "No se pudo eliminar el usuario.", variant: "destructive" });
         }
     };
 
@@ -176,9 +195,7 @@ export function OperatorTable() {
                                     let createdAtDate: Date | null = null;
                                     if (op.createdAt) {
                                         try {
-                                            // Handle both string and Firestore Timestamp
-                                            // @ts-ignore
-                                            const dateSource = op.createdAt.toDate ? op.createdAt.toDate() : op.createdAt;
+                                            const dateSource = op.createdAt;
                                             const parsedDate = new Date(dateSource);
                                             if (isValid(parsedDate)) {
                                                 createdAtDate = parsedDate;
@@ -227,15 +244,37 @@ export function OperatorTable() {
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon">
                                                             <MoreHorizontal className="h-4 w-4" />
+                                                            <span className="sr-only">Abrir menú de acciones</span>
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuLabel>Acciones de Pago</DropdownMenuLabel>
+                                                        <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'paid')}>Marcar como Premium</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'free')}>Marcar como Gratis</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'blocked')}>Marcar como Bloqueado</DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'trial')}>Restablecer a Prueba</DropdownMenuItem>
+                                                        <DropdownMenuSub>
+                                                            <DropdownMenuSubTrigger>Cambiar Estado</DropdownMenuSubTrigger>
+                                                            <DropdownMenuSubContent>
+                                                                <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'paid')}>Marcar como Premium</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'free')}>Marcar como Gratis</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'trial')}>Restablecer a Prueba</DropdownMenuItem>
+                                                            </DropdownMenuSubContent>
+                                                        </DropdownMenuSub>
+                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'blocked')}>
+                                                          <UserX className="mr-2 h-4 w-4" />
+                                                          Bloquear Usuario
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuSeparator />
+                                                        <DeleteUserDialog
+                                                            userName={op.displayName}
+                                                            onConfirm={() => handleDeleteUser(op.id, op.displayName)}
+                                                        >
+                                                            <DropdownMenuItem
+                                                                onSelect={(e) => e.preventDefault()}
+                                                                className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/40"
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                Eliminar Usuario
+                                                            </DropdownMenuItem>
+                                                        </DeleteUserDialog>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
                                             </TableCell>
