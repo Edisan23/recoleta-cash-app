@@ -6,6 +6,7 @@ import { Firestore } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
+import { LogoSpinner } from '@/components/LogoSpinner';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -108,6 +109,14 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       userError: userAuthState.userError,
     };
   }, [firebaseApp, firestore, auth, storage, userAuthState]);
+
+  if (contextValue.isUserLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <LogoSpinner className="h-24 w-24" />
+      </div>
+    );
+  }
 
   return (
     <FirebaseContext.Provider value={contextValue}>
