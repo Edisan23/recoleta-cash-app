@@ -24,7 +24,9 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, update, delete: if isSignedIn() && isOwner(userId);
+      // Admins can read any user profile, users can only read/write their own.
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow update, delete: if isSignedIn() && isOwner(userId);
       allow create: if isSignedIn();
     }
 
@@ -63,6 +65,11 @@ service cloud.firestore {
         allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
         allow write: if isAdmin();
       }
+    }
+
+    match /holidays/{holidayId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }
