@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft, PlusCircle, AlertCircle } from 'lucide-react';
+import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft, PlusCircle, AlertCircle, Lock } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem, DailyShiftEntry } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,7 +26,7 @@ import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { addMonths, format, isValid, parseISO } from 'date-fns';
+import { addMonths, format, isValid, parseISO, isAfter } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 
@@ -79,6 +79,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
   const [trialEndDate, setTrialEndDate] = useState<string | null>(null);
+  const [isTrialExpired, setIsTrialExpired] = useState(false);
 
 
   // --- Firestore Data ---
@@ -153,6 +154,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         if (isValid(creationDate)) {
             const endDate = addMonths(creationDate, 2);
             setTrialEndDate(format(endDate, "d 'de' MMMM 'de' yyyy", { locale: es }));
+            
+            // Check if trial is expired
+            if (isAfter(new Date(), endDate)) {
+                setIsTrialExpired(true);
+            }
         }
     }
   }, [userProfile]);
@@ -383,6 +389,24 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               </Button>
           </div>
       )
+    }
+
+    if (isTrialExpired) {
+        return (
+             <div className="flex flex-col items-center justify-center h-screen bg-background text-center p-4">
+                <div className="mb-4">
+                    <Lock className="h-16 w-16 text-destructive mx-auto" />
+                </div>
+                <h1 className="text-3xl font-bold mb-2">Período de Prueba Finalizado</h1>
+                <p className="text-xl text-muted-foreground max-w-md mb-8">
+                    Tu acceso a la aplicación ha sido suspendido. Por favor, contacta a un administrador para activar tu cuenta.
+                </p>
+                <Button onClick={handleSignOut} size="lg">
+                    <LogOut className="mr-2" />
+                    Cerrar Sesión
+                </Button>
+            </div>
+        )
     }
   
   return (
@@ -630,3 +654,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
