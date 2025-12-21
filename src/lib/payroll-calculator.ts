@@ -30,18 +30,15 @@ function isNightHour(dateTime: Date, nightShiftStartHour: number) {
     return isWithinInterval(dateTime, intervals[0]) || isWithinInterval(dateTime, intervals[1]);
 }
 
-const emptyShiftSummary = (): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> => ({
-    totalHours: 0,
-    grossPay: 0,
-    dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
-    holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
-    dayPay: 0, nightPay: 0, dayOvertimePay: 0, nightOvertimePay: 0,
-    holidayDayPay: 0, holidayNightPay: 0, holidayDayOvertimePay: 0, holidayNightOvertimePay: 0,
-});
-
-
 export function calculateShiftSummary(shift: Shift, settings: CompanySettings, holidays: Date[]): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> {
-  const summary = emptyShiftSummary();
+  const summary = {
+      totalHours: 0,
+      grossPay: 0,
+      dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
+      holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
+      dayPay: 0, nightPay: 0, dayOvertimePay: 0, nightOvertimePay: 0,
+      holidayDayPay: 0, holidayNightPay: 0, holidayDayOvertimePay: 0, holidayNightOvertimePay: 0,
+  };
 
   if (!shift.startTime || !shift.endTime || !settings) {
     return summary;
@@ -66,54 +63,61 @@ export function calculateShiftSummary(shift: Shift, settings: CompanySettings, h
   const nightShiftStartHour = settings.nightShiftStartHour ?? 21;
   const dailyHourLimit = settings.dailyHourLimit ?? 8;
 
+  let regularMinutesCount = 0;
+
   for (let i = 0; i < totalShiftMinutes; i++) {
     const currentMinuteTime = new Date(start.getTime() + i * 60 * 1000);
     const hourFraction = 1 / 60;
     
     const isCurrentMinuteHoliday = isHoliday(currentMinuteTime, holidays);
     const isNight = isNightHour(currentMinuteTime, nightShiftStartHour);
-    const hoursSoFar = i / 60;
-    const isOvertime = hoursSoFar >= dailyHourLimit;
     
-    // Determine rate and hour category
+    const isOvertime = (regularMinutesCount / 60) >= dailyHourLimit;
+    
+    if (!isOvertime) {
+        regularMinutesCount++;
+    }
+
     if (isOvertime) {
         if(isCurrentMinuteHoliday) {
             if(isNight) {
                 summary.holidayNightOvertimeHours += hourFraction;
-                summary.holidayNightOvertimePay += (settings.holidayNightOvertimeRate || 0) * hourFraction;
             } else {
                 summary.holidayDayOvertimeHours += hourFraction;
-                summary.holidayDayOvertimePay += (settings.holidayDayOvertimeRate || 0) * hourFraction;
             }
         } else {
             if(isNight) {
                 summary.nightOvertimeHours += hourFraction;
-                summary.nightOvertimePay += (settings.nightOvertimeRate || 0) * hourFraction;
             } else {
                 summary.dayOvertimeHours += hourFraction;
-                summary.dayOvertimePay += (settings.dayOvertimeRate || 0) * hourFraction;
             }
         }
     } else { // Regular hours
         if(isCurrentMinuteHoliday) {
             if(isNight) {
                 summary.holidayNightHours += hourFraction;
-                summary.holidayNightPay += (settings.holidayNightRate || 0) * hourFraction;
             } else {
                 summary.holidayDayHours += hourFraction;
-                summary.holidayDayPay += (settings.holidayDayRate || 0) * hourFraction;
             }
         } else {
             if(isNight) {
                 summary.nightHours += hourFraction;
-                summary.nightPay += (settings.nightRate || 0) * hourFraction;
             } else {
                 summary.dayHours += hourFraction;
-                summary.dayPay += (settings.dayRate || 0) * hourFraction;
             }
         }
     }
   }
+
+  // Calculate Pay based on categorized hours
+  summary.dayPay = summary.dayHours * (settings.dayRate || 0);
+  summary.nightPay = summary.nightHours * (settings.nightRate || 0);
+  summary.dayOvertimePay = summary.dayOvertimeHours * (settings.dayOvertimeRate || 0);
+  summary.nightOvertimePay = summary.nightOvertimeHours * (settings.nightOvertimeRate || 0);
+  summary.holidayDayPay = summary.holidayDayHours * (settings.holidayDayRate || 0);
+  summary.holidayNightPay = summary.holidayNightHours * (settings.holidayNightRate || 0);
+  summary.holidayDayOvertimePay = summary.holidayDayOvertimeHours * (settings.holidayDayOvertimeRate || 0);
+  summary.holidayNightOvertimePay = summary.holidayNightOvertimeHours * (settings.holidayNightOvertimeRate || 0);
 
   summary.grossPay = summary.dayPay + summary.nightPay + summary.dayOvertimePay + summary.nightOvertimePay +
                      summary.holidayDayPay + summary.holidayNightPay + summary.holidayDayOvertimePay + summary.holidayNightOvertimePay;
@@ -129,12 +133,12 @@ export function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' |
     if (payrollCycle === 'bi-weekly') {
         if (day <= 15) {
             return {
-                start: new Date(year, month, 1),
-                end: new Date(year, month, 15),
+                start: startOfDay(new Date(year, month, 1)),
+                end: endOfDay(new Date(year, month, 15)),
             };
         } else {
             return {
-                start: new Date(year, month, 16),
+                start: startOfDay(new Date(year, month, 16)),
                 end: endOfMonth(selectedDate),
             };
         }
@@ -166,6 +170,16 @@ export function calculatePeriodSummary(
                isWithinInterval(shiftDate, period);
     });
 
+  const emptySummary = {
+      totalHours: 0, grossPay: 0,
+      dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
+      holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
+      dayPay: 0, nightPay: 0, dayOvertimePay: 0, nightOvertimePay: 0,
+      holidayDayPay: 0, holidayNightPay: 0, holidayDayOvertimePay: 0, holidayNightOvertimePay: 0,
+      netPay: 0, totalBenefits: 0, totalDeductions: 0,
+      benefitBreakdown: [], deductionBreakdown: [],
+  };
+
   const periodSummary: PayrollSummary = periodShifts.reduce((acc, shift) => {
     const shiftSummary = calculateShiftSummary(shift, settings, holidays);
     acc.totalHours += shiftSummary.totalHours;
@@ -187,14 +201,7 @@ export function calculatePeriodSummary(
     acc.holidayDayOvertimePay += shiftSummary.holidayDayOvertimePay;
     acc.holidayNightOvertimePay += shiftSummary.holidayNightOvertimePay;
     return acc;
-  }, {
-    ...emptyShiftSummary(),
-    netPay: 0,
-    totalBenefits: 0,
-    totalDeductions: 0,
-    benefitBreakdown: [],
-    deductionBreakdown: [],
-  });
+  }, { ...emptySummary });
 
   // Calculate Benefits
   for (const benefit of benefits) {
