@@ -79,7 +79,7 @@ export default function OperatorLoginPage() {
             className="w-full max-w-xs"
             variant="outline"
             onClick={handleGoogleSignIn}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !auth}
           >
             {isSubmitting ? <LogoSpinner className="mr-2" /> : 
             <svg

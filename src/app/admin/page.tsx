@@ -28,6 +28,8 @@ export default function AdminDashboardPage() {
   const companiesRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies') : null, [firestore]);
   const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
 
+  const [isAdmin, setIsAdmin] = useState(false);
+
   useEffect(() => {
     if (!isUserLoading) {
       if (!user) {
@@ -36,7 +38,9 @@ export default function AdminDashboardPage() {
       }
       try {
         const adminUid = localStorage.getItem(ADMIN_UID_KEY);
-        if (user.uid !== adminUid) {
+        if (user.uid === adminUid) {
+          setIsAdmin(true);
+        } else {
           router.replace('/admin/login');
         }
       } catch (error) {
@@ -91,7 +95,7 @@ export default function AdminDashboardPage() {
     }
   };
   
-  if (isUserLoading || !user || areCompaniesLoading) {
+  if (isUserLoading || !isAdmin || areCompaniesLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />

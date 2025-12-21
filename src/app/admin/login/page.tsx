@@ -126,7 +126,7 @@ export default function AdminLoginPage() {
                 className="w-full"
                 variant="outline"
                 onClick={handleGoogleSignIn}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !auth}
               >
                 {isSubmitting ? <LogoSpinner className="mr-2" /> : 
                 <svg
