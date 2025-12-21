@@ -25,8 +25,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       // Admins can read any user profile, users can only read/write their own.
-      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
-      allow update, delete: if isSignedIn() && isOwner(userId);
+      allow read, update, delete: if isSignedIn() && (isOwner(userId) || isAdmin());
       allow create: if isSignedIn();
     }
 
