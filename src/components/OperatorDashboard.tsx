@@ -189,24 +189,30 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // Effect to calculate daily summary for the selected day
   useEffect(() => {
     if (!date || !allShifts || !settings) {
-        setDailySummary(null);
-        return;
+      setDailySummary(null);
+      return;
     }
 
     const shiftsForDate = allShifts.filter(s => new Date(s.date).toDateString() === date.toDateString());
-    
+
     if (shiftsForDate.length > 0) {
-        const totalSummary = shiftsForDate.reduce((acc, shift) => {
-            const shiftSummary = calculateShiftSummary(shift, settings, holidays);
-            Object.keys(shiftSummary).forEach(key => {
-                const typedKey = key as keyof typeof shiftSummary;
-                acc[typedKey] = (acc[typedKey] || 0) + shiftSummary[typedKey];
-            });
-            return acc;
-        }, emptySummary());
-        setDailySummary(totalSummary);
+      let hoursAlreadyWorkedOnDay = 0;
+      const totalSummary = shiftsForDate.reduce((acc, shift) => {
+        const shiftSummary = calculateShiftSummary(shift, settings, holidays, hoursAlreadyWorkedOnDay);
+        hoursAlreadyWorkedOnDay += shiftSummary.totalHours; // Accumulate hours for the next shift in the same day
+
+        // Aggregate summaries
+        Object.keys(shiftSummary).forEach(key => {
+          const typedKey = key as keyof typeof shiftSummary;
+          (acc as any)[typedKey] = (acc[typedKey] || 0) + shiftSummary[typedKey];
+        });
+
+        return acc;
+      }, emptySummary());
+
+      setDailySummary(totalSummary);
     } else {
-        setDailySummary(null);
+      setDailySummary(null);
     }
   }, [date, allShifts, settings, holidays]);
 
@@ -654,5 +660,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
 
     
