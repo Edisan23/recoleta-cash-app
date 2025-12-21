@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft, PlusCircle } from 'lucide-react';
+import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft, PlusCircle, AlertCircle } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem, DailyShiftEntry } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -25,6 +25,9 @@ import html2canvas from 'html2canvas';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { addMonths, format, isValid, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 
 // --- FAKE DATA & KEYS ---
@@ -75,6 +78,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // Calculated Summaries
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
+  const [trialEndDate, setTrialEndDate] = useState<string | null>(null);
+
 
   // --- Firestore Data ---
   const companyRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
@@ -102,7 +107,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const companyItemsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId]);
   const { data: companyItems, isLoading: itemsLoading } = useCollection<CompanyItem>(companyItemsRef);
 
-  const isLoading = companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || itemsLoading;
+  const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: userProfile, isLoading: userProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+  const isLoading = companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || itemsLoading || userProfileLoading;
 
   const shiftDays = useMemo(() => {
     return allShifts?.map(s => new Date(s.date)) || [];
@@ -112,21 +120,42 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   useEffect(() => {
       if (user && user.uid && firestore) {
           const profileRef = doc(firestore, "users", user.uid);
-          const userProfileData: Omit<UserProfile, 'id' | 'paymentStatus' | 'isAnonymous'> & { paymentStatus: UserProfile['paymentStatus'], isAnonymous: boolean, email: string | null } = {
-                uid: user.uid,
-                displayName: user.displayName || 'Operador Anónimo',
-                photoURL: user.photoURL || '',
-                email: user.email || '',
-                isAnonymous: user.isAnonymous,
-                createdAt: user.metadata.creationTime || new Date().toISOString(),
-                paymentStatus: 'trial', // default value
-          };
-          
-          setDoc(profileRef, userProfileData, { merge: true }).catch(err => {
-              console.error("Error saving user profile:", err);
-          });
+          // Check if userProfile is already loaded to avoid overwriting paymentStatus
+          if (userProfile === undefined || userProfile === null) {
+              const userProfileData: Omit<UserProfile, 'id' | 'paymentStatus' | 'isAnonymous'> & { paymentStatus: UserProfile['paymentStatus'], isAnonymous: boolean, email: string | null } = {
+                    uid: user.uid,
+                    displayName: user.displayName || 'Operador Anónimo',
+                    photoURL: user.photoURL || '',
+                    email: user.email || '',
+                    isAnonymous: user.isAnonymous,
+                    createdAt: user.metadata.creationTime || new Date().toISOString(),
+                    paymentStatus: 'trial', // default value
+              };
+              setDoc(profileRef, userProfileData, { merge: true }).catch(err => {
+                  console.error("Error saving user profile:", err);
+              });
+          }
       }
-  }, [user, firestore]);
+  }, [user, firestore, userProfile]);
+
+  useEffect(() => {
+    if (userProfile && userProfile.paymentStatus !== 'paid' && userProfile.createdAt) {
+        let creationDate: Date;
+        // Firestore timestamp can be an object, handle it
+        if (typeof userProfile.createdAt === 'string') {
+            creationDate = parseISO(userProfile.createdAt);
+        } else if (userProfile.createdAt && typeof (userProfile.createdAt as any).toDate === 'function') {
+            creationDate = (userProfile.createdAt as any).toDate();
+        } else {
+            creationDate = new Date(); // Fallback
+        }
+
+        if (isValid(creationDate)) {
+            const endDate = addMonths(creationDate, 2);
+            setTrialEndDate(format(endDate, "d 'de' MMMM 'de' yyyy", { locale: es }));
+        }
+    }
+  }, [userProfile]);
 
   // Effect to update inputs when date changes or shifts are updated
   useEffect(() => {
@@ -376,6 +405,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
+          {userProfile && userProfile.paymentStatus !== 'paid' && trialEndDate && (
+             <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Período de Prueba Activo</AlertTitle>
+                <AlertDescription>
+                   Estás en tu período de prueba de dos meses. Tu acceso completo finaliza el <strong>{trialEndDate}</strong>.
+                </AlertDescription>
+            </Alert>
+          )}
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12 sm:h-16 sm:w-16">

@@ -20,7 +20,7 @@ export type User = {
     photoURL: string;
     email: string;
     isAnonymous: boolean;
-    createdAt: string | object; // Can be string or Firestore Timestamp
+    createdAt: string | { toDate: () => Date }; // Can be string or Firestore Timestamp
     paymentStatus: "trial" | "free" | "paid" | "blocked";
   }
   
