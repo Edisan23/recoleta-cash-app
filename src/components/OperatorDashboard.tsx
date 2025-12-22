@@ -63,7 +63,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   // Form state
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [dailyShifts, setDailyShifts] = useState<DailyShiftEntry[]>([]);
+  const [dailyShifts, setDailyShifts] = useState<DailyShiftEntry[]>([
+    { id: `new_${Date.now()}`, startTime: '', endTime: '' }
+  ]);
   const [itemDetails, setItemDetails] = useState<Record<string, string>>({}); // { itemId: detail }
   
   // Calculated Summaries
@@ -110,11 +112,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // Effect to save/update user profile in firestore for subscription management
   useEffect(() => {
-      if (user && user.uid && firestore) {
+      if (user && !userProfileLoading && firestore) {
           const profileRef = doc(firestore, "users", user.uid);
-          // Check if userProfile is already loaded to avoid overwriting paymentStatus
-          if (userProfile === undefined || userProfile === null) {
-              const userProfileData: Omit<UserProfile, 'id' | 'paymentStatus' | 'isAnonymous'> & { paymentStatus: UserProfile['paymentStatus'], isAnonymous: boolean, email: string | null } = {
+          if (!userProfile) { // If profile doesn't exist, create it.
+              const userProfileData: Omit<UserProfile, 'id' | 'paymentStatus'> & { paymentStatus: UserProfile['paymentStatus']} = {
                     uid: user.uid,
                     displayName: user.displayName || 'Operador Anónimo',
                     photoURL: user.photoURL || '',
@@ -128,7 +129,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               });
           }
       }
-  }, [user, firestore, userProfile]);
+  }, [user, userProfile, userProfileLoading, firestore]);
 
   useEffect(() => {
     if (userProfile && userProfile.paymentStatus !== 'paid' && userProfile.createdAt) {
@@ -147,11 +148,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             const remaining = differenceInDays(endDate, new Date());
             setTrialDaysRemaining(Math.max(0, remaining));
             
-            // Check if trial is expired
             if (isAfter(new Date(), endDate)) {
                 setIsTrialExpired(true);
             }
         }
+    } else if (userProfile && userProfile.paymentStatus === 'paid') {
+      setTrialDaysRemaining(null);
+      setIsTrialExpired(false);
     }
   }, [userProfile]);
 
@@ -298,7 +301,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           await updateDoc(shiftDoc, shiftData);
         }
       } else { 
-        // This is the main "Guardar Turno" button, now it saves details for all shifts
+        // This is the main "Guardar Detalles" button, now it saves details for all shifts
         const batch = writeBatch(firestore);
         const shiftsForDate = allShifts?.filter(s => new Date(s.date).toDateString() === date.toDateString()) || [];
         
