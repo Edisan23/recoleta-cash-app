@@ -496,9 +496,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
                   Bienvenido
                 </h1>
-                <p className="text-lg text-gray-600 dark:text-gray-400">
-                  Panel de Operador
-                </p>
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle />
@@ -518,9 +515,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <Card>
                 <CardHeader>
                     <CardTitle>Registrar Actividad</CardTitle>
-                    <CardDescription>
-                        Selecciona una fecha, registra tus turnos y añade detalles. Los días con turnos guardados aparecen marcados.
-                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="flex justify-center">
@@ -596,9 +590,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <Card>
                 <CardHeader>
                     <CardTitle>Resumen del Día</CardTitle>
-                    <CardDescription>
-                        Cálculo para el día seleccionado. Los subsidios y deducciones se aplican en el resumen del período.
-                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="flex justify-around items-center text-center">
@@ -633,9 +624,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     <CardTitle>
                         {settings?.payrollCycle === 'bi-weekly' ? 'Acumulado Quincenal' : 'Acumulado Mensual'}
                     </CardTitle>
-                    <CardDescription>
-                        Total de horas trabajadas y pago en el período consultado.
-                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
