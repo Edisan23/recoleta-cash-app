@@ -61,7 +61,7 @@ const emptySummary = (): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'tota
 export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
   const auth = useAuth();
-  const { user } = useUser();
+  const { user, isUserLoading: isUserAuthLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const voucherRef = useRef<HTMLDivElement>(null);
@@ -72,7 +72,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   // Form state
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [dailyShifts, setDailyShifts] = useState<DailyShiftEntry[]>([]);
+  const [dailyShifts, setDailyShifts] = useState<DailyShiftEntry[]>([
+    { id: `new_${Date.now()}_0`, startTime: '', endTime: '' },
+    { id: `new_${Date.now()}_1`, startTime: '', endTime: '' },
+  ]);
   const [itemDetails, setItemDetails] = useState<Record<string, string>>({}); // { itemId: detail }
   
   // Calculated Summaries
@@ -111,7 +114,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userProfile, isLoading: userProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  const isLoading = companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || itemsLoading || userProfileLoading;
+  const isLoading = isUserAuthLoading || companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || itemsLoading || userProfileLoading;
 
   const shiftDays = useMemo(() => {
     return allShifts?.map(s => new Date(s.date)) || [];
@@ -166,22 +169,33 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // Effect to update inputs when date changes or shifts are updated
   useEffect(() => {
     if (!date || !allShifts) {
-        setDailyShifts([]);
+        setDailyShifts([
+          { id: `new_${Date.now()}_0`, startTime: '', endTime: '' },
+          { id: `new_${Date.now()}_1`, startTime: '', endTime: '' },
+        ]);
         setItemDetails({});
         return;
     };
     const shiftsForDate = allShifts.filter(s => new Date(s.date).toDateString() === date.toDateString());
     
     if (shiftsForDate.length > 0) {
-        setDailyShifts(shiftsForDate.map(s => ({ id: s.id, startTime: s.startTime || '', endTime: s.endTime || '' })));
+        const existingShifts = shiftsForDate.map(s => ({ id: s.id, startTime: s.startTime || '', endTime: s.endTime || '' }));
+        // Ensure there are at least two slots
+        while (existingShifts.length < 2) {
+            existingShifts.push({ id: `new_${Date.now()}_${existingShifts.length}`, startTime: '', endTime: '' });
+        }
+        setDailyShifts(existingShifts);
         
-        const details = shiftsForDate[0].itemDetails?.reduce((acc, item) => {
+        const details = shiftsForDate[0]?.itemDetails?.reduce((acc, item) => {
             acc[item.itemId] = item.detail;
             return acc;
         }, {} as Record<string, string>) || {};
         setItemDetails(details);
     } else {
-        setDailyShifts([]);
+        setDailyShifts([
+          { id: `new_${Date.now()}_0`, startTime: '', endTime: '' },
+          { id: `new_${Date.now()}_1`, startTime: '', endTime: '' },
+        ]);
         setItemDetails({});
     }
   }, [date, allShifts]);
@@ -233,6 +247,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const addDailyShift = () => {
     setDailyShifts([...dailyShifts, { id: `new_${Date.now()}`, startTime: '', endTime: '' }]);
   };
+
+    const removeDailyShift = (index: number) => {
+        const shiftToDelete = dailyShifts[index];
+        if (!shiftToDelete.id.startsWith('new_')) {
+            handleDelete(shiftToDelete.id, index);
+        } else {
+            setDailyShifts(dailyShifts.filter((_, i) => i !== index));
+        }
+    };
 
 
   const handleItemDetailChange = (itemId: string, value: string) => {
@@ -533,7 +556,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                         {isSaving ? <LogoSpinner className="mr-2 h-4 w-4" /> : null}
                                         Guardar
                                     </Button>
-                                    <DeleteShiftDialog onConfirm={() => handleDelete(shift.id, index)}>
+                                    <DeleteShiftDialog onConfirm={() => removeDailyShift(index)}>
                                         <Button variant="ghost" size="icon" disabled={isSaving}>
                                             <Trash2 className="h-4 w-4 text-destructive"/>
                                         </Button>
