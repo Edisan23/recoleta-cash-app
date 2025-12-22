@@ -63,9 +63,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   // Form state
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [dailyShifts, setDailyShifts] = useState<DailyShiftEntry[]>([
-    { id: `new_${Date.now()}`, startTime: '', endTime: '' },
-  ]);
+  const [dailyShifts, setDailyShifts] = useState<DailyShiftEntry[]>([]);
   const [itemDetails, setItemDetails] = useState<Record<string, string>>({}); // { itemId: detail }
   
   // Calculated Summaries
@@ -160,11 +158,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // Effect to update inputs when date changes or shifts are updated
   useEffect(() => {
     if (!date || !allShifts) {
-        setDailyShifts([
-          { id: `new_${Date.now()}`, startTime: '', endTime: '' }
-        ]);
-        setItemDetails({});
-        return;
+      setDailyShifts([
+        { id: `new_${Date.now()}`, startTime: '', endTime: '' }
+      ]);
+      setItemDetails({});
+      return;
     };
     const shiftsForDate = allShifts.filter(s => new Date(s.date).toDateString() === date.toDateString());
     
@@ -179,7 +177,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setItemDetails(details);
     } else {
         setDailyShifts([
-          { id: `new_${Date.now()}`, startTime: '', endTime: '' },
+            { id: `new_${Date.now()}`, startTime: '', endTime: '' },
         ]);
         setItemDetails({});
     }
@@ -662,9 +660,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    
-
-    
-
-    
