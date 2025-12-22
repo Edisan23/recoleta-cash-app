@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft, PlusCircle, AlertCircle, Lock, Repeat } from 'lucide-react';
+import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft, PlusCircle, AlertCircle, Lock, Repeat, CreditCard } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem, DailyShiftEntry } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -28,6 +28,7 @@ import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, serverTime
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { addMonths, format, isValid, parseISO, isAfter, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import Link from 'next/link';
 
 
 // --- FAKE DATA & KEYS ---
@@ -423,10 +424,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </div>
                 <h1 className="text-3xl font-bold mb-2">Período de Prueba Finalizado</h1>
                 <p className="text-xl text-muted-foreground max-w-md mb-8">
-                    Tu acceso a la aplicación ha sido suspendido. Por favor, contacta a un administrador para activar tu cuenta.
+                    Tu acceso a la aplicación ha sido suspendido. Activa tu cuenta para continuar.
                 </p>
-                <Button onClick={handleSignOut} size="lg">
-                    <LogOut className="mr-2" />
+                 <Button asChild size="lg">
+                    <Link href={`/payment?userId=${user.uid}`}>
+                        <CreditCard className="mr-2" />
+                        Activar Cuenta Premium
+                    </Link>
+                </Button>
+                <Button onClick={handleSignOut} variant="link" className="mt-4">
                     Cerrar Sesión
                 </Button>
             </div>
@@ -457,9 +463,17 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
              <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Período de Prueba Activo</AlertTitle>
-                <AlertDescription>
-                   Te quedan <strong>{trialDaysRemaining} días</strong> de prueba.
-                </AlertDescription>
+                <div className='flex justify-between items-center'>
+                    <AlertDescription>
+                       Te quedan <strong>{trialDaysRemaining} días</strong> de prueba.
+                    </AlertDescription>
+                    <Button asChild size="sm">
+                        <Link href={`/payment?userId=${user.uid}`}>
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            Activar Cuenta Premium
+                        </Link>
+                    </Button>
+                </div>
             </Alert>
           )}
           <div className="flex justify-between items-start">
