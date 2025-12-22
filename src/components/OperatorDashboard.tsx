@@ -73,8 +73,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // Form state
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [dailyShifts, setDailyShifts] = useState<DailyShiftEntry[]>([
-    { id: `new_${Date.now()}_0`, startTime: '', endTime: '' },
-    { id: `new_${Date.now()}_1`, startTime: '', endTime: '' },
+    { id: `new_${Date.now()}`, startTime: '', endTime: '' },
   ]);
   const [itemDetails, setItemDetails] = useState<Record<string, string>>({}); // { itemId: detail }
   
@@ -170,8 +169,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   useEffect(() => {
     if (!date || !allShifts) {
         setDailyShifts([
-          { id: `new_${Date.now()}_0`, startTime: '', endTime: '' },
-          { id: `new_${Date.now()}_1`, startTime: '', endTime: '' },
+          { id: `new_${Date.now()}`, startTime: '', endTime: '' }
         ]);
         setItemDetails({});
         return;
@@ -180,10 +178,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     
     if (shiftsForDate.length > 0) {
         const existingShifts = shiftsForDate.map(s => ({ id: s.id, startTime: s.startTime || '', endTime: s.endTime || '' }));
-        // Ensure there are at least two slots
-        while (existingShifts.length < 2) {
-            existingShifts.push({ id: `new_${Date.now()}_${existingShifts.length}`, startTime: '', endTime: '' });
-        }
         setDailyShifts(existingShifts);
         
         const details = shiftsForDate[0]?.itemDetails?.reduce((acc, item) => {
@@ -193,8 +187,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setItemDetails(details);
     } else {
         setDailyShifts([
-          { id: `new_${Date.now()}_0`, startTime: '', endTime: '' },
-          { id: `new_${Date.now()}_1`, startTime: '', endTime: '' },
+          { id: `new_${Date.now()}`, startTime: '', endTime: '' },
         ]);
         setItemDetails({});
     }
@@ -683,6 +676,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
 
     
 
