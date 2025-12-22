@@ -17,6 +17,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 import { LogoSpinner } from '@/components/LogoSpinner';
 
+const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
+
 export default function OperatorLoginPage() {
   const router = useRouter();
   const auth = useAuth();
@@ -25,9 +27,20 @@ export default function OperatorLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    // If user is logged in, redirect to company selection
+    // If user is logged in, decide where to redirect
     if (!isUserLoading && user) {
-      router.replace('/select-company');
+      let storedCompanyId: string | null = null;
+      try {
+        storedCompanyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
+      } catch (error) {
+        console.error("Could not access localStorage:", error);
+      }
+
+      if (storedCompanyId) {
+        router.replace('/operator/dashboard');
+      } else {
+        router.replace('/select-company');
+      }
     }
   }, [user, isUserLoading, router]);
 

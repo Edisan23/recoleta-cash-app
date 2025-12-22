@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft, PlusCircle, AlertCircle, Lock } from 'lucide-react';
+import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft, PlusCircle, AlertCircle, Lock, Repeat } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem, DailyShiftEntry } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -388,7 +388,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
     };
     
-    const handleGoBackToSelection = () => {
+    const handleChangeCompany = () => {
         localStorage.removeItem(OPERATOR_COMPANY_KEY);
         router.replace('/select-company');
     };
@@ -407,7 +407,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           <div className="flex flex-col items-center justify-center h-screen text-center p-4">
               <h2 className="text-2xl font-bold mb-2">Empresa no encontrada</h2>
               <p className="text-lg text-muted-foreground mb-6">La empresa que seleccionaste ya no está disponible. Por favor, vuelve y elige otra.</p>
-              <Button onClick={handleGoBackToSelection}>
+              <Button onClick={handleChangeCompany}>
                   <ArrowLeft className="mr-2" />
                   Volver a la selección
               </Button>
@@ -501,6 +501,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle />
+                <Button variant="outline" size="icon" onClick={handleChangeCompany} title="Cambiar Empresa">
+                    <Repeat />
+                    <span className="sr-only">Cambiar Empresa</span>
+                </Button>
                 <Button variant="outline" size="icon" onClick={handleDownload} disabled={isDownloading || !periodSummary}>
                     {isDownloading ? <LogoSpinner /> : <Download />}
                     <span className="sr-only">Descargar Comprobante</span>
