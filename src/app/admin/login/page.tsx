@@ -84,7 +84,9 @@ export default function AdminLoginPage() {
       }
 
     } catch (error: any) {
-      console.error('Admin login error:', error);
+       if (error.code !== 'auth/popup-closed-by-user') {
+          console.error('Admin login error:', error);
+       }
        let description = 'Ocurrió un error inesperado.';
        if (error.code === 'auth/popup-closed-by-user') {
         description = 'El proceso de inicio de sesión fue cancelado.';

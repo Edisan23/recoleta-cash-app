@@ -43,7 +43,9 @@ export default function OperatorLoginPage() {
         description: 'Has iniciado sesión correctamente.',
       });
     } catch (error: any) {
-      console.error('Error during Google sign-in:', error);
+      if (error.code !== 'auth/popup-closed-by-user') {
+        console.error('Error during Google sign-in:', error);
+      }
       toast({
         variant: 'destructive',
         title: 'Error de Autenticación',
