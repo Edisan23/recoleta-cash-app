@@ -73,6 +73,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
   const [trialDaysRemaining, setTrialDaysRemaining] = useState<number | null>(null);
   const [isTrialExpired, setIsTrialExpired] = useState(false);
+  const [localUserProfile, setLocalUserProfile] = useState<UserProfile | null>(null);
 
 
   // --- Firestore Data ---
@@ -115,30 +116,37 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       if (user && !userProfileLoading && firestore) {
           const profileRef = doc(firestore, "users", user.uid);
           if (!userProfile) { // If profile doesn't exist, create it.
-              const userProfileData: Omit<UserProfile, 'id' | 'paymentStatus'> & { paymentStatus: UserProfile['paymentStatus']} = {
+              const creationTime = new Date().toISOString();
+              const userProfileData: Omit<UserProfile, 'id'> = {
                     uid: user.uid,
                     displayName: user.displayName || 'Operador Anónimo',
                     photoURL: user.photoURL || '',
                     email: user.email || '',
                     isAnonymous: user.isAnonymous,
-                    createdAt: user.metadata.creationTime || new Date().toISOString(),
+                    createdAt: creationTime,
                     paymentStatus: 'trial', // default value
               };
               setDoc(profileRef, userProfileData, { merge: true }).catch(err => {
                   console.error("Error saving user profile:", err);
               });
+              // Immediately update local state to reflect the new profile
+              setLocalUserProfile({ ...userProfileData, id: user.uid });
+          } else {
+             setLocalUserProfile(userProfile);
           }
+      } else if (userProfile) {
+          setLocalUserProfile(userProfile);
       }
   }, [user, userProfile, userProfileLoading, firestore]);
 
   useEffect(() => {
-    if (userProfile && userProfile.paymentStatus !== 'paid' && userProfile.createdAt) {
+    if (localUserProfile && localUserProfile.paymentStatus !== 'paid' && localUserProfile.createdAt) {
         let creationDate: Date;
         // Firestore timestamp can be an object, handle it
-        if (typeof userProfile.createdAt === 'string') {
-            creationDate = parseISO(userProfile.createdAt);
-        } else if (userProfile.createdAt && typeof (userProfile.createdAt as any).toDate === 'function') {
-            creationDate = (userProfile.createdAt as any).toDate();
+        if (typeof localUserProfile.createdAt === 'string') {
+            creationDate = parseISO(localUserProfile.createdAt);
+        } else if (localUserProfile.createdAt && typeof (localUserProfile.createdAt as any).toDate === 'function') {
+            creationDate = (localUserProfile.createdAt as any).toDate();
         } else {
             creationDate = new Date(); // Fallback
         }
@@ -152,21 +160,21 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 setIsTrialExpired(true);
             }
         }
-    } else if (userProfile && userProfile.paymentStatus === 'paid') {
+    } else if (localUserProfile && localUserProfile.paymentStatus === 'paid') {
       setTrialDaysRemaining(null);
       setIsTrialExpired(false);
     }
-  }, [userProfile]);
+  }, [localUserProfile]);
 
   // Effect to update inputs when date changes or shifts are updated
   useEffect(() => {
     if (!date || !allShifts) {
-      setDailyShifts([
-        { id: `new_${Date.now()}`, startTime: '', endTime: '' }
-      ]);
-      setItemDetails({});
-      return;
-    };
+        setDailyShifts([
+            { id: `new_${Date.now()}`, startTime: '', endTime: '' }
+        ]);
+        setItemDetails({});
+        return;
+    }
     const shiftsForDate = allShifts.filter(s => new Date(s.date).toDateString() === date.toDateString());
     
     if (shiftsForDate.length > 0) {
@@ -186,6 +194,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [date, allShifts]);
 
+
   // Effect to calculate daily summary for the selected day
   useEffect(() => {
     if (!date || !allShifts || !settings) {
@@ -194,28 +203,22 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
 
     const shiftsForDate = allShifts.filter(s => new Date(s.date).toDateString() === date.toDateString());
-
-    if (shiftsForDate.length > 0) {
-      let hoursAlreadyWorkedOnDay = 0;
-      const totalSummary = shiftsForDate.reduce((acc, shift) => {
+    
+    let hoursAlreadyWorkedOnDay = 0;
+    const summaryList = shiftsForDate.map(shift => {
         const shiftSummary = calculateShiftSummary(shift, settings, holidays, hoursAlreadyWorkedOnDay);
         hoursAlreadyWorkedOnDay += shiftSummary.totalHours; // Accumulate hours for the next shift in the same day
+        return shiftSummary;
+    });
 
-        // Aggregate summaries
-        Object.keys(shiftSummary).forEach(key => {
-          const typedKey = key as keyof typeof shiftSummary;
-          (acc as any)[typedKey] = (acc[typedKey] || 0) + shiftSummary[typedKey];
+    if (summaryList.length > 0) {
+      const totalSummary = summaryList.reduce((acc, summary) => {
+        Object.keys(summary).forEach(key => {
+          const typedKey = key as keyof typeof summary;
+          (acc as any)[typedKey] = (acc[typedKey] || 0) + summary[typedKey];
         });
-
         return acc;
-      }, {
-        totalHours: 0, grossPay: 0,
-        dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
-        holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
-        dayPay: 0, nightPay: 0, dayOvertimePay: 0, nightOvertimePay: 0,
-        holidayDayPay: 0, holidayNightPay: 0, holidayDayOvertimePay: 0, holidayNightOvertimePay: 0,
       });
-
       setDailySummary(totalSummary);
     } else {
       setDailySummary(null);
@@ -450,7 +453,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
-          {userProfile && userProfile.paymentStatus !== 'paid' && trialDaysRemaining !== null && (
+          {localUserProfile && localUserProfile.paymentStatus !== 'paid' && trialDaysRemaining !== null && (
              <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Período de Prueba Activo</AlertTitle>
