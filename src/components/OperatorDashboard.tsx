@@ -26,7 +26,7 @@ import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { addMonths, format, isValid, parseISO, isAfter } from 'date-fns';
+import { addMonths, format, isValid, parseISO, isAfter, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 
@@ -46,15 +46,6 @@ function getInitials(name: string) {
 function formatCurrency(value: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
-
-const emptySummary = (): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> => ({
-    totalHours: 0,
-    grossPay: 0,
-    dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
-    holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
-    dayPay: 0, nightPay: 0, dayOvertimePay: 0, nightOvertimePay: 0,
-    holidayDayPay: 0, holidayNightPay: 0, holidayDayOvertimePay: 0, holidayNightOvertimePay: 0,
-});
 
 
 // --- COMPONENT ---
@@ -80,7 +71,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // Calculated Summaries
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
-  const [trialEndDate, setTrialEndDate] = useState<string | null>(null);
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState<number | null>(null);
   const [isTrialExpired, setIsTrialExpired] = useState(false);
 
 
@@ -154,8 +145,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         }
 
         if (isValid(creationDate)) {
-            const endDate = addMonths(creationDate, 2);
-            setTrialEndDate(format(endDate, "d 'de' MMMM 'de' yyyy", { locale: es }));
+            const endDate = addMonths(creationDate, 1);
+            const remaining = differenceInDays(endDate, new Date());
+            setTrialDaysRemaining(Math.max(0, remaining));
             
             // Check if trial is expired
             if (isAfter(new Date(), endDate)) {
@@ -215,7 +207,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         });
 
         return acc;
-      }, emptySummary());
+      }, {
+        totalHours: 0, grossPay: 0,
+        dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
+        holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
+        dayPay: 0, nightPay: 0, dayOvertimePay: 0, nightOvertimePay: 0,
+        holidayDayPay: 0, holidayNightPay: 0, holidayDayOvertimePay: 0, holidayNightOvertimePay: 0,
+      });
 
       setDailySummary(totalSummary);
     } else {
@@ -451,12 +449,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
-          {userProfile && userProfile.paymentStatus !== 'paid' && trialEndDate && (
+          {userProfile && userProfile.paymentStatus !== 'paid' && trialDaysRemaining !== null && (
              <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Período de Prueba Activo</AlertTitle>
                 <AlertDescription>
-                   Estás en tu período de prueba de dos meses. Tu acceso completo finaliza el <strong>{trialEndDate}</strong>.
+                   Te quedan <strong>{trialDaysRemaining} días</strong> de prueba.
                 </AlertDescription>
             </Alert>
           )}
@@ -560,7 +558,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     {(companyItems || []).length > 0 && (
                       <Accordion type="single" collapsible className="w-full">
                         <AccordionItem value="item-details">
-                            <AccordionTrigger>Detalles Adicionales (para todo el día)</AccordionTrigger>
+                            <AccordionTrigger>Detalles Adicionales</AccordionTrigger>
                             <AccordionContent>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
                                   {companyItems?.map(item => (
