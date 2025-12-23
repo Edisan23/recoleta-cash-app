@@ -70,11 +70,8 @@ export default function PaymentPage() {
     return `turno-pro-user-${userId}-${Date.now()}`;
   }, [userId]);
 
-  const redirectUrl = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-    // This should be the URL the user is sent to after payment
-    return `${window.location.origin}/operator/dashboard`;
-  }, []);
+  const redirectUrl = "https://turnospro.empresa/operator/dashboard";
+
 
   const isLoading = settingsLoading || priceInCents === null;
 
