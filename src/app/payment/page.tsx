@@ -33,7 +33,7 @@ export default function PaymentPage() {
   const router = useRouter();
   const userId = searchParams.get('userId');
 
-  const wompiPublicKey = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY || process.env.WOMPI_PUBLIC_KEY;
+  const wompiPublicKey = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
 
   useEffect(() => {
     if (!userId) {
@@ -54,6 +54,7 @@ export default function PaymentPage() {
   }, [userId]);
 
   const redirectUrl = useMemo(() => {
+    if (typeof window === 'undefined') return '';
     // This should be the URL the user is sent to after payment
     // It should be a page that can show a success or failure message
     // For now, we'll redirect back to the operator dashboard
