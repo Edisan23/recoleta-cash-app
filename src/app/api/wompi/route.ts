@@ -4,6 +4,12 @@ import { initializeFirebase } from '@/firebase/server-init';
 import { doc, updateDoc } from 'firebase/firestore';
 
 
+// This function handles GET requests to /api/wompi
+// It's used by Wompi to validate that the webhook URL is active.
+export async function GET(req: NextRequest) {
+  return NextResponse.json({ status: "ok" });
+}
+
 // This function handles POST requests to /api/wompi
 export async function POST(req: NextRequest) {
   try {
