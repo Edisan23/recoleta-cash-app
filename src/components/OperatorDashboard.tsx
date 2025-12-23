@@ -427,7 +427,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     Tu acceso a la aplicación ha sido suspendido. Activa tu cuenta para continuar.
                 </p>
                  <Button asChild size="lg">
-                    <Link href={`/payment?userId=${user.uid}`}>
+                    <Link href={`/payment?userId=${user.uid}&companyId=${companyId}`}>
                         <CreditCard className="mr-2" />
                         Activar Cuenta Premium
                     </Link>
@@ -468,7 +468,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                        Te quedan <strong>{trialDaysRemaining} días</strong> de prueba.
                     </AlertDescription>
                     <Button asChild size="sm">
-                        <Link href={`/payment?userId=${user.uid}`}>
+                        <Link href={`/payment?userId=${user.uid}&companyId=${companyId}`}>
                             <CreditCard className="mr-2 h-4 w-4" />
                             Activar Cuenta Premium
                         </Link>

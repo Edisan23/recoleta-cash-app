@@ -38,6 +38,8 @@ const initialSettings: Omit<CompanySettings, 'id'> = {
     holidayNightRate: 0,
     holidayDayOvertimeRate: 0,
     holidayNightOvertimeRate: 0,
+    activationFee: 0,
+    annualFee: 0,
 };
 
 const initialBenefits: Omit<Benefit, 'id' | 'companyId'>[] = [
@@ -367,7 +369,24 @@ export default function CompanySettingsPage() {
                 </div>
             </CardContent>
         </Card>
-        
+
+        <Card>
+            <CardHeader>
+                <CardTitle>Valores de Suscripción</CardTitle>
+                <CardDescription>Define los costos de activación y renovación para los operadores de esta empresa.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                    <Label htmlFor="activationFee">Valor de Activación (COP)</Label>
+                    <Input type="number" id="activationFee" placeholder="0" value={settings.activationFee || ''} onChange={(e) => handleRateChange('activationFee', e.target.value)} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="annualFee">Valor de Anualidad (COP)</Label>
+                    <Input type="number" id="annualFee" placeholder="0" value={settings.annualFee || ''} onChange={(e) => handleRateChange('annualFee', e.target.value)} />
+                </div>
+            </CardContent>
+        </Card>
+
          <Card>
             <CardHeader>
                 <CardTitle>Tarifas de Pago por Hora</CardTitle>

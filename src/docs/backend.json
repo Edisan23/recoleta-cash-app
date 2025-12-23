@@ -103,7 +103,9 @@
         "holidayDayRate": { "type": "number" },
         "holidayNightRate": { "type": "number" },
         "holidayDayOvertimeRate": { "type": "number" },
-        "holidayNightOvertimeRate": { "type": "number" }
+        "holidayNightOvertimeRate": { "type": "number" },
+        "activationFee": { "type": "number" },
+        "annualFee": { "type": "number" }
       }
     },
     "Benefit": {

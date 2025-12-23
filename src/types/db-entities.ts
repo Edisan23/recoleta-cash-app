@@ -46,6 +46,8 @@ export type User = {
     holidayNightRate?: number;
     holidayDayOvertimeRate?: number;
     holidayNightOvertimeRate?: number;
+    activationFee?: number;
+    annualFee?: number;
   };
 
   export type Benefit = {
