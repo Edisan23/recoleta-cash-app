@@ -24,18 +24,23 @@ export default function AdminLoginPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     // Redirect if user is logged in and is an admin
-    if (!isUserLoading && !isProfileLoading && user && userProfile) {
+    if (isMounted && !isUserLoading && !isProfileLoading && user && userProfile) {
       if (userProfile.role === 'admin') {
         router.replace('/admin');
       }
     }
-  }, [user, isUserLoading, userProfile, isProfileLoading, router]);
+  }, [user, isUserLoading, userProfile, isProfileLoading, router, isMounted]);
 
   const handleFirstAdminLogin = async (loggedInUser: User) => {
       if (!firestore) return;
@@ -109,7 +114,7 @@ export default function AdminLoginPage() {
     }
   };
 
-  if (isUserLoading || isProfileLoading || (user && userProfile && userProfile.role === 'admin')) {
+  if (isUserLoading || isProfileLoading || !isMounted || (user && userProfile && userProfile.role === 'admin')) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />

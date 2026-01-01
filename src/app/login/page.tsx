@@ -25,22 +25,22 @@ export default function OperatorLoginPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    // If user is logged in, decide where to redirect
-    if (!isUserLoading && user) {
-      // localStorage can only be accessed on the client
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted && !isUserLoading && user) {
       const storedCompanyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
       if (storedCompanyId) {
         router.replace('/operator/dashboard');
       } else {
         router.replace('/select-company');
       }
-    } else if (!isUserLoading && !user) {
-      setHasCheckedStorage(true);
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, router, isMounted]);
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
@@ -70,7 +70,7 @@ export default function OperatorLoginPage() {
     }
   };
   
-  if (isUserLoading || !hasCheckedStorage) {
+  if (isUserLoading || !isMounted) {
      return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />

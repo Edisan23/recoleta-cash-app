@@ -14,8 +14,15 @@ export default function OperatorDashboardPage() {
 
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+  
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
+    if (!isMounted) return;
+
     if (isUserLoading) {
       return; // Wait until user state is resolved
     }
@@ -34,9 +41,9 @@ export default function OperatorDashboardPage() {
       setCompanyId(storedCompanyId);
       setIsLoading(false);
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, router, isMounted]);
 
-  if (isLoading || isUserLoading || !companyId || !user) {
+  if (isLoading || isUserLoading || !companyId || !user || !isMounted) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
