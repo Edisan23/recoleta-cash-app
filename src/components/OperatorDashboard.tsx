@@ -616,7 +616,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         <div>
                             <p className="text-sm text-muted-foreground">Total de Horas</p>
                             <p className="text-2xl font-bold">
-                                {dailySummary ? `${dailySummary.totalHours.toFixed(2)}h` : '--:--'}
+                                {dailySummary ? `${dailySummary.totalHours}h` : '--:--'}
                             </p>
                         </div>
                         <div>
@@ -650,7 +650,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         <div>
                             <p className="text-sm text-muted-foreground">Total Horas</p>
                             <p className="text-2xl font-bold">
-                                {periodSummary ? `${periodSummary.totalHours.toFixed(2)}h` : '0h'}
+                                {periodSummary ? `${periodSummary.totalHours}h` : '0h'}
                             </p>
                         </div>
                         <div>

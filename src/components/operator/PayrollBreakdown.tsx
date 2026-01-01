@@ -11,7 +11,7 @@ function BreakdownRow({ label, hours, pay }: { label: string; hours?: number; pa
     if (pay === 0 && (hours === undefined || hours === 0)) return null;
     return (
         <div className="flex justify-between items-center text-sm py-1 border-b border-dashed">
-            <span className="text-muted-foreground">{label} {hours !== undefined ? `(${(hours || 0).toFixed(2)}h)` : ''}</span>
+            <span className="text-muted-foreground">{label} {hours !== undefined ? `(${(hours || 0)}h)` : ''}</span>
             <span className="font-medium">{formatCurrency(pay)}</span>
         </div>
     );
