@@ -100,7 +100,7 @@ export function calculateShiftSummary(
     if (totalMilliseconds <= 0) {
         return summary;
     }
-    const totalHours = Math.round(totalMilliseconds / (1000 * 60 * 60));
+    const totalHours = Math.floor(totalMilliseconds / (1000 * 60 * 60));
 
 
     summary.totalHours = totalHours;
