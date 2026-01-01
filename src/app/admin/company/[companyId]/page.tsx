@@ -22,7 +22,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, writeBatch } from 'firebase/firestore';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 
 const initialSettings: Omit<CompanySettings, 'id'> = {
@@ -574,3 +573,5 @@ export default function CompanySettingsPage() {
     </div>
   );
 }
+
+    
