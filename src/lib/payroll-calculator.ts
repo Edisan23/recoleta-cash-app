@@ -1,10 +1,29 @@
 'use client';
 import type { Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import { isHoliday } from './date-helpers';
-import { startOfDay, endOfDay, isWithinInterval, addDays, getMonth, getYear, getDate, startOfMonth, endOfMonth, format } from 'date-fns';
+import { getMonth, getYear, getDate, endOfMonth, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 const NIGHT_SHIFT_END_HOUR = 6;   // 6 AM
+
+// Helper function to create a new Date object at the start of the day
+function startOfDay(date: Date): Date {
+  const newDate = new Date(date);
+  newDate.setHours(0, 0, 0, 0);
+  return newDate;
+}
+
+// Helper function to create a new Date object at the end of the day
+function endOfDay(date: Date): Date {
+    const newDate = new Date(date);
+    newDate.setHours(23, 59, 59, 999);
+    return newDate;
+}
+
+// Helper function to check if a date is within an interval
+function isWithinInterval(date: Date, interval: { start: Date; end: Date }): boolean {
+    return date.getTime() >= interval.start.getTime() && date.getTime() <= interval.end.getTime();
+}
 
 function getNightIntervals(date: Date, nightShiftStartHour: number) {
   const dayStart = startOfDay(date);
@@ -13,11 +32,11 @@ function getNightIntervals(date: Date, nightShiftStartHour: number) {
   // Night period from 00:00 to 06:00 of the current day
   const nightInterval1Start = new Date(dayStart);
   const nightInterval1End = new Date(dayStart);
-  nightInterval1End.setHours(NIGHT_SHIFT_END_HOUR);
+  nightInterval1End.setHours(NIGHT_SHIFT_END_HOUR, 0, 0, 0);
 
   // Night period from start hour to 23:59:59 of the current day
   const nightInterval2Start = new Date(dayStart);
-  nightInterval2Start.setHours(nightShiftStartHour);
+  nightInterval2Start.setHours(nightShiftStartHour, 0, 0, 0);
   const nightInterval2End = new Date(dayEnd);
 
   return [
@@ -51,24 +70,23 @@ export function calculateShiftSummary(
         return summary;
     }
 
-    const [startHour, startMinute] = shift.startTime.split(':').map(Number);
-    const [endHour, endMinute] = shift.endTime.split(':').map(Number);
+    const [startHour] = shift.startTime.split(':').map(Number);
+    const [endHour] = shift.endTime.split(':').map(Number);
 
     let start = new Date(shift.date);
-    start.setHours(startHour, startMinute, 0, 0);
+    start.setHours(startHour, 0, 0, 0);
 
     let end = new Date(shift.date);
-    end.setHours(endHour, endMinute, 0, 0);
+    end.setHours(endHour, 0, 0, 0);
 
     if (end <= start) {
-        end = addDays(end, 1);
+        end.setDate(end.getDate() + 1);
     }
-
-    // Since we only work with whole hours, the calculation is direct.
-    const totalMilliseconds = end.getTime() - start.getTime();
-    const totalHours = totalMilliseconds / (1000 * 60 * 60);
     
-    if (totalHours <= 0 || !Number.isInteger(totalHours)) {
+    const totalMilliseconds = end.getTime() - start.getTime();
+    const totalHours = Math.round(totalMilliseconds / (1000 * 60 * 60));
+
+    if (totalHours <= 0) {
         return summary;
     }
 
@@ -121,9 +139,9 @@ export function calculateShiftSummary(
 }
 
 export function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' | 'bi-weekly'): { start: Date, end: Date } {
-    const year = getYear(selectedDate);
-    const month = getMonth(selectedDate);
-    const day = getDate(selectedDate);
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+    const day = selectedDate.getDate();
 
     if (payrollCycle === 'bi-weekly') {
         if (day <= 15) {
@@ -139,7 +157,7 @@ export function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' |
         }
     } else { // monthly
         return {
-            start: startOfMonth(selectedDate),
+            start: startOfDay(new Date(year, month, 1)),
             end: endOfMonth(selectedDate),
         };
     }
