@@ -25,22 +25,20 @@ export default function OperatorLoginPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasCheckedStorage, setHasCheckedStorage] = useState(false);
 
   useEffect(() => {
     // If user is logged in, decide where to redirect
     if (!isUserLoading && user) {
-      let storedCompanyId: string | null = null;
-      try {
-        storedCompanyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
-      } catch (error) {
-        console.error("Could not access localStorage:", error);
-      }
-
+      // localStorage can only be accessed on the client
+      const storedCompanyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
       if (storedCompanyId) {
         router.replace('/operator/dashboard');
       } else {
         router.replace('/select-company');
       }
+    } else if (!isUserLoading && !user) {
+      setHasCheckedStorage(true);
     }
   }, [user, isUserLoading, router]);
 
@@ -72,7 +70,7 @@ export default function OperatorLoginPage() {
     }
   };
   
-  if (isUserLoading || user) {
+  if (isUserLoading || !hasCheckedStorage) {
      return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />

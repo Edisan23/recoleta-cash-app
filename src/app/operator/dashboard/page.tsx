@@ -24,12 +24,8 @@ export default function OperatorDashboardPage() {
       return;
     }
     
-    let storedCompanyId: string | null = null;
-    try {
-      storedCompanyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
-    } catch (error) {
-       console.error("Could not access localStorage:", error);
-    }
+    // This now runs only on the client, after user state is confirmed
+    const storedCompanyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
 
     if (!storedCompanyId) {
       // If no company is selected, redirect to the selection page

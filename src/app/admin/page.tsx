@@ -29,30 +29,29 @@ export default function AdminDashboardPage() {
   const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   useEffect(() => {
-    if (!isUserLoading) {
-      if (!user) {
-        router.replace('/admin/login');
-        return;
-      }
-      try {
-        const adminUid = localStorage.getItem(ADMIN_UID_KEY);
-        if (user.uid === adminUid) {
-          setIsAdmin(true);
-        } else {
-          toast({
-            variant: 'destructive',
-            title: 'Acceso Denegado',
-            description: 'No tienes permisos para acceder a esta página.',
-          });
-          router.replace('/admin/login');
-        }
-      } catch (error) {
-        console.error("Could not access localStorage:", error);
-        router.replace('/admin/login');
-      }
+    if (isUserLoading) return;
+
+    if (!user) {
+      router.replace('/admin/login');
+      return;
     }
+
+    const adminUid = localStorage.getItem(ADMIN_UID_KEY);
+    if (user.uid === adminUid) {
+      setIsAdmin(true);
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Acceso Denegado',
+        description: 'No tienes permisos para acceder a esta página.',
+      });
+      router.replace('/admin/login');
+    }
+    setIsCheckingAdmin(false);
+
   }, [user, isUserLoading, router, toast]);
 
 
@@ -100,7 +99,7 @@ export default function AdminDashboardPage() {
     }
   };
   
-  if (isUserLoading || !isAdmin || areCompaniesLoading) {
+  if (isUserLoading || isCheckingAdmin || !isAdmin || areCompaniesLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />

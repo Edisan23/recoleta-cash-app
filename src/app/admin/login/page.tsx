@@ -28,21 +28,17 @@ export default function AdminLoginPage() {
   const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
 
   useEffect(() => {
-    try {
-      const storedAdminUid = localStorage.getItem(ADMIN_UID_KEY);
-      setAdminUid(storedAdminUid);
-    } catch (error) {
-      console.error("Could not access localStorage:", error);
-    } finally {
-        setIsCheckingAdmin(false);
-    }
+    // This code now strictly runs on the client-side
+    const storedAdminUid = localStorage.getItem(ADMIN_UID_KEY);
+    setAdminUid(storedAdminUid);
+    setIsCheckingAdmin(false);
   }, []);
 
   useEffect(() => {
-    if (!isUserLoading && user && adminUid && user.uid === adminUid) {
+    if (!isCheckingAdmin && !isUserLoading && user && adminUid && user.uid === adminUid) {
       router.replace('/admin');
     }
-  }, [user, isUserLoading, router, adminUid]);
+  }, [user, isUserLoading, router, adminUid, isCheckingAdmin]);
   
 
   const handleGoogleSignIn = async () => {
@@ -102,7 +98,7 @@ export default function AdminLoginPage() {
   };
 
 
-  if (isUserLoading || isCheckingAdmin || (user && user.uid === adminUid)) {
+  if (isUserLoading || isCheckingAdmin || (user && !isCheckingAdmin && user.uid === adminUid)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
