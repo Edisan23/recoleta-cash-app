@@ -10,57 +10,76 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser } from '@/firebase';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
+import { signInWithPopup, GoogleAuthProvider, User } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { LogoSpinner } from '@/components/LogoSpinner';
-
-const ADMIN_UID_KEY = 'fake_admin_uid';
+import type { UserProfile } from '@/types/db-entities';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [adminUid, setAdminUid] = useState<string | null>(null);
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
+
+  const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   useEffect(() => {
-    // This code now strictly runs on the client-side
-    const storedAdminUid = localStorage.getItem(ADMIN_UID_KEY);
-    setAdminUid(storedAdminUid);
-    setIsCheckingAdmin(false);
-  }, []);
-
-  useEffect(() => {
-    if (!isCheckingAdmin && !isUserLoading && user && adminUid && user.uid === adminUid) {
-      router.replace('/admin');
+    // Redirect if user is logged in and is an admin
+    if (!isUserLoading && !isProfileLoading && user && userProfile) {
+      if (userProfile.role === 'admin') {
+        router.replace('/admin');
+      }
     }
-  }, [user, isUserLoading, router, adminUid, isCheckingAdmin]);
-  
+  }, [user, isUserLoading, userProfile, isProfileLoading, router]);
+
+  const handleFirstAdminLogin = async (loggedInUser: User) => {
+      if (!firestore) return;
+      const userDocRef = doc(firestore, 'users', loggedInUser.uid);
+      const userProfile: Omit<UserProfile, 'id'> = {
+          uid: loggedInUser.uid,
+          displayName: loggedInUser.displayName || 'Admin',
+          photoURL: loggedInUser.photoURL || '',
+          email: loggedInUser.email || '',
+          isAnonymous: loggedInUser.isAnonymous,
+          createdAt: new Date().toISOString(),
+          paymentStatus: 'paid', // Admins are always considered 'paid'
+          role: 'admin',
+      };
+      await setDoc(userDocRef, userProfile);
+      toast({
+          title: '¡Administrador Registrado!',
+          description: 'Te has convertido en el administrador principal.',
+      });
+      router.push('/admin');
+  };
 
   const handleGoogleSignIn = async () => {
-    if (!auth) return;
+    if (!auth || !firestore) return;
     setIsSubmitting(true);
     const provider = new GoogleAuthProvider();
+    
     try {
       const userCredential = await signInWithPopup(auth, provider);
-      const user = userCredential.user;
+      const loggedInUser = userCredential.user;
 
-      const storedAdminUid = localStorage.getItem(ADMIN_UID_KEY);
+      const userDocRef = doc(firestore, 'users', loggedInUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
       
-      if (storedAdminUid) {
-        // If an admin already exists, only that user can log in
-        if (user.uid === storedAdminUid) {
-          toast({
+      if (userDocSnap.exists()) {
+        const profile = userDocSnap.data() as UserProfile;
+        if (profile.role === 'admin') {
+           toast({
             title: '¡Bienvenido de nuevo!',
             description: 'Has iniciado sesión correctamente.',
           });
           router.push('/admin');
         } else {
-          // If a different user tries to log in, deny access
+          // This user exists but is not an admin
           await auth.signOut();
           toast({
             variant: 'destructive',
@@ -69,36 +88,28 @@ export default function AdminLoginPage() {
           });
         }
       } else {
-        // If no admin exists, the first user to log in becomes the admin
-        localStorage.setItem(ADMIN_UID_KEY, user.uid);
-        setAdminUid(user.uid);
-        toast({
-          title: '¡Administrador Registrado!',
-          description: 'Te has convertido en el administrador principal.',
-        });
-        router.push('/admin');
+        // This is a new user login. We need to check if they should be the first admin.
+        // For this app, we'll assume the first person to log into this page becomes the admin.
+        await handleFirstAdminLogin(loggedInUser);
       }
 
     } catch (error: any) {
        if (error.code !== 'auth/popup-closed-by-user') {
           console.error('Admin login error:', error);
        }
-       let description = 'Ocurrió un error inesperado.';
-       if (error.code === 'auth/popup-closed-by-user') {
-        description = 'El proceso de inicio de sesión fue cancelado.';
-      }
-      toast({
+       toast({
         variant: 'destructive',
         title: 'Error de Autenticación',
-        description,
+        description: error.code === 'auth/popup-closed-by-user' 
+          ? 'El proceso de inicio de sesión fue cancelado.' 
+          : 'Ocurrió un error inesperado.',
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-
-  if (isUserLoading || isCheckingAdmin || (user && !isCheckingAdmin && user.uid === adminUid)) {
+  if (isUserLoading || isProfileLoading || (user && userProfile && userProfile.role === 'admin')) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
@@ -111,12 +122,10 @@ export default function AdminLoginPage() {
       <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">
-              {adminUid ? 'Acceso de Administrador' : 'Configurar Administrador Principal'}
+              Acceso de Administrador
             </CardTitle>
             <CardDescription>
-              {adminUid 
-                ? 'Inicia sesión para gestionar el sistema.' 
-                : 'La primera cuenta que inicie sesión con Google se convertirá en el administrador.'}
+              La primera cuenta en iniciar sesión se convertirá en el administrador.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

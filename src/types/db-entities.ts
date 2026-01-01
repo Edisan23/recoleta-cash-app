@@ -20,6 +20,7 @@ export type User = {
     photoURL: string;
     email: string;
     isAnonymous: boolean;
+    role: "operator" | "admin";
     createdAt: string | { toDate: () => Date }; // Can be string or Firestore Timestamp
     paymentStatus: "trial" | "free" | "paid" | "blocked";
   }

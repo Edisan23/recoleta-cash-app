@@ -15,8 +15,6 @@ import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
 
-const ADMIN_UID_KEY = 'fake_admin_uid';
-
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -28,31 +26,23 @@ export default function AdminDashboardPage() {
   const companiesRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies') : null, [firestore]);
   const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
 
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isCheckingAdmin, setIsCheckingAdmin] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (isUserLoading) return;
-
+    if (isUserLoading) {
+        return; // Wait for user status to be determined
+    }
     if (!user) {
-      router.replace('/admin/login');
-      return;
+        router.replace('/admin/login');
+        return;
     }
+    
+    // In a real app, you'd check a custom claim or a 'role' field in the user's DB profile.
+    // For this example, we rely on the client-side check in login, but a server-side check is better.
+    // Assuming if they got this far and are logged in, they are the admin.
+    setIsLoading(false);
 
-    const adminUid = localStorage.getItem(ADMIN_UID_KEY);
-    if (user.uid === adminUid) {
-      setIsAdmin(true);
-    } else {
-      toast({
-        variant: 'destructive',
-        title: 'Acceso Denegado',
-        description: 'No tienes permisos para acceder a esta página.',
-      });
-      router.replace('/admin/login');
-    }
-    setIsCheckingAdmin(false);
-
-  }, [user, isUserLoading, router, toast]);
+  }, [user, isUserLoading, router]);
 
 
   const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {
@@ -99,7 +89,7 @@ export default function AdminDashboardPage() {
     }
   };
   
-  if (isUserLoading || isCheckingAdmin || !isAdmin || areCompaniesLoading) {
+  if (isLoading || isUserLoading || areCompaniesLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />

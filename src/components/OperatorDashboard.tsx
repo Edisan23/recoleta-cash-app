@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Trash2, Download, ChevronsUpDown, ArrowLeft, PlusCircle, AlertCircle, Lock, Repeat, CreditCard } from 'lucide-react';
+import { LogOut, Trash2, Download, Repeat, CreditCard } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem, DailyShiftEntry } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatePicker } from '@/components/DatePicker';
 import { TimeInput } from '@/components/TimeInput';
 import { Input } from '@/components/ui/input';
@@ -24,11 +24,12 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
-import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, serverTimestamp, setDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { addMonths, format, isValid, parseISO, isAfter, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import Link from 'next/link';
+import { ArrowLeft, PlusCircle, AlertCircle, Lock } from 'lucide-react';
 
 
 // --- FAKE DATA & KEYS ---
@@ -115,23 +116,28 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // Effect to save/update user profile in firestore for subscription management
   useEffect(() => {
       if (user && !userProfileLoading && firestore) {
-          const profileRef = doc(firestore, "users", user.uid);
           if (!userProfile) { // If profile doesn't exist, create it.
-              const creationTime = new Date().toISOString();
-              const userProfileData: Omit<UserProfile, 'id'> = {
-                    uid: user.uid,
-                    displayName: user.displayName || 'Operador Anónimo',
-                    photoURL: user.photoURL || '',
-                    email: user.email || '',
-                    isAnonymous: user.isAnonymous,
-                    createdAt: creationTime,
-                    paymentStatus: 'trial', // default value
-              };
-              setDoc(profileRef, userProfileData, { merge: true }).catch(err => {
-                  console.error("Error saving user profile:", err);
-              });
-              // Immediately update local state to reflect the new profile
-              setLocalUserProfile({ ...userProfileData, id: user.uid });
+                setLocalUserProfile(prev => {
+                    if (prev?.uid === user.uid) return prev; // Avoid re-creating on re-renders
+                    
+                    const profileRef = doc(firestore, "users", user.uid);
+                    const creationTime = new Date().toISOString();
+                    const newUserProfile: Omit<UserProfile, 'id'> = {
+                        uid: user.uid,
+                        displayName: user.displayName || 'Operador Anónimo',
+                        photoURL: user.photoURL || '',
+                        email: user.email || '',
+                        isAnonymous: user.isAnonymous,
+                        createdAt: creationTime,
+                        paymentStatus: 'trial', // default value
+                        role: 'operator',
+                    };
+                    writeBatch(firestore).set(profileRef, newUserProfile).commit().catch(err => {
+                        console.error("Error saving user profile:", err);
+                    });
+
+                    return { ...newUserProfile, id: user.uid, createdAt: new Date().toISOString() };
+                });
           } else {
              setLocalUserProfile(userProfile);
           }

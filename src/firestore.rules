@@ -11,32 +11,34 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    // A user can be associated with a company
     function isCompanyMember(companyId) {
-      // This rule is a placeholder for a real implementation
-      // In a real app, you would check a user's claims or a document
-      // that links the user to a company. For this fake data app, we'll
-      // assume any signed-in user is a member of any company.
+      // For this app, we assume any signed-in user can be a member.
+      // A real app would have a more robust check (e.g., checking a user's companyId field).
       return isSignedIn();
     }
 
-    // The admin UID is hardcoded for security in this example.
     function isAdmin() {
-      return request.auth != null && request.auth.uid == 'gHZ9n7s2b9X8fJ2kP3s5t8YxVOE2';
+      // Admin check is now based on a 'role' field in the user's profile.
+      // This is more flexible and secure than hardcoding UIDs.
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Rules for the 'users' collection
     match /users/{userId} {
-      allow read, update, delete: if isSignedIn() && isOwner(userId);
+      // Admins can read/write any user profile.
+      // Users can only read/write their own profile.
+      allow read, update, delete: if isAdmin() || isOwner(userId);
+      // Any signed-in user can create their own profile.
       allow create: if isSignedIn();
     }
 
+    // Rules for the 'companies' collection and its subcollections
     match /companies/{companyId} {
-      // Any signed-in user can read company data for selection purposes
+      // Any signed-in user can read company data (e.g., for the selection screen).
       allow read: if isSignedIn();
-      // Only admins can create, update, or delete companies
+      // Only admins can manage companies.
       allow create, update, delete: if isAdmin();
 
-      // Company subcollections for settings and items
       match /settings/{settingsId} {
           allow read: if isCompanyMember(companyId);
           allow write: if isAdmin();
@@ -53,24 +55,26 @@ service cloud.firestore {
           allow read: if isCompanyMember(companyId);
           allow write: if isAdmin();
       }
-
-
-      // Shifts can be created by a company member for themselves.
-      // They can only read their own shifts. Admins can read all shifts.
-      match /shifts/{shiftId} {
-          allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
-          allow create: if isCompanyMember(companyId) && request.resource.data.userId == request.auth.uid;
-          // For simplicity, updates/deletes are admin-only.
-          // A more complex rule could allow owners to update/delete their own shifts.
-          allow update, delete: if isAdmin();
-      }
-
-       // Payrolls can be read by the user they belong to, or by an admin.
       match /payrolls/{payrollId} {
+        // Admins or the specific user can read a payroll.
         allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
-        // Only admins can create/update payroll documents.
+        // Only admins can create/update payrolls.
         allow write: if isAdmin();
       }
+    }
+    
+    // Collection Group Query for 'shifts'
+    // This rule applies to any subcollection named 'shifts' (e.g., /companies/{companyId}/shifts/{shiftId})
+    match /{path=**}/shifts/{shiftId} {
+        // An admin can read any shift.
+        // A user can read their own shifts if they are part of the company.
+        allow read: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
+        
+        // A user can create their own shifts.
+        allow create: if isCompanyMember(path.split('/')[1]) && request.resource.data.userId == request.auth.uid;
+        
+        // A user can update/delete their own shifts, or an admin can.
+        allow update, delete: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
     }
   }
 }
