@@ -41,6 +41,11 @@ export default function AdminDashboardPage() {
         if (user.uid === adminUid) {
           setIsAdmin(true);
         } else {
+          toast({
+            variant: 'destructive',
+            title: 'Acceso Denegado',
+            description: 'No tienes permisos para acceder a esta página.',
+          });
           router.replace('/admin/login');
         }
       } catch (error) {
@@ -48,7 +53,7 @@ export default function AdminDashboardPage() {
         router.replace('/admin/login');
       }
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, router, toast]);
 
 
   const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {

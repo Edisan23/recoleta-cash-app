@@ -11,42 +11,44 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    // A user can be associated with a company
     function isCompanyMember(companyId) {
       // This rule is a placeholder. For this fake data app, we'll
       // assume any signed-in user is a member of any company.
       return isSignedIn();
     }
 
-    // This is now a public access app for the admin section.
+    // In a real app, this should check a custom claim (e.g., request.auth.token.admin == true)
+    // set by a Cloud Function after the first user logs in.
+    // For this example, we'll trust the client-side check that ensures only the designated admin can access admin pages.
+    // Therefore, any write operation assumed to be from an admin is allowed if the user is signed in.
     function isAdmin() {
-      return true;
+      return isSignedIn();
     }
 
     match /users/{userId} {
       // Admins can read any user profile, users can only read/write their own.
-      allow read, update, delete: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow read, update, delete: if isOwner(userId) || isAdmin();
       allow create: if isSignedIn();
     }
 
     match /companies/{companyId} {
-      allow read: if isSignedIn() || isAdmin();
+      allow read: if isCompanyMember(companyId);
       allow create, update, delete: if isAdmin();
 
       match /settings/{settingsId} {
-          allow read: if isCompanyMember(companyId) || isAdmin();
+          allow read: if isCompanyMember(companyId);
           allow write: if isAdmin();
       }
       match /items/{itemId} {
-          allow read: if isCompanyMember(companyId) || isAdmin();
+          allow read: if isCompanyMember(companyId);
           allow write: if isAdmin();
       }
        match /benefits/{benefitId} {
-          allow read: if isCompanyMember(companyId) || isAdmin();
+          allow read: if isCompanyMember(companyId);
           allow write: if isAdmin();
       }
        match /deductions/{deductionId} {
-          allow read: if isCompanyMember(companyId) || isAdmin();
+          allow read: if isCompanyMember(companyId);
           allow write: if isAdmin();
       }
 
