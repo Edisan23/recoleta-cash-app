@@ -12,31 +12,22 @@ interface TimeInputProps {
 export function TimeInput({ label, value, onChange }: TimeInputProps) {
 
     const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let inputValue = e.target.value.replace(/[^0-9:]/g, ''); // Allow numbers and colon
+        const inputValue = e.target.value.replace(/[^0-9]/g, ''); // Only allow numbers
 
-        // If the user is deleting, allow it
-        if (inputValue.length < value.length) {
-            onChange(inputValue.split(':')[0]);
-            return;
+        if (inputValue.length > 2) {
+            return; // Don't allow more than 2 digits
         }
 
-        // Remove colon for pure digit processing
-        let digits = inputValue.replace(':', '');
-
-        if (digits.length > 2) {
-            digits = digits.slice(0, 2);
-        }
-
-        if (digits.length === 2) {
-             // Autocomplete when 2 digits are entered
-            onChange(`${digits}:00`);
+        if (inputValue.length === 2) {
+             // Autocomplete to HH:00 when 2 digits are entered
+            onChange(`${inputValue}:00`);
         } else {
-            // Show digits as they are typed
-            onChange(digits);
+            // Otherwise, just update with the digits typed
+            onChange(inputValue);
         }
     };
     
-    // Determine what to display. If it's a partial input (e.g., "0" or "1"), show that. If it's a full time, show that.
+    // Display the formatted value (e.g., "06:00") or the partial input (e.g., "0" or "06")
     const displayValue = value;
 
     return (
