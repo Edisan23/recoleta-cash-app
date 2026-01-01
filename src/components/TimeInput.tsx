@@ -13,26 +13,21 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
 
     const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let inputValue = e.target.value.replace(/[^0-9]/g, '');
-        let formattedValue = '';
-        
-        if (inputValue.length <= 2) {
-            formattedValue = inputValue;
+
+        // Limit to 2 digits for the hour
+        if (inputValue.length > 2) {
+            inputValue = inputValue.slice(0, 2);
+        }
+
+        // If two digits are entered, auto-format to HH:00
+        if (inputValue.length === 2) {
+            onChange(`${inputValue}:00`);
         } else {
-            formattedValue = `${inputValue.slice(0, 2)}:${inputValue.slice(2, 4)}`;
+            onChange(inputValue);
         }
-        
-        // Add colon automatically after 2 digits if we are erasing the colon
-        if (value.length === 3 && formattedValue.length === 2 && !formattedValue.includes(':')) {
-             if (e.nativeEvent instanceof InputEvent && e.nativeEvent.inputType === 'deleteContentBackward') {
-                // do nothing on backspace
-             } else {
-                formattedValue += ':';
-             }
-        }
-
-
-        onChange(formattedValue);
     };
+
+    const displayValue = value.includes(':') ? value.split(':')[0] : value;
 
     return (
         <div className="grid w-full items-center gap-1.5">
@@ -41,10 +36,10 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
                 type="text"
                 inputMode="numeric"
                 id={label.toLowerCase().replace(' ', '_')}
-                value={value}
+                value={displayValue}
                 onChange={handleTimeChange}
-                placeholder="HH:MM"
-                maxLength={5}
+                placeholder="HH"
+                maxLength={2}
                 className="w-full text-base py-6 font-semibold"
             />
         </div>

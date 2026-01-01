@@ -47,7 +47,7 @@ export function calculateShiftSummary(
         holidayDayPay: 0, holidayNightPay: 0, holidayDayOvertimePay: 0, holidayNightOvertimePay: 0,
     };
 
-    if (!shift.startTime || !shift.endTime || !settings) {
+    if (!shift.startTime || !shift.endTime || !settings || !shift.startTime.includes(':') || !shift.endTime.includes(':')) {
         return summary;
     }
 
@@ -64,9 +64,14 @@ export function calculateShiftSummary(
         end = addDays(end, 1);
     }
 
+    // Since we only work with whole hours, the calculation is direct.
     const totalMilliseconds = end.getTime() - start.getTime();
-    const totalHours = Math.round(totalMilliseconds / (1000 * 60 * 60)); // Round to nearest whole hour
+    const totalHours = totalMilliseconds / (1000 * 60 * 60);
     
+    if (totalHours <= 0 || !Number.isInteger(totalHours)) {
+        return summary;
+    }
+
     summary.totalHours = totalHours;
 
     const nightShiftStartHour = settings.nightShiftStartHour ?? 21;
