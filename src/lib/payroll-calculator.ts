@@ -1,3 +1,4 @@
+'use client';
 import type { Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import { isHoliday } from './date-helpers';
 import { startOfDay, endOfDay, isWithinInterval, addDays, getMonth, getYear, getDate, startOfMonth, endOfMonth, format } from 'date-fns';
@@ -67,47 +68,54 @@ export function calculateShiftSummary(
   
   const nightShiftStartHour = settings.nightShiftStartHour ?? 21;
   const dailyHourLimit = settings.dailyHourLimit ?? 8;
+  const dailyMinuteLimit = dailyHourLimit * 60;
+  const minutesAlreadyWorked = hoursAlreadyWorkedOnDay * 60;
+
+  let dayMinutes = 0;
+  let nightMinutes = 0;
+  let dayOvertimeMinutes = 0;
+  let nightOvertimeMinutes = 0;
+  let holidayDayMinutes = 0;
+  let holidayNightMinutes = 0;
+  let holidayDayOvertimeMinutes = 0;
+  let holidayNightOvertimeMinutes = 0;
+
 
   for (let i = 0; i < totalShiftMinutes; i++) {
     const currentMinuteTime = new Date(start.getTime() + i * 60 * 1000);
-    const hourFraction = 1 / 60;
     
     const isCurrentMinuteHoliday = isHoliday(currentMinuteTime, holidays);
     const isNight = isNightHour(currentMinuteTime, nightShiftStartHour);
     
-    // Check if the current minute is overtime
-    const isOvertime = (hoursAlreadyWorkedOnDay + (i / 60)) >= dailyHourLimit;
+    const isOvertime = (minutesAlreadyWorked + i) >= dailyMinuteLimit;
 
     if (isOvertime) {
         if(isCurrentMinuteHoliday) {
-            if(isNight) {
-                summary.holidayNightOvertimeHours += hourFraction;
-            } else {
-                summary.holidayDayOvertimeHours += hourFraction;
-            }
+            if(isNight) holidayNightOvertimeMinutes++;
+            else holidayDayOvertimeMinutes++;
         } else {
-            if(isNight) {
-                summary.nightOvertimeHours += hourFraction;
-            } else {
-                summary.dayOvertimeHours += hourFraction;
-            }
+            if(isNight) nightOvertimeMinutes++;
+            else dayOvertimeMinutes++;
         }
     } else { // Regular hours
         if(isCurrentMinuteHoliday) {
-            if(isNight) {
-                summary.holidayNightHours += hourFraction;
-            } else {
-                summary.holidayDayHours += hourFraction;
-            }
+            if(isNight) holidayNightMinutes++;
+            else holidayDayMinutes++;
         } else {
-            if(isNight) {
-                summary.nightHours += hourFraction;
-            } else {
-                summary.dayHours += hourFraction;
-            }
+            if(isNight) nightMinutes++;
+            else dayMinutes++;
         }
     }
   }
+
+  summary.dayHours = dayMinutes / 60;
+  summary.nightHours = nightMinutes / 60;
+  summary.dayOvertimeHours = dayOvertimeMinutes / 60;
+  summary.nightOvertimeHours = nightOvertimeMinutes / 60;
+  summary.holidayDayHours = holidayDayMinutes / 60;
+  summary.holidayNightHours = holidayNightMinutes / 60;
+  summary.holidayDayOvertimeHours = holidayDayOvertimeMinutes / 60;
+  summary.holidayNightOvertimeHours = holidayNightOvertimeMinutes / 60;
 
   // Calculate Pay based on categorized hours
   summary.dayPay = summary.dayHours * (settings.dayRate || 0);
@@ -183,7 +191,6 @@ export function calculatePeriodSummary(
   const periodSummary: PayrollSummary = periodShifts.reduce((acc, shift) => {
     // For period summary, we don't need to track daily accumulated hours,
     // as each shift's contribution to overtime is already calculated based on its day.
-    // However, for accuracy, we should recalculate based on daily totals.
     // This is a simplification; a more robust solution would group shifts by day first.
     const shiftSummary = calculateShiftSummary(shift, settings, holidays, 0); // Simplified call
     acc.totalHours += shiftSummary.totalHours;
@@ -237,5 +244,3 @@ export function calculatePeriodSummary(
 
   return periodSummary;
 }
-
-    
