@@ -1,33 +1,46 @@
 'use client';
 import type { Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import { isHoliday } from './date-helpers';
-import { getMonth, getYear, getDate, endOfMonth, format } from 'date-fns';
-import { es } from 'date-fns/locale';
 
 const NIGHT_SHIFT_END_HOUR = 6;   // 6 AM
 
-// Helper function to create a new Date object at the start of the day
-function startOfDay(date: Date): Date {
-  const newDate = new Date(date);
-  newDate.setHours(0, 0, 0, 0);
-  return newDate;
+function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' | 'bi-weekly'): { start: Date, end: Date } {
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+    const day = selectedDate.getDate();
+
+    const startOfDay = (date: Date) => new Date(date.setHours(0, 0, 0, 0));
+    const endOfDay = (date: Date) => new Date(date.setHours(23, 59, 59, 999));
+    const endOfMonth = (date: Date) => endOfDay(new Date(date.getFullYear(), date.getMonth() + 1, 0));
+
+
+    if (payrollCycle === 'bi-weekly') {
+        if (day <= 15) {
+            return {
+                start: startOfDay(new Date(year, month, 1)),
+                end: endOfDay(new Date(year, month, 15)),
+            };
+        } else {
+            return {
+                start: startOfDay(new Date(year, month, 16)),
+                end: endOfMonth(selectedDate),
+            };
+        }
+    } else { // monthly
+        return {
+            start: startOfDay(new Date(year, month, 1)),
+            end: endOfMonth(selectedDate),
+        };
+    }
 }
 
-// Helper function to create a new Date object at the end of the day
-function endOfDay(date: Date): Date {
-    const newDate = new Date(date);
-    newDate.setHours(23, 59, 59, 999);
-    return newDate;
-}
-
-// Helper function to check if a date is within an interval
 function isWithinInterval(date: Date, interval: { start: Date; end: Date }): boolean {
     return date.getTime() >= interval.start.getTime() && date.getTime() <= interval.end.getTime();
 }
 
 function getNightIntervals(date: Date, nightShiftStartHour: number) {
-  const dayStart = startOfDay(date);
-  const dayEnd = endOfDay(date);
+  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
   
   // Night period from 00:00 to 06:00 of the current day
   const nightInterval1Start = new Date(dayStart);
@@ -84,11 +97,11 @@ export function calculateShiftSummary(
     }
     
     const totalMilliseconds = end.getTime() - start.getTime();
-    const totalHours = Math.round(totalMilliseconds / (1000 * 60 * 60));
-
-    if (totalHours <= 0) {
+    if (totalMilliseconds <= 0) {
         return summary;
     }
+    const totalHours = Math.round(totalMilliseconds / (1000 * 60 * 60));
+
 
     summary.totalHours = totalHours;
 
@@ -138,32 +151,6 @@ export function calculateShiftSummary(
     return summary;
 }
 
-export function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' | 'bi-weekly'): { start: Date, end: Date } {
-    const year = selectedDate.getFullYear();
-    const month = selectedDate.getMonth();
-    const day = selectedDate.getDate();
-
-    if (payrollCycle === 'bi-weekly') {
-        if (day <= 15) {
-            return {
-                start: startOfDay(new Date(year, month, 1)),
-                end: endOfDay(new Date(year, month, 15)),
-            };
-        } else {
-            return {
-                start: startOfDay(new Date(year, month, 16)),
-                end: endOfMonth(selectedDate),
-            };
-        }
-    } else { // monthly
-        return {
-            start: startOfDay(new Date(year, month, 1)),
-            end: endOfMonth(selectedDate),
-        };
-    }
-}
-
-
 export function calculatePeriodSummary(
   allShifts: Shift[],
   settings: CompanySettings,
@@ -185,7 +172,7 @@ export function calculatePeriodSummary(
     
   // Group shifts by day to correctly calculate overtime
   const shiftsByDay: { [key: string]: Shift[] } = periodShifts.reduce((acc, shift) => {
-    const dayKey = startOfDay(new Date(shift.date)).toISOString();
+    const dayKey = new Date(new Date(shift.date).setHours(0,0,0,0)).toISOString();
     if (!acc[dayKey]) {
       acc[dayKey] = [];
     }
