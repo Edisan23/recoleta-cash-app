@@ -4,7 +4,7 @@ import { isHoliday } from './date-helpers';
 
 const NIGHT_SHIFT_END_HOUR = 6;   // 6 AM
 
-function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' | 'bi-weekly'): { start: Date, end: Date } {
+export function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' | 'bi-weekly'): { start: Date, end: Date } {
     const year = selectedDate.getFullYear();
     const month = selectedDate.getMonth();
     const day = selectedDate.getDate();
@@ -34,7 +34,7 @@ function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' | 'bi-we
     }
 }
 
-function isWithinInterval(date: Date, interval: { start: Date; end: Date }): boolean {
+export function isWithinInterval(date: Date, interval: { start: Date; end: Date }): boolean {
     return date.getTime() >= interval.start.getTime() && date.getTime() <= interval.end.getTime();
 }
 
