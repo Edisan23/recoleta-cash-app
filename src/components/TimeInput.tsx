@@ -12,22 +12,32 @@ interface TimeInputProps {
 export function TimeInput({ label, value, onChange }: TimeInputProps) {
 
     const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let inputValue = e.target.value.replace(/[^0-9]/g, '');
+        let inputValue = e.target.value.replace(/[^0-9:]/g, ''); // Allow numbers and colon
 
-        // Limit to 2 digits for the hour
-        if (inputValue.length > 2) {
-            inputValue = inputValue.slice(0, 2);
+        // If the user is deleting, allow it
+        if (inputValue.length < value.length) {
+            onChange(inputValue.split(':')[0]);
+            return;
         }
 
-        // If two digits are entered, auto-format to HH:00
-        if (inputValue.length === 2) {
-            onChange(`${inputValue}:00`);
+        // Remove colon for pure digit processing
+        let digits = inputValue.replace(':', '');
+
+        if (digits.length > 2) {
+            digits = digits.slice(0, 2);
+        }
+
+        if (digits.length === 2) {
+             // Autocomplete when 2 digits are entered
+            onChange(`${digits}:00`);
         } else {
-            onChange(inputValue);
+            // Show digits as they are typed
+            onChange(digits);
         }
     };
-
-    const displayValue = value.includes(':') ? value.split(':')[0] : value;
+    
+    // Determine what to display. If it's a partial input (e.g., "0" or "1"), show that. If it's a full time, show that.
+    const displayValue = value;
 
     return (
         <div className="grid w-full items-center gap-1.5">
@@ -39,7 +49,7 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
                 value={displayValue}
                 onChange={handleTimeChange}
                 placeholder="HH"
-                maxLength={2}
+                maxLength={5} // HH:00
                 className="w-full text-base py-6 font-semibold"
             />
         </div>
