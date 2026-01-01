@@ -1,4 +1,3 @@
-'use client';
 import type { Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import { isHoliday } from './date-helpers';
 
