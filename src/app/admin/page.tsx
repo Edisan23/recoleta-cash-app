@@ -89,7 +89,7 @@ export default function AdminDashboardPage() {
     }
   };
   
-  if (isLoading || isUserLoading || areCompaniesLoading) {
+  if (isLoading || isUserLoading || (user && areCompaniesLoading)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
