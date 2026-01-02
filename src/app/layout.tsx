@@ -30,9 +30,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body
+       <body
         className={cn(
-          "min-h-screen bg-background font-sans antialiased",
+          "min-h-screen bg-background font-sans antialiased flex flex-col",
           playfair.variable,
           ptSans.variable
         )}
@@ -44,7 +44,7 @@ export default function RootLayout({
             disableTransitionOnChange
         >
           <FirebaseClientProvider>
-            {children}
+            <main className="flex-1 flex flex-col">{children}</main>
             <Toaster />
           </FirebaseClientProvider>
         </ThemeProvider>

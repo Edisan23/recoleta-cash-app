@@ -7,13 +7,12 @@ import { LogoIcon } from './icons/logo';
 
 export function LandingPage() {
   return (
-    <div className="relative flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
-      
+    <div className="flex-1 flex flex-col">
       <div className="absolute top-6 right-6 z-10">
         <ThemeToggle />
       </div>
 
-      <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
         <div className="flex flex-col items-center text-center mb-12">
           <LogoIcon className="h-16 w-16 text-primary mx-auto mb-6" strokeWidth={1.5}/>
           <h1 className="text-5xl font-bold mb-4">Turno Pro</h1>
@@ -37,7 +36,7 @@ export function LandingPage() {
             </CardContent>
           </Card>
         </div>
-      </main>
+      </div>
 
       <footer className="w-full text-center text-xs text-muted-foreground p-4">
         <div className="flex items-center justify-center gap-2">
@@ -47,7 +46,6 @@ export function LandingPage() {
             </Link>
         </div>
       </footer>
-      
     </div>
   );
 }
