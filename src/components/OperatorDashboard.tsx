@@ -20,8 +20,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useAuth, useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { ThemeToggle } from './ui/theme-toggle';
 import { PayrollVoucher } from './operator/PayrollVoucher';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { useReactToPrint } from 'react-to-print';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
@@ -62,7 +61,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   // Local state
   const [isSaving, setIsSaving] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
   
   // Form state
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -367,35 +365,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     router.push('/login'); 
   };
   
-    const handleDownload = async () => {
-        if (!voucherRef.current || !user || !periodSummary) return;
-        setIsDownloading(true);
-
-        try {
-            const canvas = await html2canvas(voucherRef.current, {
-                scale: 2,
-                backgroundColor: '#ffffff',
-            });
-            const imgData = canvas.toDataURL('image/png');
-            const pdf = new jsPDF({
-                orientation: 'portrait',
-                unit: 'px',
-                format: [canvas.width, canvas.height]
-            });
-            pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-            const fileName = `comprobante-de-pago-${user.displayName?.replace(/\s/g, '-').toLowerCase() || 'operador'}.pdf`;
-            pdf.save(fileName);
-        } catch (error) {
-            console.error("Error generating PDF:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'No se pudo generar el comprobante PDF.',
-            });
-        } finally {
-            setIsDownloading(false);
-        }
-    };
+  const handlePrint = useReactToPrint({
+      content: () => voucherRef.current,
+      documentTitle: `comprobante-de-pago-${user?.displayName?.replace(/\s/g, '-').toLowerCase() || 'operador'}`,
+      onAfterPrint: () => toast({ title: "Comprobante generado", description: "Tu comprobante se ha descargado."}),
+      onPrintError: () => toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el comprobante.'}),
+  });
     
     const handleChangeCompany = () => {
         localStorage.removeItem(OPERATOR_COMPANY_KEY);
@@ -452,9 +427,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
       
        {/* Hidden element for PDF generation */}
-       <div className="absolute left-[-9999px] top-[-9999px]">
-            <div ref={voucherRef} className="bg-white text-black p-8">
-                {company && user && date && periodSummary && settings && allShifts && (
+       <div className="hidden">
+            {company && user && date && periodSummary && settings && allShifts && (
+                <div ref={voucherRef} className="bg-white text-black p-8">
                     <PayrollVoucher 
                         operatorName={user.displayName || 'Operador'}
                         companyName={company.name}
@@ -462,9 +437,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         summary={periodSummary}
                         shifts={allShifts.filter(s => new Date(s.date).toDateString() === date?.toDateString())}
                     />
-                )}
-            </div>
-        </div>
+                </div>
+            )}
+       </div>
       
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
@@ -528,8 +503,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     <Repeat />
                     <span className="sr-only">Cambiar Empresa</span>
                 </Button>
-                <Button variant="outline" size="icon" onClick={handleDownload} disabled={isDownloading || !periodSummary}>
-                    {isDownloading ? <LogoSpinner /> : <Download />}
+                <Button variant="outline" size="icon" onClick={handlePrint} disabled={!periodSummary}>
+                    <Download />
                     <span className="sr-only">Descargar Comprobante</span>
                 </Button>
                 <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
