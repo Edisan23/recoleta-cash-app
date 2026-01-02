@@ -50,7 +50,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
 
     useEffect(() => {
         if(initialOperators) {
-            setOperators(initialOperators);
+            setOperators(initialOperators.filter(op => op.role === 'operator'));
         }
     }, [initialOperators]);
 
@@ -87,7 +87,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                         const parsed = parseISO(profile.createdAt);
                         return isValid(parsed) ? parsed : new Date(0);
                     }
-                    if (typeof (profile.createdAt as any).toDate === 'function') {
+                    if (typeof (profile.createdAt as any)?.toDate === 'function') {
                         return (profile.createdAt as any).toDate();
                     }
                     return new Date(0);
