@@ -1,6 +1,6 @@
 // IMPORTANT: This file should only be imported by server-side code.
 // It uses the Firebase Admin SDK.
-import { initializeApp, getApps, getApp, App, credential } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, App, cert } from 'firebase-admin/app ;
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { ServiceAccount } from 'firebase-admin';
 
