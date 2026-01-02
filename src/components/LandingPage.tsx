@@ -7,13 +7,13 @@ import { LogoIcon } from './icons/logo';
 
 export function LandingPage() {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center bg-gray-50 p-8 dark:bg-gray-900">
+    <div className="relative flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
       
       <div className="absolute top-6 right-6">
         <ThemeToggle />
       </div>
 
-      <main className="flex flex-1 flex-col items-center justify-center text-center">
+      <main className="flex flex-1 flex-col items-center justify-center p-8 text-center">
         <div className="flex flex-col items-center text-center mb-12">
           <LogoIcon className="h-16 w-16 text-primary mx-auto mb-6" strokeWidth={1.5}/>
           <h1 className="text-5xl font-bold mb-4">Turno Pro</h1>
@@ -39,7 +39,7 @@ export function LandingPage() {
         </div>
       </main>
 
-      <footer className="w-full text-center text-xs text-muted-foreground py-4">
+      <footer className="w-full text-center text-xs text-muted-foreground p-4">
         <div className="flex items-center justify-center gap-2">
             <p>Edward Santiago Riascos Cwl. 3213118124</p>
             <Link href="/admin/login" title="Acceso de Administrador">
