@@ -7,7 +7,7 @@ import { LogoIcon } from './icons/logo';
 
 export function LandingPage() {
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col min-h-screen">
       <div className="absolute top-6 right-6 z-10">
         <ThemeToggle />
       </div>
