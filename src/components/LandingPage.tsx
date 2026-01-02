@@ -13,7 +13,7 @@ export function LandingPage() {
         <ThemeToggle />
       </div>
 
-      <main className="flex flex-1 flex-col items-center justify-center p-8 text-center">
+      <main className="flex-1 flex flex-col items-center justify-center p-8 text-center">
         <div className="flex flex-col items-center text-center mb-12">
           <LogoIcon className="h-16 w-16 text-primary mx-auto mb-6" strokeWidth={1.5}/>
           <h1 className="text-5xl font-bold mb-4">Turno Pro</h1>
