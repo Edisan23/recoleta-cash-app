@@ -39,10 +39,10 @@ export function LandingPage() {
         </div>
       </main>
 
-      <footer className="absolute bottom-4 text-center text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
+      <footer className="w-full text-center text-xs text-muted-foreground py-4">
+        <div className="flex items-center justify-center gap-2">
             <p>Edward Santiago Riascos Cwl. 3213118124</p>
-            <Link href="/admin" title="Acceso de Administrador">
+            <Link href="/admin/login" title="Acceso de Administrador">
                 <LogoIcon className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors" />
             </Link>
         </div>
