@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { signInWithPopup, GoogleAuthProvider, User } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { LogoSpinner } from '@/components/LogoSpinner';
@@ -26,7 +26,7 @@ export default function AdminLoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const userProfileRef = useMemoFirebase(() => (firestore && user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
   
   useEffect(() => {
@@ -34,13 +34,22 @@ export default function AdminLoginPage() {
   }, []);
 
   useEffect(() => {
-    // Redirect if user is logged in and is an admin
-    if (isMounted && !isUserLoading && !isProfileLoading && user && userProfile) {
+    if (!isMounted || isUserLoading || isProfileLoading) {
+      // Don't do anything until everything is loaded and component is mounted.
+      return;
+    }
+
+    // If we have a user and a profile, check the role.
+    if (user && userProfile) {
       if (userProfile.role === 'admin') {
         router.replace('/admin');
       }
+      // If role is not admin, they stay on the login page.
+      // A toast could be shown here if needed, but for now we just don't redirect.
     }
-  }, [user, isUserLoading, userProfile, isProfileLoading, router, isMounted]);
+    // If no user is logged in, they also stay on the login page (initial state).
+
+  }, [user, userProfile, isUserLoading, isProfileLoading, router, isMounted]);
 
   const handleGoogleSignIn = async () => {
     if (!auth || !firestore) return;
@@ -52,8 +61,8 @@ export default function AdminLoginPage() {
       const loggedInUser = userCredential.user;
       const userDocRef = doc(firestore, 'users', loggedInUser.uid);
 
-      // Simplified logic: Always ensure the user logging in via this page is an admin.
       // This creates or updates the user profile with the admin role.
+      // This is a simplified logic for the purpose of this app.
       const userProfilePayload: Omit<UserProfile, 'id' | 'createdAt'> & { createdAt?: string } = {
           uid: loggedInUser.uid,
           displayName: loggedInUser.displayName || 'Admin',
@@ -75,7 +84,7 @@ export default function AdminLoginPage() {
         title: '¡Bienvenido Administrador!',
         description: 'Has iniciado sesión correctamente.',
       });
-      router.push('/admin');
+      // The useEffect will handle redirection after the profile is re-fetched and validated.
 
     } catch (error: any) {
        if (error.code !== 'auth/popup-closed-by-user') {
@@ -92,7 +101,8 @@ export default function AdminLoginPage() {
       setIsSubmitting(false);
     }
   };
-
+  
+  // Show a loading spinner while validating session, loading profile, or if we are about to redirect.
   if (isUserLoading || isProfileLoading || !isMounted || (user && userProfile && userProfile.role === 'admin')) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -101,6 +111,8 @@ export default function AdminLoginPage() {
     );
   }
 
+  // If the user is logged in but not an admin, they should stay here.
+  // If the user is not logged in, they should stay here.
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
       <Card className="w-full max-w-md">
