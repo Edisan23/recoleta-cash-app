@@ -103,8 +103,10 @@ export default function CompanySettingsPage() {
         } else {
             setBenefits(initialBenefits.map((b, i) => ({ ...b, id: `benefit_${Date.now()}_${i}`, companyId })));
         }
+    } else if (!isBenefitsLoading && benefits.length === 0) {
+        setBenefits(initialBenefits.map((b, i) => ({ ...b, id: `benefit_${Date.now()}_${i}`, companyId })));
     }
-  }, [benefitsData, companyId]);
+  }, [benefitsData, isBenefitsLoading, companyId]);
 
   useEffect(() => {
     if (deductionsData) {
@@ -113,8 +115,10 @@ export default function CompanySettingsPage() {
         } else {
             setDeductions(initialDeductions.map((d, i) => ({ ...d, id: `deduction_${Date.now()}_${i}`, companyId })));
         }
+    } else if (!isDeductionsLoading && deductions.length === 0) {
+         setDeductions(initialDeductions.map((d, i) => ({ ...d, id: `deduction_${Date.now()}_${i}`, companyId })));
     }
-  }, [deductionsData, companyId]);
+  }, [deductionsData, isDeductionsLoading, companyId]);
 
   useEffect(() => {
     if (itemsData) setItems(itemsData);
@@ -573,5 +577,3 @@ export default function CompanySettingsPage() {
     </div>
   );
 }
-
-    

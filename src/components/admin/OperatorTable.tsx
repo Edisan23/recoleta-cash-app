@@ -88,9 +88,10 @@ export function OperatorTable() {
         if (!operators) return [];
 
         const sortedOperators = [...operators].sort((a, b) => {
-                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                return dateB - dateA;
+                const dateAValue = a.createdAt ? (typeof a.createdAt === 'string' ? new Date(a.createdAt) : a.createdAt.toDate()).getTime() : 0;
+                const dateBValue = b.createdAt ? (typeof b.createdAt === 'string' ? new Date(b.createdAt) : b.createdAt.toDate()).getTime() : 0;
+                if(!dateAValue || !dateBValue) return 0;
+                return dateBValue - dateAValue;
             });
 
         if (!searchQuery) {
@@ -194,15 +195,12 @@ export function OperatorTable() {
                                     
                                     let createdAtDate: Date | null = null;
                                     if (op.createdAt) {
-                                        try {
-                                            const dateSource = op.createdAt;
-                                            const parsedDate = new Date(dateSource);
-                                            if (isValid(parsedDate)) {
-                                                createdAtDate = parsedDate;
-                                            }
-                                        } catch (e) {
-                                            // Invalid date will be handled by the check below
-                                        }
+                                       const dateSource = op.createdAt;
+                                       if (typeof dateSource === 'string') {
+                                           createdAtDate = new Date(dateSource);
+                                       } else if (dateSource && typeof (dateSource as any).toDate === 'function') {
+                                           createdAtDate = (dateSource as any).toDate();
+                                       }
                                     }
 
                                     return (
@@ -237,7 +235,7 @@ export function OperatorTable() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">
-                                                {createdAtDate ? format(createdAtDate, 'dd MMM, yyyy', { locale: es }) : 'Fecha no disponible'}
+                                                {createdAtDate && isValid(createdAtDate) ? format(createdAtDate, 'dd MMM, yyyy', { locale: es }) : 'Fecha no disponible'}
                                             </TableCell>
                                             <TableCell className="text-right">
                                                  <DropdownMenu>

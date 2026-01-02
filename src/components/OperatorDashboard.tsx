@@ -38,6 +38,7 @@ const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
 // --- HELPER FUNCTIONS ---
 function getInitials(name: string) {
+    if (!name) return 'U';
     const names = name.split(' ');
     if (names.length > 1) {
         return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
@@ -148,17 +149,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   useEffect(() => {
     if (localUserProfile && localUserProfile.paymentStatus !== 'paid' && localUserProfile.createdAt) {
-        let creationDate: Date;
+        let creationDate: Date | undefined;
         // Firestore timestamp can be an object, handle it
         if (typeof localUserProfile.createdAt === 'string') {
             creationDate = parseISO(localUserProfile.createdAt);
         } else if (localUserProfile.createdAt && typeof (localUserProfile.createdAt as any).toDate === 'function') {
             creationDate = (localUserProfile.createdAt as any).toDate();
-        } else {
-            creationDate = new Date(); // Fallback
         }
 
-        if (isValid(creationDate)) {
+        if (creationDate && isValid(creationDate)) {
             const endDate = addMonths(creationDate, 1);
             const remaining = differenceInDays(endDate, new Date());
             setTrialDaysRemaining(Math.max(0, remaining));
@@ -166,6 +165,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             if (isAfter(new Date(), endDate)) {
                 setIsTrialExpired(true);
             }
+        } else {
+            setTrialDaysRemaining(0);
+            setIsTrialExpired(true);
         }
     } else if (localUserProfile && localUserProfile.paymentStatus === 'paid') {
       setTrialDaysRemaining(null);
@@ -366,7 +368,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   };
   
     const handleDownload = async () => {
-        if (!voucherRef.current || !user) return;
+        if (!voucherRef.current || !user || !periodSummary) return;
         setIsDownloading(true);
 
         try {
@@ -412,6 +414,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     if (!company && !companyLoading) {
       return (
           <div className="flex flex-col items-center justify-center h-screen text-center p-4">
+              <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
               <h2 className="text-2xl font-bold mb-2">Empresa no encontrada</h2>
               <p className="text-lg text-muted-foreground mb-6">La empresa que seleccionaste ya no está disponible. Por favor, vuelve y elige otra.</p>
               <Button onClick={handleChangeCompany}>
