@@ -29,7 +29,7 @@ export default function SelectCompanyPage() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const companiesRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies') : null, [firestore]);
+  const companiesRef = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'companies') : null, [firestore, user]);
   const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
 
 
