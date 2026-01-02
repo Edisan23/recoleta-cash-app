@@ -42,27 +42,6 @@ export default function AdminLoginPage() {
     }
   }, [user, isUserLoading, userProfile, isProfileLoading, router, isMounted]);
 
-  const handleFirstAdminLogin = async (loggedInUser: User) => {
-      if (!firestore) return;
-      const userDocRef = doc(firestore, 'users', loggedInUser.uid);
-      const userProfile: Omit<UserProfile, 'id'> = {
-          uid: loggedInUser.uid,
-          displayName: loggedInUser.displayName || 'Admin',
-          photoURL: loggedInUser.photoURL || '',
-          email: loggedInUser.email || '',
-          isAnonymous: loggedInUser.isAnonymous,
-          createdAt: new Date().toISOString(),
-          paymentStatus: 'paid', // Admins are always considered 'paid'
-          role: 'admin',
-      };
-      await setDoc(userDocRef, userProfile);
-      toast({
-          title: '¡Administrador Registrado!',
-          description: 'Te has convertido en el administrador principal.',
-      });
-      router.push('/admin');
-  };
-
   const handleGoogleSignIn = async () => {
     if (!auth || !firestore) return;
     setIsSubmitting(true);
@@ -71,32 +50,33 @@ export default function AdminLoginPage() {
     try {
       const userCredential = await signInWithPopup(auth, provider);
       const loggedInUser = userCredential.user;
-
       const userDocRef = doc(firestore, 'users', loggedInUser.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      
-      if (userDocSnap.exists()) {
-        const profile = userDocSnap.data() as UserProfile;
-        if (profile.role === 'admin') {
-           toast({
-            title: '¡Bienvenido de nuevo!',
-            description: 'Has iniciado sesión correctamente.',
-          });
-          router.push('/admin');
-        } else {
-          // This user exists but is not an admin
-          await auth.signOut();
-          toast({
-            variant: 'destructive',
-            title: 'Acceso Denegado',
-            description: 'Esta cuenta no tiene permisos de administrador.',
-          });
-        }
-      } else {
-        // This is a new user login. We need to check if they should be the first admin.
-        // For this app, we'll assume the first person to log into this page becomes the admin.
-        await handleFirstAdminLogin(loggedInUser);
+
+      // Simplified logic: Always ensure the user logging in via this page is an admin.
+      // This creates or updates the user profile with the admin role.
+      const userProfilePayload: Omit<UserProfile, 'id' | 'createdAt'> & { createdAt?: string } = {
+          uid: loggedInUser.uid,
+          displayName: loggedInUser.displayName || 'Admin',
+          photoURL: loggedInUser.photoURL || '',
+          email: loggedInUser.email || '',
+          isAnonymous: loggedInUser.isAnonymous,
+          paymentStatus: 'paid', // Admins are always considered 'paid'
+          role: 'admin',
+      };
+
+      // Check if document exists to preserve original creation date
+      const docSnap = await getDoc(userDocRef);
+      if (!docSnap.exists()) {
+          userProfilePayload.createdAt = new Date().toISOString();
       }
+
+      await setDoc(userDocRef, userProfilePayload, { merge: true });
+      
+      toast({
+        title: '¡Bienvenido Administrador!',
+        description: 'Has iniciado sesión correctamente.',
+      });
+      router.push('/admin');
 
     } catch (error: any) {
        if (error.code !== 'auth/popup-closed-by-user') {
@@ -130,7 +110,7 @@ export default function AdminLoginPage() {
               Acceso de Administrador
             </CardTitle>
             <CardDescription>
-              La primera cuenta en iniciar sesión se convertirá en el administrador.
+              Usa tu cuenta de Google para gestionar la aplicación.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
