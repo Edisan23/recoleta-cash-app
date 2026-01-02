@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { Playfair_Display, PT_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
+import { Toaster } from "@/components/ui/toaster";
+import { FirebaseClientProvider } from "@/firebase";
+import { ThemeProvider } from "@/components/theme-provider";
+
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -14,8 +18,9 @@ const ptSans = PT_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Recoleta Cash",
+  title: "Turno Pro",
   description: "Gestiona y visualiza tus cobros de forma sencilla.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -24,7 +29,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased",
@@ -32,7 +37,17 @@ export default function RootLayout({
           ptSans.variable
         )}
       >
-        {children}
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+        >
+          <FirebaseClientProvider>
+            {children}
+            <Toaster />
+          </FirebaseClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
