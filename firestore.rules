@@ -17,18 +17,18 @@ service cloud.firestore {
       return isSignedIn();
     }
 
-    // In a real app, this should check a custom claim (e.g., request.auth.token.admin == true)
-    // set by a Cloud Function after the first user logs in.
-    // For this example, we'll trust the client-side check that ensures only the designated admin can access admin pages.
-    // Therefore, any write operation assumed to be from an admin is allowed if the user is signed in.
     function isAdmin() {
-      return isSignedIn();
+      // Admin check is based on a 'role' field in the user's profile.
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     match /users/{userId} {
       // Admins can read any user profile, users can only read/write their own.
       allow read, update, delete: if isOwner(userId) || isAdmin();
+      // Any signed-in user can create their own profile.
       allow create: if isSignedIn();
+      // Allow admins to list all users for the admin dashboard.
+      allow list: if isAdmin();
     }
 
     match /companies/{companyId} {
