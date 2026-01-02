@@ -1,50 +1,40 @@
-// IMPORTANT: This file should only be imported by server-side code (e.g., API routes).
+// IMPORTANT: This file should only be imported by server-side code.
 // It uses the Firebase Admin SDK.
-
-import { initializeApp, getApps, getApp, App } from 'firebase-admin/app';
+import { initializeApp, getApps, getApp, App, credential } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import { ServiceAccount, credential } from 'firebase-admin';
-
-function getServiceAccount(): ServiceAccount | undefined {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!serviceAccount) {
-    // Return undefined if the service account is not set.
-    // This allows initialization to proceed with Application Default Credentials.
-    return undefined;
-  }
-  try {
-    return JSON.parse(serviceAccount);
-  } catch (e) {
-    console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT JSON", e);
-    return undefined;
-  }
-}
+import { ServiceAccount } from 'firebase-admin';
 
 let adminApp: App;
 let firestore: Firestore;
 
-if (!getApps().length) {
-  const serviceAccount = getServiceAccount();
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+// This function ensures that the admin app is initialized only once.
+function initializeAdminApp() {
+  if (getApps().some(app => app.name === 'admin')) {
+    return getApp('admin');
+  }
 
-  const appOptions = serviceAccount 
-    ? { credential: credential.cert(serviceAccount), projectId }
-    : { projectId };
+  const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!serviceAccountEnv) {
+    // In a production environment (like App Hosting), rely on Application Default Credentials
+    if (process.env.NODE_ENV === 'production') {
+        return initializeApp({ projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID }, 'admin');
+    }
+    throw new Error("FIREBASE_SERVICE_ACCOUNT environment variable is not set. This is required for local server-side development.");
+  }
 
   try {
-    adminApp = initializeApp(appOptions);
-    console.log(`Firebase Admin SDK initialized (using ${serviceAccount ? 'Service Account' : 'Default Credentials'}).`);
-  } catch (e: any) {
-    console.error("CRITICAL: Firebase Admin SDK initialization failed.", e);
-    throw new Error("Could not initialize Firebase Admin SDK. Check your environment variables (FIREBASE_SERVICE_ACCOUNT or Google Application Credentials).");
+    const serviceAccount: ServiceAccount = JSON.parse(serviceAccountEnv);
+    return initializeApp({
+      credential: credential.cert(serviceAccount),
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    }, 'admin');
+  } catch (e) {
+    console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT JSON", e);
+    throw new Error("Could not initialize Firebase Admin SDK. The FIREBASE_SERVICE_ACCOUNT environment variable is malformed.");
   }
-} else {
-  adminApp = getApp();
-  console.log("Using existing Firebase Admin App instance.");
 }
 
+adminApp = initializeAdminApp();
 firestore = getFirestore(adminApp);
 
-export function initializeFirebase() {
-  return { adminApp, firestore };
-}
+export { adminApp, firestore };
