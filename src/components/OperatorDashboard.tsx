@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Trash2, Download, Repeat, CreditCard } from 'lucide-react';
+import { LogOut, Trash2, Download, Repeat } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem, DailyShiftEntry } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -23,12 +23,11 @@ import { PayrollVoucher } from './operator/PayrollVoucher';
 import { useReactToPrint } from 'react-to-print';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
-import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { addMonths, format, isValid, parseISO, isAfter, differenceInDays } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import Link from 'next/link';
-import { ArrowLeft, PlusCircle, AlertCircle, Lock } from 'lucide-react';
+import { ArrowLeft, PlusCircle, AlertCircle } from 'lucide-react';
 
 
 // --- FAKE DATA & KEYS ---
@@ -72,8 +71,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // Calculated Summaries
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
-  const [trialDaysRemaining, setTrialDaysRemaining] = useState<number | null>(null);
-  const [isTrialExpired, setIsTrialExpired] = useState(false);
   const [localUserProfile, setLocalUserProfile] = useState<UserProfile | null>(null);
 
 
@@ -126,7 +123,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     email: user.email || '',
                     isAnonymous: user.isAnonymous,
                     createdAt: creationTime,
-                    paymentStatus: 'trial', // default value
                     role: 'operator',
                 };
                 writeBatch(firestore).set(profileRef, newUserProfile).commit().catch(err => {
@@ -145,32 +141,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           }
       }
   }, [user, userProfile, userProfileLoading, firestore]);
-
-  useEffect(() => {
-    if (localUserProfile && localUserProfile.paymentStatus !== 'paid' && localUserProfile.createdAt) {
-        let creationDate: Date | undefined;
-        // Firestore timestamp can be an object, handle it
-        if (typeof localUserProfile.createdAt === 'string') {
-            creationDate = parseISO(localUserProfile.createdAt);
-        }
-
-        if (creationDate && isValid(creationDate)) {
-            const endDate = addMonths(creationDate, 1);
-            const remaining = differenceInDays(endDate, new Date());
-            setTrialDaysRemaining(Math.max(0, remaining));
-            
-            if (isAfter(new Date(), endDate)) {
-                setIsTrialExpired(true);
-            }
-        } else {
-            setTrialDaysRemaining(0);
-            setIsTrialExpired(true);
-        }
-    } else if (localUserProfile && localUserProfile.paymentStatus === 'paid') {
-      setTrialDaysRemaining(null);
-      setIsTrialExpired(false);
-    }
-  }, [localUserProfile]);
 
   // Effect to update inputs when date changes or shifts are updated
   useEffect(() => {
@@ -398,29 +368,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           </div>
       )
     }
-
-    if (isTrialExpired) {
-        return (
-             <div className="flex flex-col items-center justify-center h-screen bg-background text-center p-4">
-                <div className="mb-4">
-                    <Lock className="h-16 w-16 text-destructive mx-auto" />
-                </div>
-                <h1 className="text-3xl font-bold mb-2">Período de Prueba Finalizado</h1>
-                <p className="text-xl text-muted-foreground max-w-md mb-8">
-                    Tu acceso a la aplicación ha sido suspendido. Activa tu cuenta para continuar.
-                </p>
-                 <Button asChild size="lg">
-                    <Link href={`/payment?userId=${user.uid}&companyId=${companyId}`}>
-                        <CreditCard className="mr-2" />
-                        Activar Cuenta Premium
-                    </Link>
-                </Button>
-                <Button onClick={handleSignOut} variant="link" className="mt-4">
-                    Cerrar Sesión
-                </Button>
-            </div>
-        )
-    }
   
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
@@ -442,23 +389,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
-          {localUserProfile && localUserProfile.paymentStatus !== 'paid' && trialDaysRemaining !== null && (
-             <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Período de Prueba Activo</AlertTitle>
-                <div className='flex justify-between items-center'>
-                    <AlertDescription>
-                       Te quedan <strong>{trialDaysRemaining} días</strong> de prueba.
-                    </AlertDescription>
-                    <Button asChild size="sm">
-                        <Link href={`/payment?userId=${user.uid}&companyId=${companyId}`}>
-                            <CreditCard className="mr-2 h-4 w-4" />
-                            Activar Cuenta Premium
-                        </Link>
-                    </Button>
-                </div>
-            </Alert>
-          )}
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12 sm:h-16 sm:w-16">

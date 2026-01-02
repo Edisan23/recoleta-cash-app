@@ -3,16 +3,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { UserProfile, Shift, Company } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Star, User, UserCheck, Briefcase } from 'lucide-react';
+import { Users, User, Briefcase } from 'lucide-react';
 import { LogoSpinner } from '../LogoSpinner';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 
 interface Stats {
     totalOperators: number;
-    premiumCount: number;
     anonymousCount: number;
-    trialCount: number;
+    googleCount: number;
     operatorsByCompany: Record<string, number>;
 }
 
@@ -64,9 +63,8 @@ export function OperatorStats() {
 
             setStats({
                 totalOperators: profiles.length,
-                premiumCount: profiles.filter(p => p.paymentStatus === 'paid').length,
                 anonymousCount: profiles.filter(p => p.isAnonymous).length,
-                trialCount: profiles.filter(p => p.paymentStatus === 'trial').length,
+                googleCount: profiles.filter(p => !p.isAnonymous).length,
                 operatorsByCompany: finalOperatorsByCompany,
             });
 
@@ -98,7 +96,7 @@ export function OperatorStats() {
                 <CardTitle>Estadísticas de Operadores</CardTitle>
                 <CardDescription>Un resumen de tu base de usuarios.</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="p-4 bg-muted rounded-lg flex items-start gap-4">
                     <div className="bg-primary/10 text-primary p-3 rounded-full">
                         <Users className="h-6 w-6" />
@@ -110,20 +108,25 @@ export function OperatorStats() {
                 </div>
                  <div className="p-4 bg-muted rounded-lg flex items-start gap-4">
                     <div className="bg-green-500/10 text-green-600 p-3 rounded-full">
-                        <UserCheck className="h-6 w-6" />
+                        <svg
+                          className="h-6 w-6"
+                          aria-hidden="true"
+                          focusable="false"
+                          data-prefix="fab"
+                          data-icon="google"
+                          role="img"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 488 512"
+                        >
+                          <path
+                            fill="currentColor"
+                            d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 61.9l-69.5 69.5c-24.3-23.6-58.3-38.3-99.8-38.3-87.3 0-157.8 70.5-157.8 157.8s70.5 157.8 157.8 157.8c105.8 0 138.8-78.4 142.8-108.3H248v-85.3h236.1c2.3 12.7 3.9 26.9 3.9 41.4z"
+                          ></path>
+                        </svg>
                     </div>
                     <div>
-                        <p className="text-2xl font-bold">{stats.premiumCount}</p>
-                        <p className="text-sm text-muted-foreground">Cuentas Premium</p>
-                    </div>
-                </div>
-                 <div className="p-4 bg-muted rounded-lg flex items-start gap-4">
-                    <div className="bg-yellow-500/10 text-yellow-600 p-3 rounded-full">
-                        <Star className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <p className="text-2xl font-bold">{stats.trialCount}</p>
-                        <p className="text-sm text-muted-foreground">Usuarios en Prueba</p>
+                        <p className="text-2xl font-bold">{stats.googleCount}</p>
+                        <p className="text-sm text-muted-foreground">Cuentas Google</p>
                     </div>
                 </div>
                 <div className="p-4 bg-muted rounded-lg flex items-start gap-4">
@@ -137,7 +140,7 @@ export function OperatorStats() {
                 </div>
 
                 {Object.keys(stats.operatorsByCompany).length > 0 && (
-                    <div className="col-span-2 md:col-span-4 p-4 border rounded-lg mt-4">
+                    <div className="col-span-2 md:col-span-3 p-4 border rounded-lg mt-4">
                         <h4 className="font-semibold mb-2 flex items-center gap-2"><Briefcase className="h-5 w-5" /> Operadores por Empresa</h4>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                             {Object.entries(stats.operatorsByCompany).map(([companyName, count]) => (

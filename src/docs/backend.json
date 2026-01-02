@@ -33,14 +33,9 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the user account was created."
-        },
-        "paymentStatus": {
-          "type": "string",
-          "description": "The payment status of the user's account.",
-          "enum": ["trial", "paid", "blocked"]
         }
       },
-      "required": ["id", "name", "email", "role", "createdAt", "paymentStatus"]
+      "required": ["id", "name", "email", "role", "createdAt"]
     },
     "Company": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -103,9 +98,7 @@
         "holidayDayRate": { "type": "number" },
         "holidayNightRate": { "type": "number" },
         "holidayDayOvertimeRate": { "type": "number" },
-        "holidayNightOvertimeRate": { "type": "number" },
-        "activationFee": { "type": "number" },
-        "annualFee": { "type": "number" }
+        "holidayNightOvertimeRate": { "type": "number" }
       }
     },
     "Benefit": {

@@ -60,7 +60,6 @@ export default function AdminLoginPage() {
           photoURL: loggedInUser.photoURL || '',
           email: loggedInUser.email || '',
           isAnonymous: loggedInUser.isAnonymous,
-          paymentStatus: 'paid', // Admins are always considered 'paid'
           role: 'admin',
       };
 

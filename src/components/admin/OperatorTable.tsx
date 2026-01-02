@@ -5,7 +5,7 @@ import type { UserProfile, Shift, Company } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { Users, MoreHorizontal, UserCheck, UserX, Star, Building, Search, Trash2 } from 'lucide-react';
+import { Users, MoreHorizontal, Building, Search, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -27,24 +27,11 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-    DropdownMenuSub,
-    DropdownMenuSubTrigger,
-    DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 import { LogoSpinner } from '../LogoSpinner';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { DeleteUserDialog } from './DeleteUserDialog';
-
-type StatusVariant = "default" | "secondary" | "destructive" | "outline";
-
-const statusMap: Record<UserProfile['paymentStatus'], { label: string; variant: StatusVariant; icon: React.ReactNode }> = {
-    trial: { label: 'Prueba', variant: 'outline', icon: <Star className="mr-2 h-3 w-3" /> },
-    free: { label: 'Gratis', variant: 'secondary', icon: <Star className="mr-2 h-3 w-3" /> },
-    paid: { label: 'Premium', variant: 'default', icon: <UserCheck className="mr-2 h-3 w-3" /> },
-    blocked: { label: 'Bloqueado', variant: 'destructive', icon: <UserX className="mr-2 h-3 w-3" /> },
-};
-
 
 export function OperatorTable() {
     const firestore = useFirestore();
@@ -102,29 +89,6 @@ export function OperatorTable() {
             (op.email && op.email.toLowerCase().includes(searchQuery.toLowerCase()))
         );
     }, [operators, searchQuery]);
-
-    const handleStatusChange = async (userId: string, newStatus: UserProfile['paymentStatus']) => {
-        if (!firestore) return;
-        const userDocRef = doc(firestore, 'users', userId);
-        try {
-            await updateDoc(userDocRef, { paymentStatus: newStatus });
-            
-            setOperators(prevOperators => {
-                if (!prevOperators) return null;
-                return prevOperators.map(op => 
-                    op.id === userId ? { ...op, paymentStatus: newStatus } : op
-                );
-            });
-
-            toast({
-                title: "Estado actualizado",
-                description: `El estado del operador ha sido cambiado a ${statusMap[newStatus].label}.`
-            });
-        } catch (error) {
-            console.error("Error updating user status:", error);
-            toast({ title: "Error", description: "No se pudo actualizar el estado.", variant: "destructive" });
-        }
-    };
     
     const handleDeleteUser = async (userId: string, userName: string) => {
         if (!firestore) return;
@@ -154,7 +118,7 @@ export function OperatorTable() {
                             Operadores Registrados
                         </CardTitle>
                         <CardDescription>
-                            Lista de operadores suscritos, su estado y empresa.
+                            Lista de operadores suscritos y su empresa.
                         </CardDescription>
                     </div>
                      <div className="relative w-full sm:max-w-xs">
@@ -176,7 +140,6 @@ export function OperatorTable() {
                                 <TableHead>Operador</TableHead>
                                 <TableHead>Empresa (Último Turno)</TableHead>
                                 <TableHead>Tipo de Cuenta</TableHead>
-                                <TableHead>Estado de Pago</TableHead>
                                 <TableHead>Registrado</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
@@ -184,13 +147,12 @@ export function OperatorTable() {
                         <TableBody>
                             {isLoading ? (
                                 <TableRow key="loading-row">
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={5} className="h-24 text-center">
                                         <LogoSpinner />
                                     </TableCell>
                                 </TableRow>
                             ) : filteredOperators.length > 0 ? (
                                 filteredOperators.map((op) => {
-                                    const statusInfo = statusMap[op.paymentStatus] || statusMap.blocked;
                                     const companyName = companyMap[op.uid] || 'No disponible';
                                     
                                     const createdAtDate = op.createdAt ? parseISO(op.createdAt) : null;
@@ -220,12 +182,6 @@ export function OperatorTable() {
                                                     {op.isAnonymous ? "Anónimo" : "Google"}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>
-                                                <Badge variant={statusInfo.variant} className="flex items-center w-fit">
-                                                    {statusInfo.icon}
-                                                    {statusInfo.label}
-                                                </Badge>
-                                            </TableCell>
                                             <TableCell className="text-muted-foreground">
                                                 {createdAtDate && isValid(createdAtDate) ? format(createdAtDate, 'dd MMM, yyyy', { locale: es }) : 'Fecha no disponible'}
                                             </TableCell>
@@ -239,19 +195,6 @@ export function OperatorTable() {
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
-                                                        <DropdownMenuSeparator />
-                                                        <DropdownMenuSub>
-                                                            <DropdownMenuSubTrigger>Cambiar Estado</DropdownMenuSubTrigger>
-                                                            <DropdownMenuSubContent>
-                                                                <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'paid')}>Marcar como Premium</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'free')}>Marcar como Gratis</DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'trial')}>Restablecer a Prueba</DropdownMenuItem>
-                                                            </DropdownMenuSubContent>
-                                                        </DropdownMenuSub>
-                                                        <DropdownMenuItem onClick={() => handleStatusChange(op.id, 'blocked')}>
-                                                          <UserX className="mr-2 h-4 w-4" />
-                                                          Bloquear Usuario
-                                                        </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
                                                         <DeleteUserDialog
                                                             userName={op.displayName}
@@ -273,7 +216,7 @@ export function OperatorTable() {
                                 })
                             ) : (
                                 <TableRow key="no-results-row">
-                                    <TableCell colSpan={6} className="h-24 text-center">
+                                    <TableCell colSpan={5} className="h-24 text-center">
                                         No se encontraron operadores.
                                     </TableCell>
                                 </TableRow>

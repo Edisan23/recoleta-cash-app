@@ -1,3 +1,4 @@
+npm install genkit @genkit-ai/google-genai
 # Recoleta Cash App
 
 This is a Next.js application bootstrapped with `create-next-app` and customized for the Recoleta Cash project in Firebase Studio.

@@ -7,7 +7,6 @@ export type User = {
     role: "operator" | "admin"; // The user's role within the application (e.g., operator, admin).
     companyId?: string; // The ID of the company the user belongs to.
     createdAt: string; // The timestamp when the user account was created.
-    paymentStatus: "trial" | "paid" | "blocked"; // The payment status of the user's account.
   };
 
   export type UserProfile = {
@@ -19,7 +18,6 @@ export type User = {
     isAnonymous: boolean;
     role: "operator" | "admin";
     createdAt: string; // Simplified to string to avoid build issues.
-    paymentStatus: "trial" | "free" | "paid" | "blocked";
   }
   
   export type Company = {
@@ -44,8 +42,6 @@ export type User = {
     holidayNightRate?: number;
     holidayDayOvertimeRate?: number;
     holidayNightOvertimeRate?: number;
-    activationFee?: number;
-    annualFee?: number;
   };
 
   export type Benefit = {
