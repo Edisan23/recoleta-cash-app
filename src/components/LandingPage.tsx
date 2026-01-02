@@ -9,7 +9,7 @@ export function LandingPage() {
   return (
     <div className="relative flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
       
-      <div className="absolute top-6 right-6">
+      <div className="absolute top-6 right-6 z-10">
         <ThemeToggle />
       </div>
 
