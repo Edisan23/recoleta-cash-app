@@ -75,8 +75,21 @@ export function OperatorTable() {
         if (!operators) return [];
 
         const sortedOperators = [...operators].sort((a, b) => {
-                const dateA = a.createdAt ? parseISO(a.createdAt) : new Date(0);
-                const dateB = b.createdAt ? parseISO(b.createdAt) : new Date(0);
+                const getDate = (profile: UserProfile): Date => {
+                    if (!profile.createdAt) return new Date(0);
+                    // Firestore Timestamps can be objects with toDate(), or ISO strings
+                    if (typeof profile.createdAt === 'string') {
+                        return parseISO(profile.createdAt);
+                    }
+                    if (typeof (profile.createdAt as any).toDate === 'function') {
+                        return (profile.createdAt as any).toDate();
+                    }
+                    return new Date(0);
+                }
+
+                const dateA = getDate(a);
+                const dateB = getDate(b);
+                
                 if(!isValid(dateA) || !isValid(dateB)) return 0;
                 return dateB.getTime() - dateA.getTime();
             });
@@ -155,7 +168,18 @@ export function OperatorTable() {
                                 filteredOperators.map((op) => {
                                     const companyName = companyMap[op.uid] || 'No disponible';
                                     
-                                    const createdAtDate = op.createdAt ? parseISO(op.createdAt) : null;
+                                    const getCreatedAtDate = (profile: UserProfile): Date | null => {
+                                        if (!profile.createdAt) return null;
+                                        if (typeof profile.createdAt === 'string') {
+                                            const parsed = parseISO(profile.createdAt);
+                                            return isValid(parsed) ? parsed : null;
+                                        }
+                                        if (typeof (profile.createdAt as any).toDate === 'function') {
+                                            return (profile.createdAt as any).toDate();
+                                        }
+                                        return null;
+                                    }
+                                    const createdAtDate = getCreatedAtDate(op);
 
                                     return (
                                         <TableRow key={op.id}>
