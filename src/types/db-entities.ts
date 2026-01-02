@@ -1,6 +1,3 @@
-'use client';
-
-
 // This file is auto-generated, do not edit.
 
 export type User = {
