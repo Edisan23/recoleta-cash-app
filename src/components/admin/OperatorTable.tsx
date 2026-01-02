@@ -18,7 +18,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format, isValid } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
     DropdownMenu,
@@ -88,10 +88,10 @@ export function OperatorTable() {
         if (!operators) return [];
 
         const sortedOperators = [...operators].sort((a, b) => {
-                const dateAValue = a.createdAt ? (typeof a.createdAt === 'string' ? new Date(a.createdAt) : a.createdAt.toDate()).getTime() : 0;
-                const dateBValue = b.createdAt ? (typeof b.createdAt === 'string' ? new Date(b.createdAt) : b.createdAt.toDate()).getTime() : 0;
-                if(!dateAValue || !dateBValue) return 0;
-                return dateBValue - dateAValue;
+                const dateA = a.createdAt ? parseISO(a.createdAt) : new Date(0);
+                const dateB = b.createdAt ? parseISO(b.createdAt) : new Date(0);
+                if(!isValid(dateA) || !isValid(dateB)) return 0;
+                return dateB.getTime() - dateA.getTime();
             });
 
         if (!searchQuery) {
@@ -193,15 +193,7 @@ export function OperatorTable() {
                                     const statusInfo = statusMap[op.paymentStatus] || statusMap.blocked;
                                     const companyName = companyMap[op.uid] || 'No disponible';
                                     
-                                    let createdAtDate: Date | null = null;
-                                    if (op.createdAt) {
-                                       const dateSource = op.createdAt;
-                                       if (typeof dateSource === 'string') {
-                                           createdAtDate = new Date(dateSource);
-                                       } else if (dateSource && typeof (dateSource as any).toDate === 'function') {
-                                           createdAtDate = (dateSource as any).toDate();
-                                       }
-                                    }
+                                    const createdAtDate = op.createdAt ? parseISO(op.createdAt) : null;
 
                                     return (
                                         <TableRow key={op.id}>

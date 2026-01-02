@@ -23,7 +23,7 @@ import { PayrollVoucher } from './operator/PayrollVoucher';
 import { useReactToPrint } from 'react-to-print';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
-import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { addMonths, format, isValid, parseISO, isAfter, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -115,33 +115,34 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // Effect to save/update user profile in firestore for subscription management
   useEffect(() => {
       if (user && !userProfileLoading && firestore) {
+          const profileRef = doc(firestore, "users", user.uid);
+          
           if (!userProfile) { // If profile doesn't exist, create it.
-                setLocalUserProfile(prev => {
-                    if (prev?.uid === user.uid) return prev; // Avoid re-creating on re-renders
-                    
-                    const profileRef = doc(firestore, "users", user.uid);
-                    const creationTime = new Date().toISOString();
-                    const newUserProfile: Omit<UserProfile, 'id'> = {
-                        uid: user.uid,
-                        displayName: user.displayName || 'Operador Anónimo',
-                        photoURL: user.photoURL || '',
-                        email: user.email || '',
-                        isAnonymous: user.isAnonymous,
-                        createdAt: creationTime,
-                        paymentStatus: 'trial', // default value
-                        role: 'operator',
-                    };
-                    writeBatch(firestore).set(profileRef, newUserProfile).commit().catch(err => {
-                        console.error("Error saving user profile:", err);
-                    });
-
-                    return { ...newUserProfile, id: user.uid, createdAt: new Date().toISOString() };
+                const creationTime = new Date().toISOString();
+                const newUserProfile: Omit<UserProfile, 'id'> = {
+                    uid: user.uid,
+                    displayName: user.displayName || 'Operador Anónimo',
+                    photoURL: user.photoURL || '',
+                    email: user.email || '',
+                    isAnonymous: user.isAnonymous,
+                    createdAt: creationTime,
+                    paymentStatus: 'trial', // default value
+                    role: 'operator',
+                };
+                writeBatch(firestore).set(profileRef, newUserProfile).commit().catch(err => {
+                    console.error("Error saving user profile:", err);
                 });
+                setLocalUserProfile({ ...newUserProfile, id: user.uid });
           } else {
-             setLocalUserProfile(userProfile);
+             // To ensure the local state has the correct ISO string format from the start
+             const profileWithISOStringDate = {
+                 ...userProfile,
+                 createdAt: (userProfile.createdAt && typeof (userProfile.createdAt as any).toDate === 'function')
+                    ? (userProfile.createdAt as any).toDate().toISOString()
+                    : userProfile.createdAt
+             }
+             setLocalUserProfile(profileWithISOStringDate);
           }
-      } else if (userProfile) {
-          setLocalUserProfile(userProfile);
       }
   }, [user, userProfile, userProfileLoading, firestore]);
 
@@ -151,8 +152,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         // Firestore timestamp can be an object, handle it
         if (typeof localUserProfile.createdAt === 'string') {
             creationDate = parseISO(localUserProfile.createdAt);
-        } else if (localUserProfile.createdAt && typeof (localUserProfile.createdAt as any).toDate === 'function') {
-            creationDate = (localUserProfile.createdAt as any).toDate();
         }
 
         if (creationDate && isValid(creationDate)) {

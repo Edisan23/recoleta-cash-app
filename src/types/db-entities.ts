@@ -18,7 +18,7 @@ export type User = {
     email: string;
     isAnonymous: boolean;
     role: "operator" | "admin";
-    createdAt: string | { toDate: () => Date }; // Can be string or Firestore Timestamp
+    createdAt: string; // Simplified to string to avoid build issues.
     paymentStatus: "trial" | "free" | "paid" | "blocked";
   }
   
