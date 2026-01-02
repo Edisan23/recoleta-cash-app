@@ -32,13 +32,18 @@ import { LogoSpinner } from '../LogoSpinner';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
 import { DeleteUserDialog } from './DeleteUserDialog';
+import { User } from 'firebase/auth';
 
-export function OperatorTable() {
+interface OperatorTableProps {
+    user: User | null;
+}
+
+export function OperatorTable({ user }: OperatorTableProps) {
     const firestore = useFirestore();
     const [searchQuery, setSearchQuery] = useState('');
     const { toast } = useToast();
 
-    const profilesRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+    const profilesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'users') : null, [firestore, user]);
     const { data: initialOperators, isLoading: profilesLoading, error: profilesError } = useCollection<UserProfile>(profilesRef);
     
     const [operators, setOperators] = useState<UserProfile[] | null>(null);
@@ -49,7 +54,7 @@ export function OperatorTable() {
         }
     }, [initialOperators]);
 
-    const companiesRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies') : null, [firestore]);
+    const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
     const { data: companies, isLoading: companiesLoading, error: companiesError } = useCollection<Company>(companiesRef);
 
     // This is inefficient. For a large app, this should be a denormalized field on the user profile.
@@ -79,7 +84,8 @@ export function OperatorTable() {
                     if (!profile.createdAt) return new Date(0);
                     // Firestore Timestamps can be objects with toDate(), or ISO strings
                     if (typeof profile.createdAt === 'string') {
-                        return parseISO(profile.createdAt);
+                        const parsed = parseISO(profile.createdAt);
+                        return isValid(parsed) ? parsed : new Date(0);
                     }
                     if (typeof (profile.createdAt as any).toDate === 'function') {
                         return (profile.createdAt as any).toDate();

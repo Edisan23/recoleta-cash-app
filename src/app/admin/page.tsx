@@ -121,7 +121,7 @@ export default function AdminDashboardPage() {
         <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} />
         <Separator />
         <OperatorStats />
-        <OperatorTable />
+        <OperatorTable user={user} />
       </main>
     </div>
   );
