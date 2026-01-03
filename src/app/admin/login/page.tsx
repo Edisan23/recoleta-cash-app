@@ -10,8 +10,10 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useAuth, useUser } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { LogoSpinner } from '@/components/LogoSpinner';
@@ -23,11 +25,12 @@ const ADMIN_EMAIL = 'tjedisan@gmail.com';
 export default function AdminLoginPage() {
   const router = useRouter();
   const auth = useAuth();
-  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     setIsMounted(true);
@@ -51,59 +54,46 @@ export default function AdminLoginPage() {
   }, [user, isUserLoading, router, isMounted, auth]);
 
 
-  const handleGoogleSignIn = async () => {
-    if (!auth || !firestore) return;
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth) return;
+    if (!email || !password) {
+      toast({
+        variant: 'destructive',
+        title: 'Campos incompletos',
+        description: 'Por favor, ingresa correo y contraseña.',
+      });
+      return;
+    }
     setIsSubmitting(true);
-    const provider = new GoogleAuthProvider();
     
     try {
-      const userCredential = await signInWithPopup(auth, provider);
-      const loggedInUser = userCredential.user;
-
-      if (loggedInUser.email === ADMIN_EMAIL) {
-        
-        // Check if user profile exists, if not, create it with admin role.
-        const userDocRef = doc(firestore, 'users', loggedInUser.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (!userDoc.exists()) {
-            const creationTime = new Date().toISOString();
-            const newUserProfile: Omit<UserProfile, 'id'> = {
-                uid: loggedInUser.uid,
-                displayName: loggedInUser.displayName || 'Administrador',
-                photoURL: loggedInUser.photoURL || '',
-                email: loggedInUser.email || '',
-                isAnonymous: loggedInUser.isAnonymous,
-                createdAt: creationTime,
-                role: 'admin',
-            };
-            await setDoc(userDocRef, newUserProfile);
-        }
-
-        toast({
-          title: '¡Bienvenido Administrador!',
-          description: 'Has iniciado sesión correctamente.',
-        });
-        router.push('/admin');
-
-      } else {
-        await auth.signOut();
-        toast({
-          variant: 'destructive',
-          title: 'Acceso Denegado',
-          description: 'Esta cuenta no tiene permisos de administrador.',
-        });
+      if (email !== ADMIN_EMAIL) {
+        throw new Error('invalid-admin-email');
       }
 
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const loggedInUser = userCredential.user;
+
+      toast({
+        title: '¡Bienvenido Administrador!',
+        description: 'Has iniciado sesión correctamente.',
+      });
+      router.push('/admin');
+
     } catch (error: any) {
-       if (error.code !== 'auth/popup-closed-by-user') {
-          console.error('Admin login error:', error);
-          toast({
-            variant: 'destructive',
-            title: 'Error de Autenticación',
-            description: 'Ocurrió un error inesperado al intentar iniciar sesión.',
-          });
+       console.error('Admin login error:', error);
+       let title = 'Error de Autenticación';
+       let description = 'Ocurrió un error inesperado al intentar iniciar sesión.';
+       if (error.message === 'invalid-admin-email' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+          title = 'Acceso Denegado';
+          description = 'Esta cuenta no tiene permisos de administrador o la contraseña es incorrecta.';
        }
+        toast({
+          variant: 'destructive',
+          title: title,
+          description: description,
+        });
     } finally {
       setIsSubmitting(false);
     }
@@ -125,34 +115,43 @@ export default function AdminLoginPage() {
               Acceso de Administrador
             </CardTitle>
             <CardDescription>
-              Usa tu cuenta de Google para gestionar la aplicación.
+              Ingresa tus credenciales para gestionar la aplicación.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-             <Button
+          <CardContent>
+            <form onSubmit={handleEmailSignIn} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Correo Electrónico</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="admin@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Contraseña</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
+              <Button
+                type="submit"
                 className="w-full"
-                variant="outline"
-                onClick={handleGoogleSignIn}
                 disabled={isSubmitting || !auth}
               >
-                {isSubmitting ? <LogoSpinner className="mr-2" /> : 
-                <svg
-                  className="mr-2 h-4 w-4"
-                  aria-hidden="true"
-                  focusable="false"
-                  data-prefix="fab"
-                  data-icon="google"
-                  role="img"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 488 512"
-                >
-                  <path
-                    fill="currentColor"
-                    d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 61.9l-69.5 69.5c-24.3-23.6-58.3-38.3-99.8-38.3-87.3 0-157.8 70.5-157.8 157.8s70.5 157.8 157.8 157.8c105.8 0 138.8-78.4 142.8-108.3H248v-85.3h236.1c2.3 12.7 3.9 26.9 3.9 41.4z"
-                  ></path>
-                </svg>}
-                Ingresar con Google
+                {isSubmitting ? <LogoSpinner className="mr-2" /> : null}
+                Ingresar
               </Button>
+            </form>
           </CardContent>
       </Card>
     </div>
