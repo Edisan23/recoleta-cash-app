@@ -32,9 +32,9 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]{2}"
-                maxLength={2}
+                maxLength={5} 
                 id={label.toLowerCase().replace(' ', '_')}
-                value={value.split(':')[0]} // Show only the hour part in the input
+                value={value} 
                 onChange={handleTimeChange}
                 className="w-full text-base py-6 font-semibold"
                 placeholder="HH"
