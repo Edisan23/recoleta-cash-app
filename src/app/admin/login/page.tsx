@@ -35,24 +35,18 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     if (!isMounted || isUserLoading || isProfileLoading) {
-      // Wait until everything is loaded and component is mounted.
       return;
     }
 
-    // If we have a user and their profile is loaded...
     if (user && userProfile) {
-      // Check for the role safely.
       if (userProfile.role === 'admin') {
         router.replace('/admin');
       } else {
-        // If the role is not 'admin', or not defined, they stay on the login page.
-        // This prevents redirection loops or errors if the profile is incomplete.
         if (!userProfile.role) {
             console.warn(`User ${user.uid} has a profile but no role defined.`);
         }
       }
     }
-    // If no user is logged in, or the profile is still loading, they also stay on the login page.
 
   }, [user, userProfile, isUserLoading, isProfileLoading, router, isMounted]);
 
@@ -67,19 +61,17 @@ export default function AdminLoginPage() {
       const loggedInUser = userCredential.user;
       const userDocRef = doc(firestore, 'users', loggedInUser.uid);
 
-      // This creates or updates the user profile with the admin role.
-      // This is a simplified logic for the purpose of this app.
-      const userProfilePayload: Omit<UserProfile, 'id' | 'createdAt'> & { createdAt?: string } = {
+      const docSnap = await getDoc(userDocRef);
+      
+      const userProfilePayload: Partial<UserProfile> = {
           uid: loggedInUser.uid,
-          displayName: loggedInUser.displayName || 'Admin',
+          displayName: loggedInUser.displayName || 'Admin User',
           photoURL: loggedInUser.photoURL || '',
           email: loggedInUser.email || '',
           isAnonymous: loggedInUser.isAnonymous,
           role: 'admin',
       };
 
-      // Check if document exists to preserve original creation date
-      const docSnap = await getDoc(userDocRef);
       if (!docSnap.exists()) {
           userProfilePayload.createdAt = new Date().toISOString();
       }
@@ -108,8 +100,7 @@ export default function AdminLoginPage() {
     }
   };
   
-  // Show a loading spinner while validating session, loading profile, or if we are about to redirect.
-  const shouldShowSpinner = isUserLoading || isProfileLoading || !isMounted || (user && userProfile && userProfile.role === 'admin');
+  const shouldShowSpinner = isUserLoading || isProfileLoading || !isMounted || (user && userProfile?.role === 'admin');
   if (shouldShowSpinner) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -118,8 +109,6 @@ export default function AdminLoginPage() {
     );
   }
 
-  // If the user is logged in but not an admin, they should stay here.
-  // If the user is not logged in, they should stay here.
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
       <Card className="w-full max-w-md">
