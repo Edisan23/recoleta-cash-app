@@ -37,7 +37,7 @@ export function DatePicker({ date, setDate, highlightedDays = [] }: DatePickerPr
         <Button
           variant={'outline'}
           className={cn(
-            'w-full sm:w-[320px] justify-start text-left font-semibold text-lg py-6',
+            'w-full sm:w-[320px] justify-start text-left font-semibold text-2xl py-6',
             !date && 'text-muted-foreground font-normal'
           )}
         >
