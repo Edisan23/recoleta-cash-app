@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,16 +10,20 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { LogoSpinner } from '@/components/LogoSpinner';
+import type { UserProfile } from '@/types/db-entities';
+
 
 const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,7 +52,7 @@ export default function AdminLoginPage() {
 
 
   const handleGoogleSignIn = async () => {
-    if (!auth) return;
+    if (!auth || !firestore) return;
     setIsSubmitting(true);
     const provider = new GoogleAuthProvider();
     
@@ -58,11 +61,31 @@ export default function AdminLoginPage() {
       const loggedInUser = userCredential.user;
 
       if (loggedInUser.email === ADMIN_EMAIL) {
+        
+        // Check if user profile exists, if not, create it with admin role.
+        const userDocRef = doc(firestore, 'users', loggedInUser.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (!userDoc.exists()) {
+            const creationTime = new Date().toISOString();
+            const newUserProfile: Omit<UserProfile, 'id'> = {
+                uid: loggedInUser.uid,
+                displayName: loggedInUser.displayName || 'Administrador',
+                photoURL: loggedInUser.photoURL || '',
+                email: loggedInUser.email || '',
+                isAnonymous: loggedInUser.isAnonymous,
+                createdAt: creationTime,
+                role: 'admin',
+            };
+            await setDoc(userDocRef, newUserProfile);
+        }
+
         toast({
           title: '¡Bienvenido Administrador!',
           description: 'Has iniciado sesión correctamente.',
         });
         router.push('/admin');
+
       } else {
         await auth.signOut();
         toast({
@@ -135,5 +158,3 @@ export default function AdminLoginPage() {
     </div>
   );
 }
-
-    
