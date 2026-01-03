@@ -1,3 +1,4 @@
+
 import type { Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import { isHoliday } from './date-helpers';
 
@@ -82,14 +83,14 @@ export function calculateShiftSummary(
         return summary;
     }
 
-    const [startHour] = shift.startTime.split(':').map(Number);
-    const [endHour] = shift.endTime.split(':').map(Number);
+    const [startHour, startMinute] = shift.startTime.split(':').map(Number);
+    const [endHour, endMinute] = shift.endTime.split(':').map(Number);
 
     let start = new Date(shift.date);
-    start.setHours(startHour, 0, 0, 0);
+    start.setHours(startHour, startMinute, 0, 0);
 
     let end = new Date(shift.date);
-    end.setHours(endHour, 0, 0, 0);
+    end.setHours(endHour, endMinute, 0, 0);
 
     if (end <= start) {
         end.setDate(end.getDate() + 1);
