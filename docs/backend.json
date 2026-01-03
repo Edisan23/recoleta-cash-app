@@ -20,11 +20,6 @@
           "description": "The user's email address.",
           "format": "email"
         },
-        "role": {
-          "type": "string",
-          "description": "The user's role within the application (e.g., operator, admin).",
-          "enum": ["operator", "admin"]
-        },
         "companyId": {
             "type": "string",
             "description": "The ID of the company the user belongs to."
@@ -35,7 +30,7 @@
           "description": "The timestamp when the user account was created."
         }
       },
-      "required": ["id", "name", "email", "role", "createdAt"]
+      "required": ["id", "name", "email", "createdAt"]
     },
     "Company": {
       "$schema": "http://json-schema.org/draft-07/schema#",

@@ -15,6 +15,7 @@ import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
 
+const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -35,11 +36,9 @@ export default function AdminDashboardPage() {
         return;
     }
     
-    // In a real app, you might check a custom claim. Here, we rely on Firestore rules
-    // to secure the data, and the login page to gate access. If the user is not the
-    // admin, the collections will fail to load, but they will still see the page layout.
-    // This is an acceptable trade-off for this app's security model.
-    if (user.email !== 'tjedisan@gmail.com') {
+    // This is the primary gatekeeper for the admin dashboard.
+    // If a user is logged in, but their email does not match, redirect them.
+    if (user.email !== ADMIN_EMAIL) {
       router.replace('/admin/login');
     }
 
