@@ -10,10 +10,10 @@ import { LogoSpinner } from '@/components/LogoSpinner';
 
 interface FirebaseProviderProps {
   children: ReactNode;
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-  storage: FirebaseStorage;
+  firebaseApp?: FirebaseApp;
+  firestore?: Firestore;
+  auth?: Auth;
+  storage?: FirebaseStorage;
 }
 
 // Internal state for user authentication
@@ -109,6 +109,16 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       userError: userAuthState.userError,
     };
   }, [firebaseApp, firestore, auth, storage, userAuthState]);
+  
+  // If services are not yet available (e.g., during initial client-side init), show a loader.
+  if (!contextValue.areServicesAvailable) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <LogoSpinner />
+      </div>
+    );
+  }
+
 
   return (
     <FirebaseContext.Provider value={contextValue}>

@@ -3,7 +3,7 @@ import { Playfair_Display, PT_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
-import { FirebaseClientProvider } from "@/firebase";
+import { FirebaseProviderWrapper } from "@/firebase/client-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 
 
@@ -43,10 +43,10 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
         >
-          <FirebaseClientProvider>
+          <FirebaseProviderWrapper>
             {children}
-            <Toaster />
-          </FirebaseClientProvider>
+          </FirebaseProviderWrapper>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
