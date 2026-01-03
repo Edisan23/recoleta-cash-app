@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -27,7 +28,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import { LogoSpinner } from '../LogoSpinner';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
@@ -43,18 +44,22 @@ export function OperatorTable({ user }: OperatorTableProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const { toast } = useToast();
 
+    // Fetch all user profiles from Firestore
     const profilesRef = useMemoFirebase(() => (firestore && user ? collection(firestore, 'users') : null), [firestore, user]);
     const { data: initialProfiles, isLoading: profilesLoading, error: profilesError } = useCollection<UserProfile>(profilesRef);
     
+    // Local state to manage the list of operators, allowing for client-side deletion without re-fetching
     const [operators, setOperators] = useState<UserProfile[]>([]);
 
+    // Effect to populate local operators state from Firestore data
     useEffect(() => {
-        if(initialProfiles) {
+        if (initialProfiles) {
             const operatorProfiles = initialProfiles.filter(p => p.role === 'operator');
             setOperators(operatorProfiles);
         }
     }, [initialProfiles]);
 
+    // Memoized filtering of operators based on search query
     const filteredOperators = useMemo(() => {
         const sortedOperators = [...operators].sort((a, b) => {
             const getDate = (profile: UserProfile): Date => {
@@ -67,10 +72,10 @@ export function OperatorTable({ user }: OperatorTableProps) {
                     return isValid(parsed) ? parsed : new Date(0);
                 }
                 return new Date(0);
-            }
+            };
             const dateA = getDate(a);
             const dateB = getDate(b);
-            if(!isValid(dateA) || !isValid(dateB)) return 0;
+            if (!isValid(dateA) || !isValid(dateB)) return 0;
             return dateB.getTime() - dateA.getTime();
         });
 
@@ -88,6 +93,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
         const userDocRef = doc(firestore, 'users', userId);
         try {
             await deleteDoc(userDocRef);
+            // Update local state to immediately reflect the deletion in the UI
             setOperators(prev => prev.filter(op => op.id !== userId));
             toast({
                 title: "Usuario Eliminado",
@@ -130,7 +136,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                             <TableRow>
                                 <TableHead>Operador</TableHead>
                                 <TableHead>Empresa (Último Turno)</TableHead>
-                                <TableHead>Tipo de Cuenta</Table-Head>
+                                <TableHead>Tipo de Cuenta</TableHead>
                                 <TableHead>Registrado</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
@@ -236,3 +242,4 @@ export function OperatorTable({ user }: OperatorTableProps) {
         </Card>
     );
 }
+    
