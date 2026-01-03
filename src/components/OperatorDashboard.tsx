@@ -19,8 +19,9 @@ import { PayrollVoucher } from './operator/PayrollVoucher';
 import { useReactToPrint } from 'react-to-print';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
-import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, query, where, writeBatch, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ShiftForm } from './operator/ShiftForm';
 
 
 // --- FAKE DATA & KEYS ---
@@ -71,7 +72,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     if (!firestore || !user?.uid) return null;
     return query(collection(firestore, 'companies', companyId, 'shifts'), where('userId', '==', user.uid));
   }, [firestore, companyId, user?.uid]);
-  const { data: allShifts, isLoading: shiftsLoading } = useCollection<Shift>(shiftsQuery);
+  const { data: allShifts, isLoading: shiftsLoading, error: shiftsError } = useCollection<Shift>(shiftsQuery);
 
   const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
   const { data: holidaysData, isLoading: holidaysLoading } = useCollection<{ date: string }>(holidaysRef);
@@ -83,13 +84,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const deductionsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
   const { data: deductions, isLoading: deductionsLoading } = useCollection<Deduction>(deductionsRef);
 
-  const companyItemsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId]);
-  const { data: companyItems, isLoading: itemsLoading } = useCollection<CompanyItem>(companyItemsRef);
-
   const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userProfile, isLoading: userProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  const isLoading = isUserAuthLoading || companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || itemsLoading || userProfileLoading;
+  const isLoading = isUserAuthLoading || companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || userProfileLoading;
 
   const shiftDays = useMemo(() => {
     return allShifts?.map(s => new Date(s.date)) || [];
@@ -291,6 +289,28 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <div className="flex justify-center mb-8">
                 <DatePicker date={date} setDate={setDate} highlightedDays={shiftDays} />
             </div>
+
+            {date && user && !shiftsError && (
+                 <ShiftForm 
+                    key={date.toISOString()} // Force re-mount on date change
+                    selectedDate={date}
+                    userId={user.uid}
+                    companyId={companyId}
+                    shiftsForDay={allShifts?.filter(s => new Date(s.date).toDateString() === date.toDateString()) || []}
+                 />
+            )}
+
+            {shiftsError && (
+                <Card className='border-destructive'>
+                    <CardHeader>
+                        <CardTitle className='flex items-center gap-2 text-destructive'><AlertCircle /> Error de Permisos</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p>Tu cuenta no tiene los permisos necesarios para leer o escribir turnos en esta empresa.</p>
+                        <p className='text-sm text-muted-foreground mt-2'>Por favor, contacta al administrador para que verifique tu acceso.</p>
+                    </CardContent>
+                </Card>
+            )}
 
             <Card>
                 <CardHeader>
