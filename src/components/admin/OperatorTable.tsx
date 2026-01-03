@@ -31,8 +31,8 @@ import {
 import { LogoSpinner } from '../LogoSpinner';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, deleteDoc } from 'firebase/firestore';
-import { DeleteUserDialog } from './DeleteUserDialog';
 import { User } from 'firebase/auth';
+import { DeleteUserDialog } from './DeleteUserDialog';
 
 interface OperatorTableProps {
     user: User | null;
@@ -165,7 +165,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
-                                <TableRow key="loading-row">
+                                <TableRow>
                                     <TableCell colSpan={5} className="h-24 text-center">
                                         <LogoSpinner />
                                     </TableCell>
@@ -245,7 +245,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                     );
                                 })
                             ) : (
-                                <TableRow key="no-results-row">
+                                <TableRow>
                                     <TableCell colSpan={5} className="h-24 text-center">
                                         No se encontraron operadores.
                                     </TableCell>
