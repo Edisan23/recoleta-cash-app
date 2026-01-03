@@ -12,16 +12,27 @@ interface TimeInputProps {
 export function TimeInput({ label, value, onChange }: TimeInputProps) {
 
     const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        onChange(e.target.value);
+        let inputValue = e.target.value.replace(/[^0-9]/g, ''); // Remove non-numeric characters
+        
+        if (inputValue.length > 4) {
+            inputValue = inputValue.substring(0, 4);
+        }
+
+        if (inputValue.length > 2) {
+            inputValue = inputValue.substring(0, 2) + ':' + inputValue.substring(2);
+        }
+
+        onChange(inputValue);
     };
 
     return (
         <div className="grid w-full items-center gap-1.5">
             <Label htmlFor={label.toLowerCase().replace(' ', '_')} className="text-sm font-semibold">{label}</Label>
             <Input
-                type="time"
+                type="text"
                 inputMode="numeric"
                 pattern="[0-9]{2}:[0-9]{2}"
+                maxLength={5}
                 id={label.toLowerCase().replace(' ', '_')}
                 value={value}
                 onChange={handleTimeChange}
