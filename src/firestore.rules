@@ -75,7 +75,7 @@ service cloud.firestore {
         allow create: if isCompanyMember(path.split('/')[1]) && request.resource.data.userId == request.auth.uid;
         
         // A user can update/delete their own shifts, or an admin can.
-        allow update, delete: if isAdmin() || (isCompanyember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
+        allow update, delete: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
     }
   }
 }
