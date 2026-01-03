@@ -84,10 +84,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const deductionsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
   const { data: deductions, isLoading: deductionsLoading } = useCollection<Deduction>(deductionsRef);
 
+  const itemsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId]);
+  const { data: companyItems, isLoading: itemsLoading } = useCollection<CompanyItem>(itemsRef);
+
   const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userProfile, isLoading: userProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  const isLoading = isUserAuthLoading || companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || userProfileLoading;
+  const isLoading = isUserAuthLoading || companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || userProfileLoading || itemsLoading;
 
   const shiftDays = useMemo(() => {
     return allShifts?.map(s => new Date(s.date)) || [];
@@ -297,6 +300,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     userId={user.uid}
                     companyId={companyId}
                     shiftsForDay={allShifts?.filter(s => new Date(s.date).toDateString() === date.toDateString()) || []}
+                    companyItems={companyItems || []}
                  />
             )}
 
@@ -389,3 +393,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    

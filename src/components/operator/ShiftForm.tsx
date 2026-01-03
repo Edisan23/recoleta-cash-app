@@ -1,26 +1,30 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TimeInput } from '@/components/TimeInput';
 import { useToast } from '@/hooks/use-toast';
 import { useFirestore } from '@/firebase';
-import { collection, addDoc, deleteDoc, doc, getDocs, query, where, Timestamp } from 'firebase/firestore';
-import type { Shift } from '@/types/db-entities';
+import { collection, addDoc, deleteDoc, doc, writeBatch } from 'firebase/firestore';
+import type { Shift, CompanyItem } from '@/types/db-entities';
 import { LogoSpinner } from '../LogoSpinner';
 import { DeleteShiftDialog } from './DeleteShiftDialog';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 
 interface ShiftFormProps {
     selectedDate: Date;
     userId: string;
     companyId: string;
     shiftsForDay: Shift[];
+    companyItems: CompanyItem[];
 }
 
-export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay }: ShiftFormProps) {
+export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, companyItems }: ShiftFormProps) {
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
+    const [itemDetails, setItemDetails] = useState<Record<string, string>>({});
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     
@@ -33,12 +37,22 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay }: Shi
             const shift = shiftsForDay[0]; // Simplified to handle one shift per day
             setStartTime(shift.startTime);
             setEndTime(shift.endTime);
+            const details = shift.itemDetails?.reduce((acc, detail) => {
+                acc[detail.itemId] = detail.detail;
+                return acc;
+            }, {} as Record<string, string>) || {};
+            setItemDetails(details);
         } else {
             // Reset form if there are no shifts for the new date
             setStartTime('');
             setEndTime('');
+            setItemDetails({});
         }
     }, [shiftsForDay, selectedDate]);
+
+    const handleItemDetailChange = (itemId: string, value: string) => {
+        setItemDetails(prev => ({...prev, [itemId]: value}));
+    };
 
     const handleSave = async () => {
         if (!firestore) return;
@@ -53,14 +67,13 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay }: Shi
 
         setIsSaving(true);
         try {
-            // Since we are simplifying to one shift per day, delete existing shifts for that day before adding a new one.
-            const shiftsCollectionRef = collection(firestore, 'companies', companyId, 'shifts');
+            const batch = writeBatch(firestore);
             
             // Delete existing shifts for the day
             if (shiftsForDay.length > 0) {
                 for (const shift of shiftsForDay) {
                     const shiftDocRef = doc(firestore, 'companies', companyId, 'shifts', shift.id);
-                    await deleteDoc(shiftDocRef);
+                    batch.delete(shiftDocRef);
                 }
             }
 
@@ -71,9 +84,17 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay }: Shi
                 date: selectedDate.toISOString(),
                 startTime,
                 endTime,
+                itemDetails: companyItems.map(item => ({
+                    itemId: item.id,
+                    itemName: item.name,
+                    detail: itemDetails[item.id] || ''
+                })).filter(detail => detail.detail) // Only save details that have a value
             };
 
-            await addDoc(shiftsCollectionRef, newShift);
+            const newShiftRef = doc(collection(firestore, 'companies', companyId, 'shifts'));
+            batch.set(newShiftRef, newShift);
+
+            await batch.commit();
             
             toast({
                 title: 'Turno Guardado',
@@ -96,10 +117,12 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay }: Shi
 
         setIsDeleting(true);
         try {
+            const batch = writeBatch(firestore);
             for (const shift of shiftsForDay) {
                 const shiftDocRef = doc(firestore, 'companies', companyId, 'shifts', shift.id);
-                await deleteDoc(shiftDocRef);
+                batch.delete(shiftDocRef);
             }
+            await batch.commit();
             
             toast({
                 title: 'Turno Eliminado',
@@ -107,6 +130,7 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay }: Shi
             });
             setStartTime(''); // Clear form
             setEndTime('');
+            setItemDetails({});
         } catch (error) {
              console.error("Error deleting shift: ", error);
              toast({
@@ -126,7 +150,7 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay }: Shi
             <CardHeader>
                 <CardTitle>Registro de Actividades</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                     <TimeInput
                         label="Hora de Entrada"
@@ -139,6 +163,24 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay }: Shi
                         onChange={setEndTime}
                     />
                 </div>
+                 {companyItems.length > 0 && (
+                    <div className='space-y-4 pt-4 border-t'>
+                        <h4 className='text-sm font-medium text-muted-foreground'>Detalles Adicionales</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {companyItems.map(item => (
+                                <div key={item.id} className="space-y-2">
+                                    <Label htmlFor={item.id}>{item.name}</Label>
+                                    <Input 
+                                        id={item.id}
+                                        value={itemDetails[item.id] || ''}
+                                        onChange={(e) => handleItemDetailChange(item.id, e.target.value)}
+                                        placeholder={item.description || '...'}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </CardContent>
             <CardFooter className="flex justify-end gap-2">
                 {hasShift && (
@@ -151,9 +193,11 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay }: Shi
                 )}
                 <Button onClick={handleSave} disabled={isSaving || isDeleting}>
                     {isSaving ? <LogoSpinner className="mr-2" /> : null}
-                    Guardar Turno
+                    {hasShift ? 'Actualizar Turno' : 'Guardar Turno'}
                 </Button>
             </CardFooter>
         </Card>
     );
 }
+
+    
