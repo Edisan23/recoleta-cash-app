@@ -44,14 +44,11 @@ export function OperatorTable({ user }: OperatorTableProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const { toast } = useToast();
 
-    // Fetch all user profiles from Firestore
     const profilesRef = useMemoFirebase(() => (firestore && user ? collection(firestore, 'users') : null), [firestore, user]);
     const { data: initialProfiles, isLoading: profilesLoading, error: profilesError } = useCollection<UserProfile>(profilesRef);
     
-    // Local state to manage the list of operators, allowing for client-side deletion without re-fetching
     const [operators, setOperators] = useState<UserProfile[]>([]);
 
-    // Effect to populate local operators state from Firestore data
     useEffect(() => {
         if (initialProfiles) {
             const operatorProfiles = initialProfiles.filter(p => p.role === 'operator');
@@ -59,7 +56,6 @@ export function OperatorTable({ user }: OperatorTableProps) {
         }
     }, [initialProfiles]);
 
-    // Memoized filtering of operators based on search query
     const filteredOperators = useMemo(() => {
         const sortedOperators = [...operators].sort((a, b) => {
             const getDate = (profile: UserProfile): Date => {
@@ -93,7 +89,6 @@ export function OperatorTable({ user }: OperatorTableProps) {
         const userDocRef = doc(firestore, 'users', userId);
         try {
             await deleteDoc(userDocRef);
-            // Update local state to immediately reflect the deletion in the UI
             setOperators(prev => prev.filter(op => op.id !== userId));
             toast({
                 title: "Usuario Eliminado",
@@ -135,7 +130,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Operador</TableHead>
-                                <TableHead>Empresa (Último Turno)</TableHead>
+                                <TableHead>Empresa (Referencia)</TableHead>
                                 <TableHead>Tipo de Cuenta</TableHead>
                                 <TableHead>Registrado</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
@@ -156,19 +151,6 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                 </TableRow>
                             ) : filteredOperators.length > 0 ? (
                                 filteredOperators.map((op) => {
-                                    const companyName = 'No disponible';
-                                    
-                                    const getCreatedAtDate = (profile: UserProfile): Date | null => {
-                                        if (!profile.createdAt) return null;
-                                        if (typeof (profile.createdAt as any).toDate === 'function') {
-                                            return (profile.createdAt as any).toDate();
-                                        }
-                                        if (typeof profile.createdAt === 'string') {
-                                            const parsed = parseISO(profile.createdAt);
-                                            return isValid(parsed) ? parsed : null;
-                                        }
-                                        return null;
-                                    }
                                     const createdAtDate = getCreatedAtDate(op);
 
                                     return (
@@ -188,7 +170,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                             <TableCell>
                                                 <div className='flex items-center gap-2 text-muted-foreground'>
                                                      <Building className="h-4 w-4" />
-                                                    <span>{companyName}</span>
+                                                    <span>N/A</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
@@ -242,4 +224,18 @@ export function OperatorTable({ user }: OperatorTableProps) {
         </Card>
     );
 }
+
+function getCreatedAtDate (profile: UserProfile): Date | null {
+    if (!profile.createdAt) return null;
+    if (typeof (profile.createdAt as any).toDate === 'function') {
+        return (profile.createdAt as any).toDate();
+    }
+    if (typeof profile.createdAt === 'string') {
+        const parsed = parseISO(profile.createdAt);
+        return isValid(parsed) ? parsed : null;
+    }
+    return null;
+}
+    
+
     

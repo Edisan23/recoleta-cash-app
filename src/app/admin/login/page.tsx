@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -15,7 +16,6 @@ import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { LogoSpinner } from '@/components/LogoSpinner';
 
-// Hardcoded admin email. This is the source of truth for admin access on the client.
 const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
 export default function AdminLoginPage() {
@@ -31,24 +31,19 @@ export default function AdminLoginPage() {
   }, []);
 
   useEffect(() => {
-    // Wait until the component is mounted and auth state is determined
     if (!isMounted || isUserLoading) {
       return;
     }
 
-    // If a user is already logged in, check if they are the admin.
     if (user) {
       if (user.email === ADMIN_EMAIL) {
-        // Already logged in as admin, go to dashboard.
         router.replace('/admin');
       } else {
-        // Logged in as a non-admin user, sign them out to allow admin login.
         if (auth) {
             auth.signOut();
         }
       }
     }
-    // If no user is logged in, do nothing and wait for sign-in attempt.
     
   }, [user, isUserLoading, router, isMounted, auth]);
 
@@ -62,16 +57,13 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithPopup(auth, provider);
       const loggedInUser = userCredential.user;
 
-      // After sign-in, explicitly check if the email matches the admin email.
       if (loggedInUser.email === ADMIN_EMAIL) {
         toast({
           title: '¡Bienvenido Administrador!',
           description: 'Has iniciado sesión correctamente.',
         });
-        // CRITICAL: Push directly to the admin page on successful admin login.
         router.push('/admin');
       } else {
-        // If the user is not the admin, sign them out immediately and show an error.
         await auth.signOut();
         toast({
           variant: 'destructive',
@@ -81,7 +73,6 @@ export default function AdminLoginPage() {
       }
 
     } catch (error: any) {
-       // Avoid showing an error toast if the user closes the popup manually
        if (error.code !== 'auth/popup-closed-by-user') {
           console.error('Admin login error:', error);
           toast({
@@ -95,7 +86,6 @@ export default function AdminLoginPage() {
     }
   };
   
-  // Show a spinner while the initial auth check is running.
   if (isUserLoading || !isMounted || (user && user.email === ADMIN_EMAIL)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -104,7 +94,6 @@ export default function AdminLoginPage() {
     );
   }
 
-  // Render the login page if no user is logged in, or if a non-admin was just logged out.
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
       <Card className="w-full max-w-md">
@@ -146,3 +135,5 @@ export default function AdminLoginPage() {
     </div>
   );
 }
+
+    

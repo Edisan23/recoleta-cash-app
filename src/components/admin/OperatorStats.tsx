@@ -1,12 +1,13 @@
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import type { UserProfile, Shift, Company } from '@/types/db-entities';
+import { useState, useEffect } from 'react';
+import type { UserProfile, Company } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, User, Briefcase } from 'lucide-react';
 import { LogoSpinner } from '../LogoSpinner';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, collectionGroup } from 'firebase/firestore';
 import { User as FirebaseUser } from 'firebase/auth';
 
 
@@ -31,14 +32,25 @@ export function OperatorStats({ user }: OperatorStatsProps) {
     const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
     const { data: companies, isLoading: companiesLoading } = useCollection<Company>(companiesRef);
     
-    // This is inefficient but necessary with the current data model.
-    const allShiftsRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'shifts') : null, [firestore, user]);
-    const { data: allShifts, isLoading: shiftsLoading } = useCollection<Shift>(allShiftsRef);
+    // Note: This collectionGroup query is more efficient but requires a composite index in Firestore.
+    // The security rules must also allow for collection group queries on 'shifts'.
+    const allShiftsRef = useMemoFirebase(() => firestore && user ? collectionGroup(firestore, 'shifts') : null, [firestore, user]);
+    const { data: allShifts, isLoading: shiftsLoading } = useCollection<any>(allShiftsRef);
 
     const isLoading = profilesLoading || companiesLoading || shiftsLoading;
 
     useEffect(() => {
-        if (!profiles || !companies || !allShifts) return;
+        if (profilesLoading || companiesLoading || shiftsLoading) return;
+        if (!profiles || !companies || !allShifts) {
+             // Handle case where data is not available yet, maybe set a default state
+            setStats({
+                totalOperators: profiles?.filter(p => p.role === 'operator').length || 0,
+                anonymousCount: profiles?.filter(p => p.role === 'operator' && p.isAnonymous).length || 0,
+                googleCount: profiles?.filter(p => p.role === 'operator' && !p.isAnonymous).length || 0,
+                operatorsByCompany: {},
+            });
+            return;
+        };
 
         try {
             const operators = profiles.filter(p => p.role === 'operator');
@@ -49,11 +61,13 @@ export function OperatorStats({ user }: OperatorStatsProps) {
 
             const operatorsByCompany: Record<string, Set<string>> = {};
              allShifts.forEach(shift => {
-                const companyName = companiesById[shift.companyId] || 'Empresa Desconocida';
-                if (!operatorsByCompany[companyName]) {
-                    operatorsByCompany[companyName] = new Set();
+                if (shift.companyId && companiesById[shift.companyId]) {
+                    const companyName = companiesById[shift.companyId];
+                     if (!operatorsByCompany[companyName]) {
+                        operatorsByCompany[companyName] = new Set();
+                    }
+                    operatorsByCompany[companyName].add(shift.userId);
                 }
-                operatorsByCompany[companyName].add(shift.userId);
              });
             
             const finalOperatorsByCompany: Record<string, number> = {};
@@ -71,7 +85,7 @@ export function OperatorStats({ user }: OperatorStatsProps) {
         } catch (error) {
             console.error("Error calculating stats:", error);
         }
-    }, [profiles, companies, allShifts]);
+    }, [profiles, companies, allShifts, profilesLoading, companiesLoading, shiftsLoading]);
 
     if (isLoading) {
         return (
@@ -87,7 +101,16 @@ export function OperatorStats({ user }: OperatorStatsProps) {
     }
     
     if (!stats) {
-        return null; // Or some error state
+        return (
+             <Card>
+                <CardHeader>
+                    <CardTitle>Estadísticas de Operadores</CardTitle>
+                </CardHeader>
+                <CardContent className="flex justify-center items-center h-24">
+                   <p className="text-muted-foreground">No se pudieron cargar las estadísticas.</p>
+                </CardContent>
+            </Card>
+        );
     }
 
     return (
@@ -156,3 +179,5 @@ export function OperatorStats({ user }: OperatorStatsProps) {
         </Card>
     );
 }
+
+    
