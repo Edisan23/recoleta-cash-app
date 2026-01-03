@@ -10,79 +10,64 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { useAuth, useUser } from '@/firebase';
+import { signInWithPopup, GoogleAuthProvider, User } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { LogoSpinner } from '@/components/LogoSpinner';
-import type { UserProfile } from '@/types/db-entities';
+
+// Hardcoded admin email. This is the source of truth for admin access on the client.
+const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const auth = useAuth();
-  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  const userProfileRef = useMemoFirebase(() => (firestore && user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
-  
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!isMounted || isUserLoading || isProfileLoading) {
+    if (!isMounted || isUserLoading) {
       return;
     }
 
-    if (user && userProfile) {
-      if (userProfile.role === 'admin') {
+    // If a user is logged in, check if they are the admin.
+    if (user && user.email === ADMIN_EMAIL) {
         router.replace('/admin');
-      } else {
-        if (!userProfile.role) {
-            console.warn(`User ${user.uid} has a profile but no role defined.`);
-        }
-      }
     }
-
-  }, [user, userProfile, isUserLoading, isProfileLoading, router, isMounted]);
+    
+  }, [user, isUserLoading, router, isMounted]);
 
 
   const handleGoogleSignIn = async () => {
-    if (!auth || !firestore) return;
+    if (!auth) return;
     setIsSubmitting(true);
     const provider = new GoogleAuthProvider();
     
     try {
       const userCredential = await signInWithPopup(auth, provider);
       const loggedInUser = userCredential.user;
-      const userDocRef = doc(firestore, 'users', loggedInUser.uid);
 
-      const docSnap = await getDoc(userDocRef);
-      
-      const userProfilePayload: Partial<UserProfile> = {
-          uid: loggedInUser.uid,
-          displayName: loggedInUser.displayName || 'Admin User',
-          photoURL: loggedInUser.photoURL || '',
-          email: loggedInUser.email || '',
-          isAnonymous: loggedInUser.isAnonymous,
-          role: 'admin',
-      };
-
-      if (!docSnap.exists()) {
-          userProfilePayload.createdAt = new Date().toISOString();
+      // After sign-in, check if the email matches the admin email.
+      if (loggedInUser.email === ADMIN_EMAIL) {
+        toast({
+          title: '¡Bienvenido Administrador!',
+          description: 'Has iniciado sesión correctamente.',
+        });
+        // The useEffect hook will handle the redirection.
+      } else {
+        // If the user is not the admin, sign them out and show an error.
+        await auth.signOut();
+        toast({
+          variant: 'destructive',
+          title: 'Acceso Denegado',
+          description: 'Esta cuenta no tiene permisos de administrador.',
+        });
       }
-
-      await setDoc(userDocRef, userProfilePayload, { merge: true });
-      
-      toast({
-        title: '¡Bienvenido Administrador!',
-        description: 'Has iniciado sesión correctamente.',
-      });
-      // The useEffect will handle redirection after the profile is re-fetched and validated.
 
     } catch (error: any) {
        if (error.code !== 'auth/popup-closed-by-user') {
@@ -100,7 +85,8 @@ export default function AdminLoginPage() {
     }
   };
   
-  const shouldShowSpinner = isUserLoading || isProfileLoading || !isMounted || (user && userProfile?.role === 'admin');
+  // Show spinner while checking auth state or if the user is the admin and is being redirected.
+  const shouldShowSpinner = isUserLoading || !isMounted || (user && user.email === ADMIN_EMAIL);
   if (shouldShowSpinner) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -109,6 +95,7 @@ export default function AdminLoginPage() {
     );
   }
 
+  // If a user is logged in but is not the admin, show the login page.
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
       <Card className="w-full max-w-md">

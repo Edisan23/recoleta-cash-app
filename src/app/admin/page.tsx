@@ -26,8 +26,6 @@ export default function AdminDashboardPage() {
   const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
   const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
 
-  const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
     if (isUserLoading) {
         return; // Wait for user status to be determined
@@ -37,10 +35,13 @@ export default function AdminDashboardPage() {
         return;
     }
     
-    // In a real app, you'd check a custom claim or a 'role' field in the user's DB profile.
-    // For this example, we rely on the client-side check in login, but a server-side check is better.
-    // Assuming if they got this far and are logged in, they are the admin.
-    setIsLoading(false);
+    // In a real app, you might check a custom claim. Here, we rely on Firestore rules
+    // to secure the data, and the login page to gate access. If the user is not the
+    // admin, the collections will fail to load, but they will still see the page layout.
+    // This is an acceptable trade-off for this app's security model.
+    if (user.email !== 'tjedisan@gmail.com') {
+      router.replace('/admin/login');
+    }
 
   }, [user, isUserLoading, router]);
 
@@ -89,7 +90,7 @@ export default function AdminDashboardPage() {
     }
   };
   
-  if (isLoading || isUserLoading || (user && areCompaniesLoading)) {
+  if (isUserLoading || !user || areCompaniesLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
