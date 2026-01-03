@@ -7,7 +7,7 @@
     --background: 270 50% 96%; /* Light Purple */
     --foreground: 270 20% 25%;
 
-    --card: 270 50% 100%;
+    --card: 270 50% 100% / 0.8;
     --card-foreground: 270 20% 25%;
  
     --popover: 270 50% 100%;
@@ -39,7 +39,7 @@
     --background: 270 20% 10%;
     --foreground: 270 30% 95%;
 
-    --card: 270 20% 15%;
+    --card: 270 20% 15% / 0.8;
     --card-foreground: 270 30% 95%;
 
     --popover: 270 20% 10%;
@@ -84,5 +84,8 @@
 @layer components {
     .btn-accent {
         @apply bg-accent text-accent-foreground hover:bg-accent/90;
+    }
+    .card {
+        @apply border-border/50 shadow-sm;
     }
 }
