@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { UserProfile } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -55,7 +55,6 @@ export function OperatorTable({ user }: OperatorTableProps) {
         }
     }, [initialProfiles]);
 
-
     const filteredOperators = useMemo(() => {
         const sortedOperators = [...operators].sort((a, b) => {
             const getDate = (profile: UserProfile): Date => {
@@ -100,8 +99,6 @@ export function OperatorTable({ user }: OperatorTableProps) {
         }
     };
 
-    const isLoading = profilesLoading;
-
     return (
         <Card>
             <CardHeader>
@@ -139,7 +136,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {isLoading ? (
+                            {profilesLoading ? (
                                 <TableRow>
                                     <TableCell colSpan={5} className="h-24 text-center">
                                         <LogoSpinner />
