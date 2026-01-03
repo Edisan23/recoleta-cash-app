@@ -35,21 +35,27 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     if (!isMounted || isUserLoading || isProfileLoading) {
-      // Don't do anything until everything is loaded and component is mounted.
+      // Wait until everything is loaded and component is mounted.
       return;
     }
 
-    // If we have a user and a profile, check the role.
+    // If we have a user and their profile is loaded...
     if (user && userProfile) {
+      // Check for the role safely.
       if (userProfile.role === 'admin') {
         router.replace('/admin');
+      } else {
+        // If the role is not 'admin', or not defined, they stay on the login page.
+        // This prevents redirection loops or errors if the profile is incomplete.
+        if (!userProfile.role) {
+            console.warn(`User ${user.uid} has a profile but no role defined.`);
+        }
       }
-      // If role is not admin, they stay on the login page.
-      // A toast could be shown here if needed, but for now we just don't redirect.
     }
-    // If no user is logged in, they also stay on the login page (initial state).
+    // If no user is logged in, or the profile is still loading, they also stay on the login page.
 
   }, [user, userProfile, isUserLoading, isProfileLoading, router, isMounted]);
+
 
   const handleGoogleSignIn = async () => {
     if (!auth || !firestore) return;
@@ -103,7 +109,8 @@ export default function AdminLoginPage() {
   };
   
   // Show a loading spinner while validating session, loading profile, or if we are about to redirect.
-  if (isUserLoading || isProfileLoading || !isMounted || (user && userProfile && userProfile.role === 'admin')) {
+  const shouldShowSpinner = isUserLoading || isProfileLoading || !isMounted || (user && userProfile && userProfile.role === 'admin');
+  if (shouldShowSpinner) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
