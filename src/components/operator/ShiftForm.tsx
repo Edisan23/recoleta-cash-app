@@ -12,6 +12,7 @@ import { LogoSpinner } from '../LogoSpinner';
 import { DeleteShiftDialog } from './DeleteShiftDialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface ShiftFormProps {
     selectedDate: Date;
@@ -164,22 +165,26 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                     />
                 </div>
                  {companyItems.length > 0 && (
-                    <div className='space-y-4 pt-4 border-t'>
-                        <h4 className='text-sm font-medium text-muted-foreground'>Detalles Adicionales</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {companyItems.map(item => (
-                                <div key={item.id} className="space-y-2">
-                                    <Label htmlFor={item.id}>{item.name}</Label>
-                                    <Input 
-                                        id={item.id}
-                                        value={itemDetails[item.id] || ''}
-                                        onChange={(e) => handleItemDetailChange(item.id, e.target.value)}
-                                        placeholder={item.description || '...'}
-                                    />
+                     <Accordion type="single" collapsible className="w-full">
+                        <AccordionItem value="item-1">
+                            <AccordionTrigger>Detalles Adicionales (Opcional)</AccordionTrigger>
+                            <AccordionContent>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                                    {companyItems.map(item => (
+                                        <div key={item.id} className="space-y-2">
+                                            <Label htmlFor={item.id}>{item.name}</Label>
+                                            <Input 
+                                                id={item.id}
+                                                value={itemDetails[item.id] || ''}
+                                                onChange={(e) => handleItemDetailChange(item.id, e.target.value)}
+                                                placeholder={item.description || '...'}
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
-                    </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    </Accordion>
                 )}
             </CardContent>
             <CardFooter className="flex justify-end gap-2">
@@ -199,5 +204,3 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
         </Card>
     );
 }
-
-    
