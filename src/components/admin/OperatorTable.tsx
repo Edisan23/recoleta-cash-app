@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { UserProfile } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -59,12 +59,12 @@ export function OperatorTable({ user }: OperatorTableProps) {
         const sortedOperators = [...operators].sort((a, b) => {
             const getDate = (profile: UserProfile): Date => {
                 if (!profile.createdAt) return new Date(0);
+                if (typeof (profile.createdAt as any)?.toDate === 'function') {
+                    return (profile.createdAt as any).toDate();
+                }
                 if (typeof profile.createdAt === 'string') {
                     const parsed = parseISO(profile.createdAt);
                     return isValid(parsed) ? parsed : new Date(0);
-                }
-                if (typeof (profile.createdAt as any)?.toDate === 'function') {
-                    return (profile.createdAt as any).toDate();
                 }
                 return new Date(0);
             }
@@ -154,12 +154,12 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                     
                                     const getCreatedAtDate = (profile: UserProfile): Date | null => {
                                         if (!profile.createdAt) return null;
+                                        if (typeof (profile.createdAt as any).toDate === 'function') {
+                                            return (profile.createdAt as any).toDate();
+                                        }
                                         if (typeof profile.createdAt === 'string') {
                                             const parsed = parseISO(profile.createdAt);
                                             return isValid(parsed) ? parsed : null;
-                                        }
-                                        if (typeof (profile.createdAt as any).toDate === 'function') {
-                                            return (profile.createdAt as any).toDate();
                                         }
                                         return null;
                                     }
