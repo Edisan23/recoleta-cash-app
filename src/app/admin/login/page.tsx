@@ -41,7 +41,7 @@ export default function AdminLoginPage() {
       if (user.email === ADMIN_EMAIL) {
         router.replace('/admin');
       } else {
-        // If a non-admin user is somehow logged in, sign them out.
+        // If a non-admin user is somehow logged in on this page, sign them out.
         if (auth) {
             auth.signOut();
         }
@@ -101,7 +101,7 @@ export default function AdminLoginPage() {
         description: 'Has iniciado sesión correctamente.',
       });
 
-      router.push('/admin'); // Use push to navigate after successful login.
+      router.push('/admin');
 
     } catch (error: any) {
       console.error('Admin Google sign-in error:', error);

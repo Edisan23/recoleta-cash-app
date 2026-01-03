@@ -27,24 +27,6 @@ export default function AdminDashboardPage() {
   const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
   const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
 
-  useEffect(() => {
-    if (isUserLoading) {
-        return; // Wait for user status to be determined
-    }
-    if (!user) {
-        router.replace('/admin/login');
-        return;
-    }
-    
-    // This is the primary gatekeeper for the admin dashboard.
-    // If a user is logged in, but their email does not match, redirect them.
-    if (user.email !== ADMIN_EMAIL) {
-      router.replace('/admin/login');
-    }
-
-  }, [user, isUserLoading, router]);
-
-
   const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {
     if (!firestore) return;
     const companiesCollectionRef = collection(firestore, 'companies');
@@ -89,13 +71,26 @@ export default function AdminDashboardPage() {
     }
   };
   
-  if (isUserLoading || !user || user.email !== ADMIN_EMAIL) {
+  // This is the primary gatekeeper for the admin dashboard.
+  // If the user state is resolved and there is no user, or the user is not the admin, redirect.
+  if (!isUserLoading && (!user || user.email !== ADMIN_EMAIL)) {
+    router.replace('/admin/login');
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
       </div>
     );
   }
+
+  // Show a spinner while the user state is loading, but only if we haven't already decided to redirect
+  if (isUserLoading) {
+     return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <LogoSpinner />
+      </div>
+    );
+  }
+
 
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
