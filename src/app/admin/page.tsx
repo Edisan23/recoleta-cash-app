@@ -85,11 +85,11 @@ export default function AdminDashboardPage() {
   const handleSignOut = async () => {
     if (auth) {
       await auth.signOut();
-      router.push('/');
+      router.push('/admin/login');
     }
   };
   
-  if (isUserLoading || !user || areCompaniesLoading) {
+  if (isUserLoading || !user || user.email !== ADMIN_EMAIL) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />

@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
 
   useEffect(() => {
     // Wait until the component is mounted and auth state is determined
-    if (!isMounted || isUserLoading || !auth) {
+    if (!isMounted || isUserLoading) {
       return;
     }
 
@@ -43,7 +43,9 @@ export default function AdminLoginPage() {
         router.replace('/admin');
       } else {
         // Logged in as a non-admin user, sign them out to allow admin login.
-        auth.signOut();
+        if (auth) {
+            auth.signOut();
+        }
       }
     }
     // If no user is logged in, do nothing and wait for sign-in attempt.
@@ -94,7 +96,7 @@ export default function AdminLoginPage() {
   };
   
   // Show a spinner while the initial auth check is running.
-  if (isUserLoading || !isMounted) {
+  if (isUserLoading || !isMounted || (user && user.email === ADMIN_EMAIL)) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
