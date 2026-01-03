@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils";
 
 interface TimeInputProps {
     label: string;
@@ -36,7 +37,7 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
                 id={label.toLowerCase().replace(' ', '_')}
                 value={value} 
                 onChange={handleTimeChange}
-                className="w-full text-base py-6 font-semibold"
+                className="w-full text-base py-6 font-semibold border-2 border-primary/50"
                 placeholder="HH"
             />
         </div>
