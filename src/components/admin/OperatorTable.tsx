@@ -43,6 +43,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const { toast } = useToast();
 
+    // The query will only run if the user is authenticated, as per the `user` dependency.
     const profilesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'users') : null, [firestore, user]);
     const { data: initialOperators, isLoading: profilesLoading, error: profilesError } = useCollection<UserProfile>(profilesRef);
     
@@ -50,7 +51,9 @@ export function OperatorTable({ user }: OperatorTableProps) {
 
     useEffect(() => {
         if(initialOperators) {
-            setOperators(initialOperators.filter(op => op.role === 'operator'));
+            // No need to filter by role here, the security rules handle access.
+            // If the query returns data, it means the user is an admin.
+            setOperators(initialOperators);
         }
     }, [initialOperators]);
 
@@ -104,7 +107,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
             return sortedOperators;
         }
         return sortedOperators.filter(op => 
-            op.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            op.displayName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (op.email && op.email.toLowerCase().includes(searchQuery.toLowerCase()))
         );
     }, [operators, searchQuery]);
@@ -125,7 +128,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
         }
     };
 
-    const isLoading = profilesLoading || companiesLoading || !operators;
+    const isLoading = profilesLoading || companiesLoading;
 
     return (
         <Card>
@@ -137,7 +140,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                             Operadores Registrados
                         </CardTitle>
                         <CardDescription>
-                            Lista de operadores suscritos y su empresa.
+                            Lista de todos los usuarios operadores en el sistema.
                         </CardDescription>
                     </div>
                      <div className="relative w-full sm:max-w-xs">
@@ -158,7 +161,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                             <TableRow>
                                 <TableHead>Operador</TableHead>
                                 <TableHead>Empresa (Último Turno)</TableHead>
-                                <TableHead>Tipo de Cuenta</TableHead>
+                                <TableHead>Tipo de Cuenta</Table-Head>
                                 <TableHead>Registrado</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
@@ -168,6 +171,12 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                 <TableRow>
                                     <TableCell colSpan={5} className="h-24 text-center">
                                         <LogoSpinner />
+                                    </TableCell>
+                                </TableRow>
+                            ) : profilesError ? (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-24 text-center text-red-500">
+                                        Error: No tienes permiso para ver los usuarios.
                                     </TableCell>
                                 </TableRow>
                             ) : filteredOperators.length > 0 ? (
@@ -196,7 +205,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                                         <AvatarFallback>{getInitials(op.displayName)}</AvatarFallback>
                                                     </Avatar>
                                                     <div>
-                                                        <p className="font-semibold truncate">{op.displayName}</p>
+                                                        <p className="font-semibold truncate">{op.displayName || 'Usuario sin nombre'}</p>
                                                         <p className="text-sm text-muted-foreground truncate">{op.email || 'No proporcionado'}</p>
                                                     </div>
                                                 </div>
@@ -227,7 +236,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                                                         <DropdownMenuSeparator />
                                                         <DeleteUserDialog
-                                                            userName={op.displayName}
+                                                            userName={op.displayName || 'este usuario'}
                                                             onConfirm={() => handleDeleteUser(op.id, op.displayName)}
                                                         >
                                                             <DropdownMenuItem

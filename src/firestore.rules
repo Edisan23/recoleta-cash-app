@@ -29,6 +29,8 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin() || isOwner(userId);
       // Any signed-in user can create their own profile.
       allow create: if isSignedIn();
+      // Allow admins to list all users for the admin dashboard.
+      allow list: if isAdmin();
     }
 
     // Rules for the 'companies' collection and its subcollections
@@ -73,7 +75,7 @@ service cloud.firestore {
         allow create: if isCompanyMember(path.split('/')[1]) && request.resource.data.userId == request.auth.uid;
         
         // A user can update/delete their own shifts, or an admin can.
-        allow update, delete: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
+        allow update, delete: if isAdmin() || (isCompanyember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
     }
   }
 }
