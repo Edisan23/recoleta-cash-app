@@ -127,7 +127,7 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay }: Shi
                 <CardTitle>Registro de Actividades</CardTitle>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-4">
                     <TimeInput
                         label="Hora de Entrada"
                         value={startTime}
