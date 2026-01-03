@@ -14,15 +14,15 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
     const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let inputValue = e.target.value.replace(/[^0-9]/g, ''); // Remove non-numeric characters
         
-        if (inputValue.length > 4) {
-            inputValue = inputValue.substring(0, 4);
-        }
-
         if (inputValue.length > 2) {
-            inputValue = inputValue.substring(0, 2) + ':' + inputValue.substring(2);
+            inputValue = inputValue.substring(0, 2);
         }
 
-        onChange(inputValue);
+        if (inputValue.length === 2) {
+             onChange(inputValue + ':00');
+        } else {
+            onChange(inputValue);
+        }
     };
 
     return (
@@ -31,13 +31,13 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
             <Input
                 type="text"
                 inputMode="numeric"
-                pattern="[0-9]{2}:[0-9]{2}"
-                maxLength={5}
+                pattern="[0-9]{2}"
+                maxLength={2}
                 id={label.toLowerCase().replace(' ', '_')}
-                value={value}
+                value={value.split(':')[0]} // Show only the hour part in the input
                 onChange={handleTimeChange}
                 className="w-full text-base py-6 font-semibold"
-                placeholder="HH:MM"
+                placeholder="HH"
             />
         </div>
     )
