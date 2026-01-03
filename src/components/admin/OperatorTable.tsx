@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import type { UserProfile, Shift, Company } from '@/types/db-entities';
+import type { UserProfile } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
@@ -43,65 +43,37 @@ export function OperatorTable({ user }: OperatorTableProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const { toast } = useToast();
 
-    // The query will only run if the user is authenticated, as per the `user` dependency.
-    const profilesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'users') : null, [firestore, user]);
-    const { data: initialOperators, isLoading: profilesLoading, error: profilesError } = useCollection<UserProfile>(profilesRef);
+    const profilesRef = useMemoFirebase(() => (firestore && user ? collection(firestore, 'users') : null), [firestore, user]);
+    const { data: initialProfiles, isLoading: profilesLoading, error: profilesError } = useCollection<UserProfile>(profilesRef);
     
-    const [operators, setOperators] = useState<UserProfile[] | null>(null);
+    const [operators, setOperators] = useState<UserProfile[]>([]);
 
     useEffect(() => {
-        if(initialOperators) {
-            // No need to filter by role here, the security rules handle access.
-            // If the query returns data, it means the user is an admin.
-            setOperators(initialOperators);
+        if(initialProfiles) {
+            const operatorProfiles = initialProfiles.filter(p => p.role === 'operator');
+            setOperators(operatorProfiles);
         }
-    }, [initialOperators]);
-
-    const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
-    const { data: companies, isLoading: companiesLoading, error: companiesError } = useCollection<Company>(companiesRef);
-
-    // This is inefficient. For a large app, this should be a denormalized field on the user profile.
-    const [companyMap, setCompanyMap] = useState<Record<string, string>>({});
-
-    useEffect(() => {
-        if (!firestore || !operators || !companies) return;
-
-        // This is a placeholder for a more efficient implementation.
-        // It's not scalable as it requires fetching all shifts.
-        const buildCompanyMap = async () => {
-            const tempMap: Record<string, string> = {};
-            // This is where you would ideally have a better query or denormalized data.
-            // For now, we will leave it empty as fetching all shifts is too expensive.
-            setCompanyMap(tempMap);
-        };
-        buildCompanyMap();
-
-    }, [firestore, operators, companies]);
+    }, [initialProfiles]);
 
 
     const filteredOperators = useMemo(() => {
-        if (!operators) return [];
-
         const sortedOperators = [...operators].sort((a, b) => {
-                const getDate = (profile: UserProfile): Date => {
-                    if (!profile.createdAt) return new Date(0);
-                    // Firestore Timestamps can be objects with toDate(), or ISO strings
-                    if (typeof profile.createdAt === 'string') {
-                        const parsed = parseISO(profile.createdAt);
-                        return isValid(parsed) ? parsed : new Date(0);
-                    }
-                    if (typeof (profile.createdAt as any)?.toDate === 'function') {
-                        return (profile.createdAt as any).toDate();
-                    }
-                    return new Date(0);
+            const getDate = (profile: UserProfile): Date => {
+                if (!profile.createdAt) return new Date(0);
+                if (typeof profile.createdAt === 'string') {
+                    const parsed = parseISO(profile.createdAt);
+                    return isValid(parsed) ? parsed : new Date(0);
                 }
-
-                const dateA = getDate(a);
-                const dateB = getDate(b);
-                
-                if(!isValid(dateA) || !isValid(dateB)) return 0;
-                return dateB.getTime() - dateA.getTime();
-            });
+                if (typeof (profile.createdAt as any)?.toDate === 'function') {
+                    return (profile.createdAt as any).toDate();
+                }
+                return new Date(0);
+            }
+            const dateA = getDate(a);
+            const dateB = getDate(b);
+            if(!isValid(dateA) || !isValid(dateB)) return 0;
+            return dateB.getTime() - dateA.getTime();
+        });
 
         if (!searchQuery) {
             return sortedOperators;
@@ -117,7 +89,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
         const userDocRef = doc(firestore, 'users', userId);
         try {
             await deleteDoc(userDocRef);
-            setOperators(prev => prev ? prev.filter(op => op.id !== userId) : null);
+            setOperators(prev => prev.filter(op => op.id !== userId));
             toast({
                 title: "Usuario Eliminado",
                 description: `El operador "${userName}" ha sido eliminado.`,
@@ -128,7 +100,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
         }
     };
 
-    const isLoading = profilesLoading || companiesLoading;
+    const isLoading = profilesLoading;
 
     return (
         <Card>
@@ -181,7 +153,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                 </TableRow>
                             ) : filteredOperators.length > 0 ? (
                                 filteredOperators.map((op) => {
-                                    const companyName = companyMap[op.uid] || 'No disponible';
+                                    const companyName = 'No disponible';
                                     
                                     const getCreatedAtDate = (profile: UserProfile): Date | null => {
                                         if (!profile.createdAt) return null;
