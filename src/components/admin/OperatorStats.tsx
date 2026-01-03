@@ -5,8 +5,10 @@ import type { UserProfile, Shift, Company } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, User, Briefcase } from 'lucide-react';
 import { LogoSpinner } from '../LogoSpinner';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection } from 'firebase/firestore';
+import { User as FirebaseUser } from 'firebase/auth';
+
 
 interface Stats {
     totalOperators: number;
@@ -15,46 +17,44 @@ interface Stats {
     operatorsByCompany: Record<string, number>;
 }
 
-export function OperatorStats() {
+interface OperatorStatsProps {
+    user: FirebaseUser | null;
+}
+
+export function OperatorStats({ user }: OperatorStatsProps) {
     const [stats, setStats] = useState<Stats | null>(null);
     const firestore = useFirestore();
 
-    const profilesRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+    const profilesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'users') : null, [firestore, user]);
     const { data: profiles, isLoading: profilesLoading } = useCollection<UserProfile>(profilesRef);
     
-    // We need all shifts from all companies to map users to companies
-    // A better approach for larger scale would be to store companyId on user profile.
-    const companiesRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies') : null, [firestore]);
+    const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
     const { data: companies, isLoading: companiesLoading } = useCollection<Company>(companiesRef);
     
     // This is inefficient but necessary with the current data model.
-    const allShiftsRef = useMemoFirebase(() => firestore ? collection(firestore, 'shifts') : null, [firestore]);
+    const allShiftsRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'shifts') : null, [firestore, user]);
     const { data: allShifts, isLoading: shiftsLoading } = useCollection<Shift>(allShiftsRef);
 
-    const isLoading = profilesLoading || companiesLoading; // shiftsLoading is not critical for initial render
+    const isLoading = profilesLoading || companiesLoading || shiftsLoading;
 
     useEffect(() => {
-        if (!profiles || !companies) return;
+        if (!profiles || !companies || !allShifts) return;
 
         try {
+            const operators = profiles.filter(p => p.role === 'operator');
             const companiesById = companies.reduce((acc, company) => {
                 acc[company.id] = company.name;
                 return acc;
             }, {} as Record<string, string>);
 
-            // This part is slow and inefficient, especially without all shifts loaded.
-            // This logic should be moved to a backend or improved with a better data model.
-            // For now, we'll compute it on the client.
             const operatorsByCompany: Record<string, Set<string>> = {};
-            if (allShifts) {
-                 allShifts.forEach(shift => {
-                    const companyName = companiesById[shift.companyId] || 'Empresa Desconocida';
-                    if (!operatorsByCompany[companyName]) {
-                        operatorsByCompany[companyName] = new Set();
-                    }
-                    operatorsByCompany[companyName].add(shift.userId);
-                 });
-            }
+             allShifts.forEach(shift => {
+                const companyName = companiesById[shift.companyId] || 'Empresa Desconocida';
+                if (!operatorsByCompany[companyName]) {
+                    operatorsByCompany[companyName] = new Set();
+                }
+                operatorsByCompany[companyName].add(shift.userId);
+             });
             
             const finalOperatorsByCompany: Record<string, number> = {};
             for (const companyName in operatorsByCompany) {
@@ -62,9 +62,9 @@ export function OperatorStats() {
             }
 
             setStats({
-                totalOperators: profiles.length,
-                anonymousCount: profiles.filter(p => p.isAnonymous).length,
-                googleCount: profiles.filter(p => !p.isAnonymous).length,
+                totalOperators: operators.length,
+                anonymousCount: operators.filter(p => p.isAnonymous).length,
+                googleCount: operators.filter(p => !p.isAnonymous).length,
                 operatorsByCompany: finalOperatorsByCompany,
             });
 

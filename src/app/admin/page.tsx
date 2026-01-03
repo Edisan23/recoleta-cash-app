@@ -120,7 +120,7 @@ export default function AdminDashboardPage() {
       <main className="space-y-8">
         <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} />
         <Separator />
-        <OperatorStats />
+        <OperatorStats user={user} />
         <OperatorTable user={user} />
       </main>
     </div>
