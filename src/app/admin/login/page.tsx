@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser } from '@/firebase';
-import { signInWithPopup, GoogleAuthProvider, User } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { LogoSpinner } from '@/components/LogoSpinner';
 
@@ -31,16 +31,23 @@ export default function AdminLoginPage() {
   }, []);
 
   useEffect(() => {
-    if (!isMounted || isUserLoading) {
+    if (!isMounted || isUserLoading || !auth) {
       return;
     }
 
-    // If a user is logged in, check if they are the admin.
-    if (user && user.email === ADMIN_EMAIL) {
+    // If a user is already logged in, check if they are the admin.
+    if (user) {
+      if (user.email === ADMIN_EMAIL) {
+        // Already logged in as admin, go to dashboard.
         router.replace('/admin');
+      } else {
+        // Logged in as a non-admin user, sign them out to allow admin login.
+        auth.signOut();
+      }
     }
+    // If no user is logged in, do nothing and wait for sign-in attempt.
     
-  }, [user, isUserLoading, router, isMounted]);
+  }, [user, isUserLoading, router, isMounted, auth]);
 
 
   const handleGoogleSignIn = async () => {
@@ -52,15 +59,16 @@ export default function AdminLoginPage() {
       const userCredential = await signInWithPopup(auth, provider);
       const loggedInUser = userCredential.user;
 
-      // After sign-in, check if the email matches the admin email.
+      // After sign-in, explicitly check if the email matches the admin email.
       if (loggedInUser.email === ADMIN_EMAIL) {
         toast({
           title: '¡Bienvenido Administrador!',
           description: 'Has iniciado sesión correctamente.',
         });
-        // The useEffect hook will handle the redirection.
+        // CRITICAL: Push directly to the admin page on successful admin login.
+        router.push('/admin');
       } else {
-        // If the user is not the admin, sign them out and show an error.
+        // If the user is not the admin, sign them out immediately and show an error.
         await auth.signOut();
         toast({
           variant: 'destructive',
@@ -85,9 +93,8 @@ export default function AdminLoginPage() {
     }
   };
   
-  // Show spinner while checking auth state or if the user is the admin and is being redirected.
-  const shouldShowSpinner = isUserLoading || !isMounted || (user && user.email === ADMIN_EMAIL);
-  if (shouldShowSpinner) {
+  // Show a spinner while the initial auth check is running.
+  if (isUserLoading || !isMounted) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
@@ -95,7 +102,7 @@ export default function AdminLoginPage() {
     );
   }
 
-  // If a user is logged in but is not the admin, show the login page.
+  // Render the login page if no user is logged in, or if a non-admin was just logged out.
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
       <Card className="w-full max-w-md">
