@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Trash2, Download, Repeat } from 'lucide-react';
+import { LogOut, Download, Repeat } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem, DailyShiftEntry } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,10 +10,6 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatePicker } from '@/components/DatePicker';
-import { TimeInput } from '@/components/TimeInput';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { DeleteShiftDialog } from '@/components/operator/DeleteShiftDialog';
 import { calculateShiftSummary, calculatePeriodSummary, getPeriodDateRange } from '@/lib/payroll-calculator';
 import { PayrollBreakdown } from './operator/PayrollBreakdown';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -23,11 +19,8 @@ import { PayrollVoucher } from './operator/PayrollVoucher';
 import { useReactToPrint } from 'react-to-print';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
-import { collection, doc, query, where, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { format, isValid, parseISO } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { ArrowLeft, PlusCircle, AlertCircle } from 'lucide-react';
+import { collection, doc, query, where, writeBatch } from 'firebase/firestore';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 
 
 // --- FAKE DATA & KEYS ---
@@ -58,15 +51,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const { toast } = useToast();
   const voucherRef = useRef<HTMLDivElement>(null);
   
-  // Local state
-  const [isSaving, setIsSaving] = useState(false);
-  
   // Form state
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [dailyShifts, setDailyShifts] = useState<DailyShiftEntry[]>([
-    { id: `new_${Date.now()}`, startTime: '', endTime: '' }
-  ]);
-  const [itemDetails, setItemDetails] = useState<Record<string, string>>({}); // { itemId: detail }
   
   // Calculated Summaries
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
@@ -142,34 +128,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       }
   }, [user, userProfile, userProfileLoading, firestore]);
 
-  // Effect to update inputs when date changes or shifts are updated
-  useEffect(() => {
-    if (!date || !allShifts) {
-        setDailyShifts([
-            { id: `new_${Date.now()}`, startTime: '', endTime: '' }
-        ]);
-        setItemDetails({});
-        return;
-    }
-    const shiftsForDate = allShifts.filter(s => new Date(s.date).toDateString() === date.toDateString());
-    
-    if (shiftsForDate.length > 0) {
-        const existingShifts = shiftsForDate.map(s => ({ id: s.id, startTime: s.startTime || '', endTime: s.endTime || '' }));
-        setDailyShifts(existingShifts);
-        
-        const details = shiftsForDate[0]?.itemDetails?.reduce((acc, item) => {
-            acc[item.itemId] = item.detail;
-            return acc;
-        }, {} as Record<string, string>) || {};
-        setItemDetails(details);
-    } else {
-        setDailyShifts([
-            { id: `new_${Date.now()}`, startTime: '', endTime: '' },
-        ]);
-        setItemDetails({});
-    }
-  }, [date, allShifts]);
-
 
   // Effect to calculate daily summary for the selected day
   useEffect(() => {
@@ -208,121 +166,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const summary = calculatePeriodSummary(allShifts, settings, holidays, benefits, deductions, user.uid, companyId, date);
     setPeriodSummary(summary);
   }, [allShifts, user, companyId, settings, date, holidays, benefits, deductions]);
-
-  const handleDailyShiftChange = (index: number, field: 'startTime' | 'endTime', value: string) => {
-    const updatedShifts = [...dailyShifts];
-    updatedShifts[index][field] = value;
-    setDailyShifts(updatedShifts);
-  };
-
-  const addDailyShift = () => {
-    setDailyShifts([...dailyShifts, { id: `new_${Date.now()}`, startTime: '', endTime: '' }]);
-  };
-
-    const removeDailyShift = (index: number) => {
-        const shiftToDelete = dailyShifts[index];
-        if (!shiftToDelete.id.startsWith('new_')) {
-            handleDelete(shiftToDelete.id, index);
-        } else {
-            setDailyShifts(dailyShifts.filter((_, i) => i !== index));
-        }
-    };
-
-
-  const handleItemDetailChange = (itemId: string, value: string) => {
-    setItemDetails(prev => ({ ...prev, [itemId]: value }));
-  };
-
-  const handleSave = async (shiftIndex?: number) => {
-    if (!date || !user || !firestore) {
-      toast({ title: "Error", description: "No se puede guardar sin fecha, usuario o conexión.", variant: "destructive" });
-      return;
-    }
-  
-    setIsSaving(true);
-  
-    const filledItemDetails = Object.entries(itemDetails)
-      .filter(([_, detail]) => detail.trim() !== '')
-      .map(([itemId, detail]) => {
-        const item = companyItems?.find(i => i.id === itemId);
-        return {
-          itemId,
-          itemName: item?.name || 'Item Desconocido',
-          detail,
-        };
-      });
-  
-    try {
-      const shiftsCollection = collection(firestore, 'companies', companyId, 'shifts');
-      
-      // If a specific shift is being saved (from its own save button)
-      if (shiftIndex !== undefined) {
-        const shiftToSave = dailyShifts[shiftIndex];
-        if (!shiftToSave.startTime && !shiftToSave.endTime) {
-            toast({ title: "Atención", description: "Debes ingresar hora de entrada o salida para guardar el turno.", variant: "destructive"});
-            setIsSaving(false);
-            return;
-        }
-
-        const shiftData: Omit<Shift, 'id'> = {
-          userId: user.uid,
-          companyId: companyId,
-          date: date.toISOString(),
-          startTime: shiftToSave.startTime,
-          endTime: shiftToSave.endTime,
-          itemDetails: filledItemDetails,
-        };
-  
-        if (shiftToSave.id.startsWith('new_')) {
-          await addDoc(shiftsCollection, shiftData);
-        } else {
-          const shiftDoc = doc(shiftsCollection, shiftToSave.id);
-          await updateDoc(shiftDoc, shiftData);
-        }
-      } else { 
-        // This is the main "Guardar Detalles" button, now it saves details for all shifts
-        const batch = writeBatch(firestore);
-        const shiftsForDate = allShifts?.filter(s => new Date(s.date).toDateString() === date.toDateString()) || [];
-        
-        shiftsForDate.forEach(dbShift => {
-            const shiftDocRef = doc(shiftsCollection, dbShift.id);
-            batch.update(shiftDocRef, { itemDetails: filledItemDetails });
-        });
-        
-        await batch.commit();
-      }
-      
-      toast({ title: "¡Guardado!", description: "Tu actividad se ha guardado correctamente." });
-    } catch (e) {
-      console.error("Error saving shift to Firestore", e);
-      toast({ title: "Error", description: "No se pudo guardar tu actividad.", variant: "destructive" });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-  
-
-  const handleDelete = async (shiftId: string, index: number) => {
-    if (!user || !firestore) return;
-
-    // If it's a new shift not yet saved, just remove from UI
-    if (shiftId.startsWith('new_')) {
-        setDailyShifts(dailyShifts.filter((_, i) => i !== index));
-        return;
-    }
-
-    setIsSaving(true);
-    const shiftDoc = doc(firestore, 'companies', companyId, 'shifts', shiftId);
-    try {
-        await deleteDoc(shiftDoc);
-        toast({ title: "¡Eliminado!", description: "El turno ha sido eliminado." });
-    } catch (e) {
-        console.error("Error deleting shift from Firestore", e);
-        toast({ title: "Error", description: "No se pudo eliminar el turno.", variant: "destructive" });
-    } finally {
-        setIsSaving(false);
-    }
-  };
   
   const handleSignOut = async () => {
     try {
@@ -445,80 +288,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         </header>
 
         <main className="space-y-8">
-            <Card>
-                <CardHeader>
-                    <CardTitle>Registrar Actividad</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="flex justify-center">
-                      <DatePicker date={date} setDate={setDate} highlightedDays={shiftDays} />
-                    </div>
-
-                    <div className="space-y-4">
-                        {dailyShifts.map((shift, index) => (
-                             <div key={shift.id} className="grid grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-muted/50">
-                                <div className="col-span-12 sm:col-span-5">
-                                   <TimeInput 
-                                        label={`Entrada Turno ${index + 1}`}
-                                        value={shift.startTime}
-                                        onChange={(val) => handleDailyShiftChange(index, 'startTime', val)}
-                                    />
-                                </div>
-                                <div className="col-span-12 sm:col-span-5">
-                                   <TimeInput 
-                                        label={`Salida Turno ${index + 1}`}
-                                        value={shift.endTime}
-                                        onChange={(val) => handleDailyShiftChange(index, 'endTime', val)}
-                                    />
-                                </div>
-                                <div className="col-span-12 sm:col-span-2 flex items-center justify-end gap-2">
-                                     <Button size="sm" onClick={() => handleSave(index)} disabled={isSaving}>
-                                        {isSaving ? <LogoSpinner className="mr-2 h-4 w-4" /> : null}
-                                        Guardar
-                                    </Button>
-                                    <DeleteShiftDialog onConfirm={() => removeDailyShift(index)}>
-                                        <Button variant="ghost" size="icon" disabled={isSaving}>
-                                            <Trash2 className="h-4 w-4 text-destructive"/>
-                                        </Button>
-                                    </DeleteShiftDialog>
-                                </div>
-                            </div>
-                        ))}
-                         <Button variant="outline" onClick={addDailyShift} className="w-full">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Añadir Turno
-                        </Button>
-                    </div>
-
-                    {(companyItems || []).length > 0 && (
-                      <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value="item-details">
-                            <AccordionTrigger>Detalles Adicionales</AccordionTrigger>
-                            <AccordionContent>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                                  {companyItems?.map(item => (
-                                    <div key={item.id}>
-                                      <Label htmlFor={`item-detail-${item.id}`}>{item.name}</Label>
-                                       <Input 
-                                        id={`item-detail-${item.id}`}
-                                        value={itemDetails[item.id] || ''}
-                                        onChange={(e) => handleItemDetailChange(item.id, e.target.value)}
-                                        placeholder={item.description || "Ingresa el detalle"}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                                <Button onClick={() => handleSave()} disabled={isSaving} size="sm" className="mt-4">
-                                    {isSaving ? <LogoSpinner className="mr-2" /> : null}
-                                    Guardar Detalles
-                                </Button>
-                            </AccordionContent>
-                        </AccordionItem>
-                      </Accordion>
-                    )}
-
-                </CardContent>
-            </Card>
+            <div className="flex justify-center mb-8">
+                <DatePicker date={date} setDate={setDate} highlightedDays={shiftDays} />
+            </div>
 
             <Card>
                 <CardHeader>
