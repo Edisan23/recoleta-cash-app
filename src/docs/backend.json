@@ -20,11 +20,6 @@
           "description": "The user's email address.",
           "format": "email"
         },
-        "role": {
-          "type": "string",
-          "description": "The user's role within the application (e.g., operator, admin).",
-          "enum": ["operator", "admin"]
-        },
         "companyId": {
             "type": "string",
             "description": "The ID of the company the user belongs to."
@@ -35,7 +30,7 @@
           "description": "The timestamp when the user account was created."
         }
       },
-      "required": ["id", "name", "email", "role", "createdAt"]
+      "required": ["id", "name", "email", "createdAt"]
     },
     "Company": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -67,100 +62,6 @@
       },
       "required": ["id", "name", "isActive"]
     },
-    "CompanySettings": {
-      "title": "Company Settings",
-      "description": "Defines the payment rules, deductions, and special conditions for a company.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "paymentModel": {
-            "type": "string",
-            "enum": ["hourly", "production"],
-            "description": "The payment model for the company."
-        },
-        "payrollCycle": {
-            "type": "string",
-            "enum": ["monthly", "bi-weekly"],
-            "description": "The payroll payment frequency."
-        },
-        "nightShiftStartHour": {
-            "type": "number",
-            "description": "The hour (0-23) when the night shift begins."
-        },
-        "dailyHourLimit": {
-            "type": "number",
-            "description": "Number of hours after which overtime rates apply."
-        },
-        "dayRate": { "type": "number" },
-        "nightRate": { "type": "number" },
-        "dayOvertimeRate": { "type": "number" },
-        "nightOvertimeRate": { "type": "number" },
-        "holidayDayRate": { "type": "number" },
-        "holidayNightRate": { "type": "number" },
-        "holidayDayOvertimeRate": { "type": "number" },
-        "holidayNightOvertimeRate": { "type": "number" }
-      }
-    },
-    "Benefit": {
-        "title": "Benefit",
-        "description": "Represents a company-specific benefit or subsidy (e.g., transportation allowance).",
-        "type": "object",
-        "properties": {
-            "id": { "type": "string" },
-            "companyId": { "type": "string" },
-            "name": { "type": "string" },
-            "type": { "type": "string", "enum": ["fixed", "percentage", "per-hour"] },
-            "value": { "type": "number" },
-            "appliesTo": { "type": "string", "enum": ["all", "min-wage"], "description": "Condition for applying the benefit."}
-        },
-        "required": ["id", "companyId", "name", "type", "value"]
-    },
-    "Deduction": {
-        "title": "Deduction",
-        "description": "Represents a company-specific or legal deduction (e.g., health insurance).",
-        "type": "object",
-        "properties": {
-            "id": { "type": "string" },
-            "companyId": { "type": "string" },
-            "name": { "type": "string" },
-            "type": { "type": "string", "enum": ["fixed", "percentage"] },
-            "value": { "type": "number" }
-        },
-        "required": ["id", "companyId", "name", "type", "value"]
-    },
-    "CompanyItem": {
-      "title": "Company Item",
-      "description": "Represents an item for production-based payment (e.g., 'bulto movido') or a special condition for hourly payment.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string" },
-        "description": { "type": "string" },
-        "value": { "type": "number", "description": "Value per unit for production-based payment."},
-        "affectsPayment": { "type": "boolean" },
-        "paymentMultiplier": { "type": "number" },
-        "extraPerHour": { "type": "number" },
-        "requiresSupervisor": { "type": "boolean" }
-      },
-      "required": ["id", "name"]
-    },
-    "Shift": {
-        "title": "Shift",
-        "description": "Represents a single work shift or production entry for a user.",
-        "type": "object",
-        "properties": {
-            "id": { "type": "string" },
-            "userId": { "type": "string" },
-            "companyId": { "type": "string" },
-            "date": { "type": "string", "format": "date-time" },
-            "startTime": { "type": "string", "format": "time", "description": "Used for 'hourly' payment model." },
-            "endTime": { "type": "string", "format": "time", "description": "Used for 'hourly' payment model." },
-            "itemId": { "type": "string", "description": "Used for 'production' payment model to link to a CompanyItem." },
-            "quantity": { "type": "number", "description": "Used for 'production' payment model." },
-            "supervisor": { "type": "string" }
-        },
-        "required": ["id", "userId", "companyId", "date"]
-    },
     "Payroll": {
         "title": "Payroll",
         "description": "Represents a payroll period for a user.",
@@ -178,65 +79,19 @@
     "providers": ["password", "anonymous", "google.com"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "schema": { "$ref": "#/entities/User" },
-          "description": "Stores user information."
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Stores user information."
+    },
+    "/companies/{companyId}": {
+      "schema": { "$ref": "#/entities/Company" },
+      "description": "Stores company information.",
+      "subcollections": {
+        "payrolls/{payrollId}": {
+          "schema": { "$ref": "#/entities/Payroll" },
+          "description": "All payrolls for all users in the company."
         }
-      },
-      {
-        "path": "/companies/{companyId}",
-        "definition": {
-          "schema": { "$ref": "#/entities/Company" },
-          "description": "Stores company information."
-        },
-        "subcollections": [
-            {
-                "path": "settings/{settingsId}",
-                "definition": {
-                    "schema": { "$ref": "#/entities/CompanySettings" },
-                    "description": "Payment rules and settings for the company."
-                }
-            },
-            {
-                "path": "benefits/{benefitId}",
-                "definition": {
-                    "schema": { "$ref": "#/entities/Benefit" },
-                    "description": "Benefits and subsidies for the company."
-                }
-            },
-            {
-                "path": "deductions/{deductionId}",
-                "definition": {
-                    "schema": { "$ref": "#/entities/Deduction" },
-                    "description": "Deductions for the company."
-                }
-            },
-            {
-                "path": "items/{itemId}",
-                "definition": {
-                    "schema": { "$ref": "#/entities/CompanyItem" },
-                    "description": "Items for production payment or special conditions for hourly payment."
-                }
-            },
-            {
-                "path": "shifts/{shiftId}",
-                "definition": {
-                    "schema": { "$ref": "#/entities/Shift" },
-                    "description": "All shifts for all users in the company."
-                }
-            },
-            {
-                "path": "payrolls/{payrollId}",
-                "definition": {
-                    "schema": { "$ref": "#/entities/Payroll" },
-                    "description": "All payrolls for all users in the company."
-                }
-            }
-        ]
       }
-    ]
+    }
   }
 }
