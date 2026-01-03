@@ -18,9 +18,8 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // Admin check is now based on a 'role' field in the user's profile.
-      // This is more flexible and secure than hardcoding UIDs.
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Admin access is restricted to a specific Google account email.
+      return isSignedIn() && request.auth.token.email == 'tjedisan@gmail.com';
     }
 
     // Rules for the 'users' collection

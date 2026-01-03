@@ -18,8 +18,8 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // Admin check is based on a 'role' field in the user's profile.
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Admin access is restricted to a specific Google account email.
+      return isSignedIn() && request.auth.token.email == 'tjedisan@gmail.com';
     }
 
     match /users/{userId} {
