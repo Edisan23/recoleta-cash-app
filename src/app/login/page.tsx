@@ -33,6 +33,7 @@ export default function OperatorLoginPage() {
 
   useEffect(() => {
     if (isMounted && !isUserLoading && user) {
+      // User is logged in, check where to redirect.
       const storedCompanyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
       if (storedCompanyId) {
         router.replace('/operator/dashboard');
@@ -40,6 +41,7 @@ export default function OperatorLoginPage() {
         router.replace('/select-company');
       }
     }
+    // If user is not logged in (!user), do nothing and show the login page.
   }, [user, isUserLoading, router, isMounted]);
 
   const handleGoogleSignIn = async () => {
@@ -56,21 +58,19 @@ export default function OperatorLoginPage() {
     } catch (error: any) {
       if (error.code !== 'auth/popup-closed-by-user') {
         console.error('Error during Google sign-in:', error);
+        toast({
+            variant: 'destructive',
+            title: 'Error de Autenticación',
+            description: 'Ocurrió un error al intentar iniciar sesión con Google.',
+        });
       }
-      toast({
-        variant: 'destructive',
-        title: 'Error de Autenticación',
-        description:
-          error.code === 'auth/popup-closed-by-user'
-            ? 'El proceso de inicio de sesión fue cancelado.'
-            : 'Ocurrió un error al intentar iniciar sesión con Google.',
-      });
     } finally {
       setIsSubmitting(false);
     }
   };
   
-  if (isUserLoading || !isMounted) {
+  if (isUserLoading || (isMounted && user)) {
+     // Show a spinner while loading auth state OR if the user is already logged in and we are about to redirect.
      return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
@@ -78,6 +78,7 @@ export default function OperatorLoginPage() {
     );
   }
 
+  // This will only render if not loading, the component is mounted, and there is no user.
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
       <Card className="w-full max-w-md">

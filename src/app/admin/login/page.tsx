@@ -31,6 +31,7 @@ export default function AdminLoginPage() {
   }, []);
 
   useEffect(() => {
+    // Wait until the component is mounted and auth state is determined
     if (!isMounted || isUserLoading || !auth) {
       return;
     }
@@ -78,16 +79,15 @@ export default function AdminLoginPage() {
       }
 
     } catch (error: any) {
+       // Avoid showing an error toast if the user closes the popup manually
        if (error.code !== 'auth/popup-closed-by-user') {
           console.error('Admin login error:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Error de Autenticación',
+            description: 'Ocurrió un error inesperado al intentar iniciar sesión.',
+          });
        }
-       toast({
-        variant: 'destructive',
-        title: 'Error de Autenticación',
-        description: error.code === 'auth/popup-closed-by-user' 
-          ? 'El proceso de inicio de sesión fue cancelado.' 
-          : 'Ocurrió un error inesperado.',
-      });
     } finally {
       setIsSubmitting(false);
     }
