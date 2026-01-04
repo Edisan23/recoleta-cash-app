@@ -1,4 +1,5 @@
 
+
 import type { Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import { isHoliday } from './date-helpers';
 
@@ -35,7 +36,7 @@ export function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' |
 }
 
 export function isWithinInterval(date: Date, interval: { start: Date; end: Date }): boolean {
-    return date.getTime() >= interval.start.getTime() && date.getTime() <= interval.end.getTime();
+    return date.getTime() >= interval.start.getTime() && date.getTime() < interval.end.getTime();
 }
 
 function getNightIntervals(date: Date, nightShiftStartHour: number) {
@@ -51,6 +52,7 @@ function getNightIntervals(date: Date, nightShiftStartHour: number) {
   const nightInterval2Start = new Date(dayStart);
   nightInterval2Start.setHours(nightShiftStartHour, 0, 0, 0);
   const nightInterval2End = new Date(dayEnd);
+  nightInterval2End.setHours(24, 0, 0, 0); // Use 24:00 to include the full hour
 
   return [
     { start: nightInterval1Start, end: nightInterval1End },
