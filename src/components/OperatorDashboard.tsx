@@ -71,7 +71,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const shiftsQuery = useMemoFirebase(() => {
     if (!firestore || !user?.uid) return null;
     return query(collection(firestore, 'companies', companyId, 'shifts'), where('userId', '==', user.uid));
-  }, [firestore, companyId, user?.uid]);
+  }, [firestore, companyId, user]);
   const { data: allShifts, isLoading: shiftsLoading, error: shiftsError } = useCollection<Shift>(shiftsQuery);
 
   const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
@@ -84,7 +84,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const deductionsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
   const { data: deductions, isLoading: deductionsLoading } = useCollection<Deduction>(deductionsRef);
 
-  const itemsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId]);
+  const itemsRef = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, user, companyId]);
   const { data: companyItems, isLoading: itemsLoading } = useCollection<CompanyItem>(itemsRef);
 
   const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
