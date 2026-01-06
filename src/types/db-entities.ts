@@ -82,6 +82,7 @@ export type User = {
     date: string; // ISO String
     startTime: string;
     endTime: string;
+    notes?: string;
     
     // Custom fields for the shift day
     itemDetails?: { 

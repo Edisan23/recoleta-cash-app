@@ -13,6 +13,7 @@ import { DeleteShiftDialog } from './DeleteShiftDialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Textarea } from '../ui/textarea';
 
 interface ShiftFormProps {
     selectedDate: Date;
@@ -26,6 +27,7 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
     const [itemDetails, setItemDetails] = useState<Record<string, string>>({});
+    const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     
@@ -43,11 +45,13 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                 return acc;
             }, {} as Record<string, string>) || {};
             setItemDetails(details);
+            setNotes(shift.notes || '');
         } else {
             // Reset form if there are no shifts for the new date
             setStartTime('');
             setEndTime('');
             setItemDetails({});
+            setNotes('');
         }
     }, [shiftsForDay, selectedDate]);
 
@@ -85,6 +89,7 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                 date: selectedDate.toISOString(),
                 startTime,
                 endTime,
+                notes: notes,
                 itemDetails: companyItems.map(item => ({
                     itemId: item.id,
                     itemName: item.name,
@@ -132,6 +137,7 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
             setStartTime(''); // Clear form
             setEndTime('');
             setItemDetails({});
+            setNotes('');
         } catch (error) {
              console.error("Error deleting shift: ", error);
              toast({
@@ -164,12 +170,12 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                         onChange={setEndTime}
                     />
                 </div>
-                 {companyItems.length > 0 && (
-                     <Accordion type="single" collapsible className="w-full">
-                        <AccordionItem value="item-1">
-                            <AccordionTrigger>Detalles Adicionales (Opcional)</AccordionTrigger>
-                            <AccordionContent>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                 <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1">
+                        <AccordionTrigger>Detalles Adicionales (Opcional)</AccordionTrigger>
+                        <AccordionContent>
+                            <div className="space-y-4 pt-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     {companyItems.map(item => (
                                         <div key={item.id} className="space-y-2">
                                             <Label htmlFor={item.id}>{item.name}</Label>
@@ -182,10 +188,19 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                                         </div>
                                     ))}
                                 </div>
-                            </AccordionContent>
-                        </AccordionItem>
-                    </Accordion>
-                )}
+                                <div className="space-y-2">
+                                    <Label htmlFor="notes">Notas del Turno</Label>
+                                    <Textarea
+                                        id="notes"
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        placeholder="Escribe aquí cualquier nota relevante sobre este turno..."
+                                    />
+                                </div>
+                            </div>
+                        </AccordionContent>
+                    </AccordionItem>
+                </Accordion>
             </CardContent>
             <CardFooter className="flex justify-end gap-2">
                 {hasShift && (

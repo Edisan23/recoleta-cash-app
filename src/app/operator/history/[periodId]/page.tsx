@@ -39,6 +39,8 @@ const formatItemNameForHistory = (name: string): string => {
 function HistoryDayDetail({ summary, shiftsForDay }: { summary: Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null, shiftsForDay: Shift[] }) {
     
     const allItemDetails = shiftsForDay.flatMap(shift => shift.itemDetails || []).filter(detail => detail.detail);
+    const allNotes = shiftsForDay.map(shift => shift.notes).filter(Boolean);
+
 
     return (
         <Card className="mt-4 border-primary/20">
@@ -62,19 +64,27 @@ function HistoryDayDetail({ summary, shiftsForDay }: { summary: Omit<PayrollSumm
                         </div>
                         <PayrollBreakdown summary={summary} />
 
-                        {allItemDetails.length > 0 && (
+                        {(allItemDetails.length > 0 || allNotes.length > 0) && (
                             <>
                                 <Separator className="my-4" />
-                                <div className="space-y-2">
+                                <div className="space-y-4">
                                      <h4 className="font-semibold">Detalles Adicionales</h4>
-                                     <div className="space-y-1 text-sm p-3 bg-muted/50 rounded-md">
-                                        {allItemDetails.map((detail, index) => (
-                                            <div key={index} className="flex justify-between">
-                                                <span className="text-muted-foreground">{formatItemNameForHistory(detail.itemName)}:</span>
-                                                <span className="font-medium">{detail.detail}</span>
-                                            </div>
-                                        ))}
-                                     </div>
+                                     {allItemDetails.length > 0 && (
+                                        <div className="space-y-1 text-sm p-3 bg-muted/50 rounded-md">
+                                            {allItemDetails.map((detail, index) => (
+                                                <div key={index} className="flex justify-between">
+                                                    <span className="text-muted-foreground">{formatItemNameForHistory(detail.itemName)}:</span>
+                                                    <span className="font-medium">{detail.detail}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                     )}
+                                     {allNotes.map((note, index) => (
+                                         <div key={index} className="space-y-1 text-sm p-3 bg-muted/50 rounded-md">
+                                             <p className="font-medium">Notas:</p>
+                                             <p className="text-muted-foreground whitespace-pre-wrap">{note}</p>
+                                         </div>
+                                     ))}
                                 </div>
                             </>
                         )}
