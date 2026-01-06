@@ -11,17 +11,20 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 import { LogoSpinner } from '@/components/LogoSpinner';
+import type { UserProfile } from '@/types/db-entities';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
 export default function OperatorLoginPage() {
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,27 +48,55 @@ export default function OperatorLoginPage() {
   }, [user, isUserLoading, router, isMounted]);
 
   const handleGoogleSignIn = async () => {
-    if (!auth) return;
+    if (!auth || !firestore) {
+        toast({
+            variant: 'destructive',
+            title: 'Error de configuración',
+            description: 'El servicio de autenticación no está disponible.',
+        });
+        return;
+    }
+
     setIsSubmitting(true);
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
-      // On successful sign-in, the useEffect will trigger the redirection.
-      toast({
-        title: '¡Bienvenido!',
-        description: 'Has iniciado sesión correctamente.',
-      });
-    } catch (error: any) {
-      if (error.code !== 'auth/popup-closed-by-user') {
-        console.error('Error during Google sign-in:', error);
+        const userCredential = await signInWithPopup(auth, provider);
+        const loggedInUser = userCredential.user;
+
+        // Ensure user profile exists in Firestore.
+        const userDocRef = doc(firestore, 'users', loggedInUser.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (!userDocSnap.exists()) {
+            const newUserProfile: Omit<UserProfile, 'id'> = {
+                uid: loggedInUser.uid,
+                displayName: loggedInUser.displayName || 'Operador Anónimo',
+                photoURL: loggedInUser.photoURL || '',
+                email: loggedInUser.email || '',
+                isAnonymous: loggedInUser.isAnonymous,
+                createdAt: new Date().toISOString(),
+                role: 'operator',
+            };
+            await setDoc(userDocRef, newUserProfile);
+        }
+        
+        // On successful sign-in, the useEffect will trigger the redirection.
         toast({
-            variant: 'destructive',
-            title: 'Error de Autenticación',
-            description: 'Ocurrió un error al intentar iniciar sesión con Google.',
+            title: '¡Bienvenido!',
+            description: 'Has iniciado sesión correctamente.',
         });
-      }
+
+    } catch (error: any) {
+        if (error.code !== 'auth/popup-closed-by-user') {
+            console.error('Error during Google sign-in:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Error de Autenticación',
+                description: 'Ocurrió un error al intentar iniciar sesión con Google.',
+            });
+        }
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
   };
   
