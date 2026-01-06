@@ -56,10 +56,14 @@ service cloud.firestore {
           allow read: if isCompanyMember(companyId);
           allow write: if isAdmin();
       }
-      // Payrolls can be read by the user they belong to, or by an admin.
+      
+      // Rules for the 'payrolls' subcollection
       match /payrolls/{payrollId} {
-        allow read, list: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
-        // Only admins can create/update payrolls.
+        // A user can read their own specific payroll document. An admin can read any.
+        allow get: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
+        // A user can list their own payrolls. An admin can list any.
+        allow list: if isAdmin() || (isCompanyMember(companyId) && request.query.filters[0].value == request.auth.uid);
+        // Only admins can create/update payrolls through the 'close payroll' action.
         allow write: if isAdmin();
       }
     }
