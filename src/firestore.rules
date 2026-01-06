@@ -59,12 +59,15 @@ service cloud.firestore {
       
       // Rules for the 'payrolls' subcollection
       match /payrolls/{payrollId} {
-        // A user can read their own specific payroll document. An admin can read any.
+        // An admin can read any payroll. A user can only read their own specific payroll doc.
         allow get: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
-        // A user can list their own payrolls. An admin can list any.
+        // Only admins can create/update/delete payrolls through the 'close payroll' action.
+        allow write, delete: if isAdmin();
+      }
+      // Allow admins and relevant users to list payrolls.
+      // This must be separate from the `get` rule on the document itself.
+      match /payrolls/{payrollId=**} {
         allow list: if isAdmin() || (isCompanyMember(companyId) && request.query.filters[0].value == request.auth.uid);
-        // Only admins can create/update payrolls through the 'close payroll' action.
-        allow write: if isAdmin();
       }
     }
     
@@ -73,7 +76,8 @@ service cloud.firestore {
     match /{path=**}/shifts/{shiftId} {
         // An admin can read any shift.
         // A user can read their own shifts if they are part of the company.
-        allow read, list: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
+        allow read: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
+        allow list: if isAdmin() || (isCompanyMember(path.split('/')[1]) && request.query.filters[0].value == request.auth.uid);
         
         // A user can create their own shifts.
         allow create: if isCompanyMember(path.split('/')[1]) && request.resource.data.userId == request.auth.uid;

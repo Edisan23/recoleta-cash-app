@@ -81,26 +81,15 @@
     },
     "Payroll": {
         "title": "Payroll",
-        "description": "Represents a saved, closed payroll period for a user.",
+        "description": "Represents a payroll period for a user.",
         "type": "object",
         "properties": {
             "id": { "type": "string" },
             "userId": { "type": "string" },
             "companyId": { "type": "string" },
             "periodStart": { "type": "string", "format": "date-time" },
-            "periodEnd": { "type": "string", "format": "date-time" },
-            "generatedAt": { "type": "string", "format": "date-time"},
-            "summary": {
-                "type": "object",
-                "description": "The calculated payroll summary object."
-            },
-            "shifts": {
-                "type": "array",
-                "items": { "$ref": "#/entities/Shift" },
-                "description": "A snapshot of the shifts included in this payroll."
-            }
-        },
-        "required": ["id", "userId", "companyId", "periodStart", "periodEnd", "generatedAt", "summary"]
+            "periodEnd": { "type": "string", "format": "date-time" }
+        }
     }
   },
   "auth": {
