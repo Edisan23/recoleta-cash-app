@@ -6,7 +6,7 @@ import type { UserProfile } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/lib/utils';
-import { Users, MoreHorizontal, Building, Search, Trash2 } from 'lucide-react';
+import { Users, MoreHorizontal, Search, Trash2, CheckCircle, XCircle, ShieldCheck } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LogoSpinner } from '../LogoSpinner';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, doc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { DeleteUserDialog } from './DeleteUserDialog';
 
@@ -58,20 +58,9 @@ export function OperatorTable({ user }: OperatorTableProps) {
 
     const filteredOperators = useMemo(() => {
         const sortedOperators = [...operators].sort((a, b) => {
-            const getDate = (profile: UserProfile): Date => {
-                if (!profile.createdAt) return new Date(0);
-                if (typeof (profile.createdAt as any)?.toDate === 'function') {
-                    return (profile.createdAt as any).toDate();
-                }
-                if (typeof profile.createdAt === 'string') {
-                    const parsed = parseISO(profile.createdAt);
-                    return isValid(parsed) ? parsed : new Date(0);
-                }
-                return new Date(0);
-            };
-            const dateA = getDate(a);
-            const dateB = getDate(b);
-            if (!isValid(dateA) || !isValid(dateB)) return 0;
+            const dateA = getCreatedAtDate(a);
+            const dateB = getCreatedAtDate(b);
+            if (!dateA || !dateB || !isValid(dateA) || !isValid(dateB)) return 0;
             return dateB.getTime() - dateA.getTime();
         });
 
@@ -83,6 +72,23 @@ export function OperatorTable({ user }: OperatorTableProps) {
             (op.email && op.email.toLowerCase().includes(searchQuery.toLowerCase()))
         );
     }, [operators, searchQuery]);
+
+    const togglePremiumStatus = async (userId: string, currentStatus: boolean | undefined) => {
+        if (!firestore) return;
+        const userDocRef = doc(firestore, 'users', userId);
+        const newStatus = !currentStatus;
+        try {
+            await updateDoc(userDocRef, { isPremium: newStatus });
+            setOperators(prev => prev.map(op => op.id === userId ? { ...op, isPremium: newStatus } : op));
+            toast({
+                title: "Estado Actualizado",
+                description: `El operador ahora es ${newStatus ? 'Premium' : 'de Prueba'}.`,
+            });
+        } catch (error) {
+            console.error("Error updating premium status:", error);
+            toast({ title: "Error", description: "No se pudo actualizar el estado del usuario.", variant: "destructive" });
+        }
+    };
     
     const handleDeleteUser = async (userId: string, userName: string) => {
         if (!firestore) return;
@@ -130,8 +136,8 @@ export function OperatorTable({ user }: OperatorTableProps) {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Operador</TableHead>
-                                <TableHead>Empresa (Referencia)</TableHead>
                                 <TableHead>Tipo de Cuenta</TableHead>
+                                <TableHead>Estado</TableHead>
                                 <TableHead>Registrado</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
@@ -162,20 +168,19 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                                         <AvatarFallback>{getInitials(op.displayName)}</AvatarFallback>
                                                     </Avatar>
                                                     <div>
-                                                        <p className="font-semibold truncate">{op.displayName || 'Usuario sin nombre'}</p>
-                                                        <p className="text-sm text-muted-foreground truncate">{op.email || 'No proporcionado'}</p>
+                                                        <p className="font-semibold truncate max-w-xs">{op.displayName || 'Usuario sin nombre'}</p>
+                                                        <p className="text-sm text-muted-foreground truncate max-w-xs">{op.email || 'No proporcionado'}</p>
                                                     </div>
-                                                </div>
-                                            </TableCell>
-                                            <TableCell>
-                                                <div className='flex items-center gap-2 text-muted-foreground'>
-                                                     <Building className="h-4 w-4" />
-                                                    <span>N/A</span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <Badge variant={op.isAnonymous ? "secondary" : "outline"}>
                                                     {op.isAnonymous ? "Anónimo" : "Google"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={op.isPremium ? 'default' : 'secondary'}>
+                                                    {op.isPremium ? 'Premium' : 'Prueba'}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">
@@ -191,6 +196,18 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                                                        <DropdownMenuSeparator />
+                                                        {op.isPremium ? (
+                                                            <DropdownMenuItem onClick={() => togglePremiumStatus(op.id, op.isPremium)}>
+                                                                <XCircle className="mr-2 h-4 w-4" />
+                                                                Quitar Premium
+                                                            </DropdownMenuItem>
+                                                        ) : (
+                                                            <DropdownMenuItem onClick={() => togglePremiumStatus(op.id, op.isPremium)}>
+                                                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                                                Activar Premium
+                                                            </DropdownMenuItem>
+                                                        )}
                                                         <DropdownMenuSeparator />
                                                         <DeleteUserDialog
                                                             userName={op.displayName || 'este usuario'}

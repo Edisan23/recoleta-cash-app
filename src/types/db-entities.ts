@@ -18,6 +18,7 @@ export type User = {
     isAnonymous: boolean;
     role: "operator" | "admin";
     createdAt: string; // Simplified to string to avoid build issues.
+    isPremium?: boolean;
   }
   
   export type Company = {

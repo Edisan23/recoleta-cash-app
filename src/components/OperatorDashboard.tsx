@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Download, Repeat, History, ShieldAlert } from 'lucide-react';
+import { LogOut, Download, Repeat, History, ShieldAlert, X } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,7 +22,8 @@ import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
-import { addDays, isAfter, parseISO } from 'date-fns';
+import { addDays, isAfter, parseISO, differenceInDays } from 'date-fns';
+import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 
 
 // --- FAKE DATA & KEYS ---
@@ -60,8 +61,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
   const [localUserProfile, setLocalUserProfile] = useState<UserProfile | null>(null);
-  const [isTrialExpired, setIsTrialExpired] = useState(false);
-
+  const [trialStatus, setTrialStatus] = useState<{expired: boolean, daysRemaining: number | null}>({ expired: false, daysRemaining: null });
+  const [showTrialBanner, setShowTrialBanner] = useState(true);
 
   // --- Firestore Data ---
   const companyRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
@@ -113,6 +114,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     isAnonymous: user.isAnonymous,
                     createdAt: creationTime,
                     role: 'operator',
+                    isPremium: false,
                 };
                 setLocalUserProfile({ ...newUserProfile, id: user.uid });
           } else {
@@ -130,16 +132,24 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   // Effect to check for trial period expiration
   useEffect(() => {
-    if (localUserProfile && localUserProfile.createdAt) {
+    if (localUserProfile && localUserProfile.createdAt && !localUserProfile.isPremium) {
       try {
         const registrationDate = parseISO(localUserProfile.createdAt);
         const trialEndDate = addDays(registrationDate, 30);
-        if (isAfter(new Date(), trialEndDate)) {
-          setIsTrialExpired(true);
+        const today = new Date();
+        
+        if (isAfter(today, trialEndDate)) {
+          setTrialStatus({ expired: true, daysRemaining: 0 });
+        } else {
+          const daysLeft = differenceInDays(trialEndDate, today);
+          setTrialStatus({ expired: false, daysRemaining: daysLeft });
         }
       } catch (error) {
         console.error("Error parsing user creation date:", error);
       }
+    } else if (localUserProfile?.isPremium) {
+        // If user is premium, trial is irrelevant.
+        setTrialStatus({ expired: false, daysRemaining: null });
     }
   }, [localUserProfile]);
 
@@ -213,7 +223,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       );
     }
     
-    if (isTrialExpired) {
+    if (trialStatus.expired && !localUserProfile?.isPremium) {
       return (
         <div className="flex flex-col items-center justify-center h-screen text-center p-4 bg-background">
           <ShieldAlert className="h-20 w-20 text-destructive mx-auto mb-6" />
@@ -321,6 +331,24 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </div>
           </div>
         </header>
+
+        {showTrialBanner && !localUserProfile?.isPremium && trialStatus.daysRemaining !== null && trialStatus.daysRemaining > 0 && (
+             <Alert className="mb-6 border-primary/50 relative">
+                <ShieldAlert className="h-4 w-4" />
+                <AlertTitle>Período de Prueba</AlertTitle>
+                <AlertDescription>
+                    Te quedan {trialStatus.daysRemaining} días de tu prueba gratuita.
+                </AlertDescription>
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute top-2 right-2 h-6 w-6"
+                    onClick={() => setShowTrialBanner(false)}
+                >
+                    <X className="h-4 w-4" />
+                </Button>
+            </Alert>
+        )}
 
         <main className="space-y-8">
             <div className="flex justify-center mb-8">
