@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Repeat, History, ShieldAlert, X, Palette } from 'lucide-react';
+import { LogOut, Repeat, History, ShieldAlert, X, Palette, Brush } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -48,9 +48,35 @@ function applyThemeColor(color: string | null | undefined) {
     if (typeof window === 'undefined') return;
     const root = document.documentElement;
     if (color) {
-        root.style.setProperty('--user-primary-color', color);
+        // Function to convert hex to HSL, as ShadCN themes are based on HSL
+        const hexToHsl = (hex: string): string => {
+            let r = 0, g = 0, b = 0;
+            if (hex.length == 4) {
+                r = parseInt(hex[1] + hex[1], 16);
+                g = parseInt(hex[2] + hex[2], 16);
+                b = parseInt(hex[3] + hex[3], 16);
+            } else if (hex.length == 7) {
+                r = parseInt(hex.substring(1, 3), 16);
+                g = parseInt(hex.substring(3, 5), 16);
+                b = parseInt(hex.substring(5, 7), 16);
+            }
+            r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h = 0, s = 0, l = (max + min) / 2;
+            if (max !== min) {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            return `${(h * 360).toFixed(0)} ${(s * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%`;
+        };
+        root.style.setProperty('--user-primary-color', hexToHsl(color));
     } else {
-        // Fallback to the default theme color if none is set
         root.style.removeProperty('--user-primary-color');
     }
 }
@@ -205,11 +231,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
     // Effect to apply user's custom theme color
     useEffect(() => {
-        if (localUserProfile?.themeColor) {
-            applyThemeColor(localUserProfile.themeColor);
-        } else {
-            applyThemeColor(null); // Reset to default if no color is set
-        }
+        applyThemeColor(localUserProfile?.themeColor);
     }, [localUserProfile]);
   
   const handleSignOut = async () => {
@@ -227,12 +249,16 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         router.replace('/select-company');
     };
 
-    const handleThemeColorChange = async (color: string) => {
+    const handleThemeColorChange = async (color: string | null) => {
         if (!firestore || !user) return;
         const userDocRef = doc(firestore, 'users', user.uid);
         try {
             await updateDoc(userDocRef, { themeColor: color });
-            // The userProfile listener will update localUserProfile and trigger the effect
+             toast({
+                title: 'Tema Actualizado',
+                description: color ? 'Se ha aplicado tu nuevo color.' : 'Se ha restaurado el color por defecto.',
+            });
+            // The userProfile listener will update localUserProfile and trigger the effect to apply the color
         } catch (error) {
             console.error("Failed to save theme color", error);
             toast({
@@ -332,15 +358,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-4">
-                        <div className="flex flex-col gap-2 items-center">
+                        <div className="flex flex-col gap-4 items-center">
                             <Label htmlFor="theme-color">Color Primario</Label>
                             <Input 
                                 id="theme-color"
                                 type="color" 
                                 className="h-10 w-20 p-1"
-                                defaultValue={localUserProfile?.themeColor || '#6d28d9'}
+                                value={localUserProfile?.themeColor || '#6d28d9'}
                                 onChange={(e) => handleThemeColorChange(e.target.value)}
                             />
+                             <Button variant="ghost" size="sm" onClick={() => handleThemeColorChange(null)}>
+                                <Brush className="mr-2 h-4 w-4" />
+                                Restaurar por defecto
+                            </Button>
                         </div>
                     </PopoverContent>
                 </Popover>
