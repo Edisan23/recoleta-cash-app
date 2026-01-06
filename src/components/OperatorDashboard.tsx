@@ -213,20 +213,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       );
     }
     
-    if (!company && !companyLoading) {
-      return (
-          <div className="flex flex-col items-center justify-center h-screen text-center p-4">
-              <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
-              <h2 className="text-2xl font-bold mb-2">Empresa no encontrada</h2>
-              <p className="text-lg text-muted-foreground mb-6">La empresa que seleccionaste ya no está disponible. Por favor, vuelve y elige otra.</p>
-              <Button onClick={handleChangeCompany}>
-                  <ArrowLeft className="mr-2" />
-                  Volver a la selección
-              </Button>
-          </div>
-      )
-    }
-
     if (isTrialExpired) {
       return (
         <div className="flex flex-col items-center justify-center h-screen text-center p-4 bg-background">
@@ -241,6 +227,20 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           </Button>
         </div>
       );
+    }
+
+    if (!company && !companyLoading) {
+      return (
+          <div className="flex flex-col items-center justify-center h-screen text-center p-4">
+              <AlertCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Empresa no encontrada</h2>
+              <p className="text-lg text-muted-foreground mb-6">La empresa que seleccionaste ya no está disponible. Por favor, vuelve y elige otra.</p>
+              <Button onClick={handleChangeCompany}>
+                  <ArrowLeft className="mr-2" />
+                  Volver a la selección
+              </Button>
+          </div>
+      )
     }
   
   return (
