@@ -13,7 +13,7 @@
     --popover: 270 50% 100%;
     --popover-foreground: 270 20% 25%;
  
-    --primary: 265 53% 41%; /* Deep Purple */
+    --primary: var(--user-primary-color, 265 53% 41%); /* Deep Purple */
     --primary-foreground: 300 100% 98%;
  
     --secondary: 270 50% 90%;
@@ -30,7 +30,7 @@
 
     --border: 270 30% 85%;
     --input: 270 30% 90%;
-    --ring: 265 53% 41%;
+    --ring: var(--user-primary-color, 265 53% 41%);
  
     --radius: 0.5rem;
   }
@@ -45,7 +45,7 @@
     --popover: 270 20% 10%;
     --popover-foreground: 270 30% 95%;
 
-    --primary: 265 63% 61%; /* Lighter Deep Purple for dark mode */
+    --primary: var(--user-primary-color, 265 63% 61%); /* Lighter Deep Purple for dark mode */
     --primary-foreground: 270 20% 10%;
 
     --secondary: 270 20% 25%;
@@ -62,7 +62,7 @@
 
     --border: 270 20% 30%;
     --input: 270 20% 25%;
-    --ring: 265 63% 61%;
+    --ring: var(--user-primary-color, 265 63% 61%);
   }
 }
  

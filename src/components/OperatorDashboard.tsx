@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Repeat, History, ShieldAlert, X } from 'lucide-react';
+import { LogOut, Repeat, History, ShieldAlert, X, Palette } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -17,14 +17,15 @@ import { useAuth, useUser, useFirestore, useCollection, useDoc, useMemoFirebase 
 import { ThemeToggle } from './ui/theme-toggle';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
-import { collection, doc, query, where, setDoc } from 'firebase/firestore';
+import { collection, doc, query, where, setDoc, updateDoc } from 'firebase/firestore';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
 import { addDays, isAfter, parseISO, differenceInDays } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
 
-
-// --- FAKE DATA & KEYS ---
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
 
@@ -40,6 +41,18 @@ function getInitials(name: string) {
 
 function formatCurrency(value: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
+}
+
+// Function to apply the user's theme color
+function applyThemeColor(color: string | null | undefined) {
+    if (typeof window === 'undefined') return;
+    const root = document.documentElement;
+    if (color) {
+        root.style.setProperty('--user-primary-color', color);
+    } else {
+        // Fallback to the default theme color if none is set
+        root.style.removeProperty('--user-primary-color');
+    }
 }
 
 
@@ -189,6 +202,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const summary = calculatePeriodSummary(allShifts, settings, holidays, benefits, deductions, user.uid, companyId, date);
     setPeriodSummary(summary);
   }, [allShifts, user, companyId, settings, date, holidays, benefits, deductions]);
+
+    // Effect to apply user's custom theme color
+    useEffect(() => {
+        if (localUserProfile?.themeColor) {
+            applyThemeColor(localUserProfile.themeColor);
+        } else {
+            applyThemeColor(null); // Reset to default if no color is set
+        }
+    }, [localUserProfile]);
   
   const handleSignOut = async () => {
     try {
@@ -203,6 +225,22 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const handleChangeCompany = () => {
         localStorage.removeItem(OPERATOR_COMPANY_KEY);
         router.replace('/select-company');
+    };
+
+    const handleThemeColorChange = async (color: string) => {
+        if (!firestore || !user) return;
+        const userDocRef = doc(firestore, 'users', user.uid);
+        try {
+            await updateDoc(userDocRef, { themeColor: color });
+            // The userProfile listener will update localUserProfile and trigger the effect
+        } catch (error) {
+            console.error("Failed to save theme color", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'No se pudo guardar el color del tema.',
+            });
+        }
     };
 
 
@@ -287,6 +325,25 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </h1>
             </div>
             <div className="flex items-center gap-2">
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" size="icon" title="Personalizar Color">
+                            <Palette />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-4">
+                        <div className="flex flex-col gap-2 items-center">
+                            <Label htmlFor="theme-color">Color Primario</Label>
+                            <Input 
+                                id="theme-color"
+                                type="color" 
+                                className="h-10 w-20 p-1"
+                                defaultValue={localUserProfile?.themeColor || '#6d28d9'}
+                                onChange={(e) => handleThemeColorChange(e.target.value)}
+                            />
+                        </div>
+                    </PopoverContent>
+                </Popover>
                 <ThemeToggle />
                 <Button variant="outline" size="icon" onClick={() => router.push('/operator/history')} title="Ver Historial">
                     <History />
@@ -417,5 +474,3 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
-
-    

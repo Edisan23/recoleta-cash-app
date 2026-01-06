@@ -19,6 +19,7 @@ export type User = {
     role: "operator" | "admin";
     createdAt: string; // Simplified to string to avoid build issues.
     isPremium?: boolean;
+    themeColor?: string; // User's preferred theme color (hex)
   }
   
   export type Company = {
