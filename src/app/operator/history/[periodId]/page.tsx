@@ -25,6 +25,17 @@ const isWithinPeriod = (date: Date, period: { start: Date; end: Date }) => {
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 
+// Helper function to clean up item names for display in history
+const formatItemNameForHistory = (name: string): string => {
+    const wordsToRemove = ['agregar', 'añadir', 'ingresar', 'registrar'];
+    const nameParts = name.split(' ');
+    if (wordsToRemove.includes(nameParts[0].toLowerCase())) {
+        const newName = nameParts.slice(1).join(' ');
+        return newName.charAt(0).toUpperCase() + newName.slice(1);
+    }
+    return name;
+}
+
 function HistoryDayDetail({ summary, shiftsForDay }: { summary: Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null, shiftsForDay: Shift[] }) {
     
     const allItemDetails = shiftsForDay.flatMap(shift => shift.itemDetails || []).filter(detail => detail.detail);
@@ -59,7 +70,7 @@ function HistoryDayDetail({ summary, shiftsForDay }: { summary: Omit<PayrollSumm
                                      <div className="space-y-1 text-sm p-3 bg-muted/50 rounded-md">
                                         {allItemDetails.map((detail, index) => (
                                             <div key={index} className="flex justify-between">
-                                                <span className="text-muted-foreground">{detail.itemName}:</span>
+                                                <span className="text-muted-foreground">{formatItemNameForHistory(detail.itemName)}:</span>
                                                 <span className="font-medium">{detail.detail}</span>
                                             </div>
                                         ))}
