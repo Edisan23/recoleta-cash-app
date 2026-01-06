@@ -1,20 +1,23 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
-import type { Shift, CompanySettings, PayrollSummary, Benefit, Deduction, CompanyItem } from '@/types/db-entities';
+import type { Shift, Company, CompanySettings, PayrollSummary, Benefit, Deduction, CompanyItem } from '@/types/db-entities';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { calculatePeriodSummary, calculateShiftSummary } from '@/lib/payroll-calculator';
-import { ArrowLeft } from 'lucide-react';
+import { calculatePeriodSummary, calculateShiftSummary, getPeriodDateRange } from '@/lib/payroll-calculator';
+import { ArrowLeft, Download } from 'lucide-react';
 import { PayrollBreakdown } from '@/components/operator/PayrollBreakdown';
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
+import { PayrollVoucher } from '@/components/operator/PayrollVoucher';
+import { useReactToPrint } from 'react-to-print';
+import { useToast } from '@/hooks/use-toast';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -100,6 +103,9 @@ export default function HistoryDetailPage() {
     const params = useParams();
     const firestore = useFirestore();
     const { user, isUserLoading: isUserAuthLoading } = useUser();
+    const { toast } = useToast();
+    const voucherRef = useRef<HTMLDivElement>(null);
+
     const [companyId, setCompanyId] = useState<string | null>(null);
     const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
 
@@ -121,6 +127,9 @@ export default function HistoryDetailPage() {
         }
     }, [isUserAuthLoading, user, router]);
 
+    const companyRef = useMemoFirebase(() => firestore && companyId ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
+    const { data: company, isLoading: companyLoading } = useDoc<Company>(companyRef);
+
     const shiftsQuery = useMemoFirebase(() => {
         if (!firestore || !user?.uid || !companyId) return null;
         return query(collection(firestore, 'companies', companyId, 'shifts'), where('userId', '==', user.uid));
@@ -140,7 +149,7 @@ export default function HistoryDetailPage() {
     const deductionsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
     const { data: deductions, isLoading: deductionsLoading } = useCollection<Deduction>(deductionsRef);
 
-    const isLoading = isUserAuthLoading || shiftsLoading || settingsLoading || holidaysLoading || benefitsLoading || deductionsLoading;
+    const isLoading = isUserAuthLoading || shiftsLoading || settingsLoading || holidaysLoading || benefitsLoading || deductionsLoading || companyLoading;
 
     const periodSummary = useMemo(() => {
         if (!allShifts || !settings || !user || !holidays || !benefits || !deductions || !companyId) return null;
@@ -180,6 +189,13 @@ export default function HistoryDetailPage() {
     
     }, [selectedDay, allShifts, settings, holidays]);
 
+     const handlePrint = useReactToPrint({
+      content: () => voucherRef.current,
+      documentTitle: `comprobante-de-pago-${user?.displayName?.replace(/\s/g, '-').toLowerCase() || 'operador'}`,
+      onAfterPrint: () => toast({ title: "Comprobante generado", description: "Tu comprobante se ha descargado."}),
+      onPrintError: () => toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el comprobante.'}),
+    });
+
 
     if (isLoading || !periodSummary) {
         return (
@@ -191,6 +207,21 @@ export default function HistoryDetailPage() {
     
     return (
         <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+            {/* Hidden element for PDF generation */}
+            <div className="hidden">
+                {company && user && periodSummary && settings && (
+                    <div ref={voucherRef} className="bg-white text-black p-8">
+                        <PayrollVoucher 
+                            operatorName={user.displayName || 'Operador'}
+                            companyName={company.name}
+                            period={getPeriodDateRange(period.start, settings.payrollCycle)}
+                            summary={periodSummary}
+                            shifts={shiftsInPeriod}
+                        />
+                    </div>
+                )}
+            </div>
+
             <header className="flex items-center justify-between mb-8">
                 <div>
                     <Button variant="ghost" onClick={() => router.push('/operator/history')} className="mb-4">
@@ -201,6 +232,12 @@ export default function HistoryDetailPage() {
                     <p className="text-muted-foreground capitalize text-lg">
                         {format(period.start, "d 'de' MMMM", { locale: es })} - {format(period.end, "d 'de' MMMM, yyyy", { locale: es })}
                     </p>
+                </div>
+                 <div>
+                    <Button onClick={handlePrint} disabled={!periodSummary}>
+                        <Download className="mr-2 h-4 w-4" />
+                        Descargar Comprobante
+                    </Button>
                 </div>
             </header>
             <main className="grid grid-cols-1 md:grid-cols-2 gap-8">

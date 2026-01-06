@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Download, Repeat, History, ShieldAlert, X } from 'lucide-react';
+import { LogOut, Repeat, History, ShieldAlert, X } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,13 +10,11 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DatePicker } from '@/components/DatePicker';
-import { calculateShiftSummary, calculatePeriodSummary, getPeriodDateRange } from '@/lib/payroll-calculator';
+import { calculateShiftSummary, calculatePeriodSummary } from '@/lib/payroll-calculator';
 import { PayrollBreakdown } from './operator/PayrollBreakdown';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useAuth, useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { ThemeToggle } from './ui/theme-toggle';
-import { PayrollVoucher } from './operator/PayrollVoucher';
-import { useReactToPrint } from 'react-to-print';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 import { collection, doc, query, where, setDoc } from 'firebase/firestore';
@@ -50,9 +48,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
   const auth = useAuth();
   const { user, isUserLoading: isUserAuthLoading } = useUser();
-  const firestore = useFirestore();
   const { toast } = useToast();
-  const voucherRef = useRef<HTMLDivElement>(null);
   
   // Form state
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -203,13 +199,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     router.push('/login'); 
   };
   
-  const handlePrint = useReactToPrint({
-      content: () => voucherRef.current,
-      documentTitle: `comprobante-de-pago-${user?.displayName?.replace(/\s/g, '-').toLowerCase() || 'operador'}`,
-      onAfterPrint: () => toast({ title: "Comprobante generado", description: "Tu comprobante se ha descargado."}),
-      onPrintError: () => toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el comprobante.'}),
-  });
-    
     const handleChangeCompany = () => {
         localStorage.removeItem(OPERATOR_COMPANY_KEY);
         router.replace('/select-company');
@@ -257,21 +246,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
       
-       {/* Hidden element for PDF generation */}
-       <div className="hidden">
-            {company && user && date && periodSummary && settings && allShifts && (
-                <div ref={voucherRef} className="bg-white text-black p-8">
-                    <PayrollVoucher 
-                        operatorName={user.displayName || 'Operador'}
-                        companyName={company.name}
-                        period={getPeriodDateRange(date, settings.payrollCycle)}
-                        summary={periodSummary}
-                        shifts={allShifts.filter(s => new Date(s.date).toDateString() === date?.toDateString())}
-                    />
-                </div>
-            )}
-       </div>
-
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
           <div className="flex justify-between items-start">
@@ -320,10 +294,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 <Button variant="outline" size="icon" onClick={handleChangeCompany} title="Cambiar Empresa">
                     <Repeat />
                     <span className="sr-only">Cambiar Empresa</span>
-                </Button>
-                <Button variant="outline" size="icon" onClick={handlePrint} disabled={!periodSummary}>
-                    <Download />
-                    <span className="sr-only">Descargar Comprobante</span>
                 </Button>
                 <Button variant="ghost" onClick={handleSignOut} aria-label="Cerrar sesión">
                     <LogOut className="mr-2 h-5 w-5" />
