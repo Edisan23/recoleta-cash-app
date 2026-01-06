@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Download, Repeat } from 'lucide-react';
-import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem, DailyShiftEntry } from '@/types/db-entities';
+import { LogOut, Download, Repeat, History } from 'lucide-react';
+import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
@@ -22,6 +22,7 @@ import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 import { collection, doc, query, where, writeBatch, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
+import { HistorySheet } from './operator/HistorySheet';
 
 
 // --- FAKE DATA & KEYS ---
@@ -59,6 +60,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
   const [localUserProfile, setLocalUserProfile] = useState<UserProfile | null>(null);
+
+  // UI State
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
 
   // --- Firestore Data ---
@@ -230,6 +234,20 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </div>
             )}
        </div>
+
+        {user && settings && allShifts && (
+            <HistorySheet 
+                isOpen={isHistoryOpen}
+                setIsOpen={setIsHistoryOpen}
+                user={user}
+                settings={settings}
+                allShifts={allShifts}
+                holidays={holidays}
+                benefits={benefits || []}
+                deductions={deductions || []}
+                companyId={companyId}
+            />
+        )}
       
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
@@ -272,6 +290,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle />
+                <Button variant="outline" size="icon" onClick={() => setIsHistoryOpen(true)} title="Ver Historial">
+                    <History />
+                    <span className="sr-only">Ver Historial</span>
+                </Button>
                 <Button variant="outline" size="icon" onClick={handleChangeCompany} title="Cambiar Empresa">
                     <Repeat />
                     <span className="sr-only">Cambiar Empresa</span>
@@ -375,16 +397,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                             </p>
                         </div>
                     </div>
-                     {periodSummary && periodSummary.grossPay > 0 && (
-                        <Accordion type="single" collapsible className="w-full mt-4">
-                            <AccordionItem value="item-1">
-                                <AccordionTrigger>Ver desglose del período</AccordionTrigger>
-                                <AccordionContent>
-                                    <PayrollBreakdown summary={periodSummary} />
-                                </AccordionContent>
-                            </AccordionItem>
-                        </Accordion>
-                    )}
                 </CardContent>
             </Card>
         </main>
