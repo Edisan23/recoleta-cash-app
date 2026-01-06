@@ -43,41 +43,46 @@ function formatCurrency(value: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
 
+// Function to convert hex to HSL string: "H S% L%"
+const hexToHslString = (hex: string): string => {
+    let r = 0, g = 0, b = 0;
+    if (hex.length == 4) {
+        r = parseInt(hex[1] + hex[1], 16);
+        g = parseInt(hex[2] + hex[2], 16);
+        b = parseInt(hex[3] + hex[3], 16);
+    } else if (hex.length == 7) {
+        r = parseInt(hex.substring(1, 3), 16);
+        g = parseInt(hex.substring(3, 5), 16);
+        b = parseInt(hex.substring(5, 7), 16);
+    }
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0, l = (max + min) / 2;
+    if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+            case g: h = (b - r) / d + 2; break;
+            case b: h = (r - g) / d + 4; break;
+        }
+        h /= 6;
+    }
+    return `${(h * 360).toFixed(0)} ${(s * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%`;
+};
+
 // Function to apply the user's theme color
 function applyThemeColor(color: string | null | undefined) {
     if (typeof window === 'undefined') return;
     const root = document.documentElement;
     if (color) {
-        // Function to convert hex to HSL, as ShadCN themes are based on HSL
-        const hexToHsl = (hex: string): string => {
-            let r = 0, g = 0, b = 0;
-            if (hex.length == 4) {
-                r = parseInt(hex[1] + hex[1], 16);
-                g = parseInt(hex[2] + hex[2], 16);
-                b = parseInt(hex[3] + hex[3], 16);
-            } else if (hex.length == 7) {
-                r = parseInt(hex.substring(1, 3), 16);
-                g = parseInt(hex.substring(3, 5), 16);
-                b = parseInt(hex.substring(5, 7), 16);
-            }
-            r /= 255; g /= 255; b /= 255;
-            const max = Math.max(r, g, b), min = Math.min(r, g, b);
-            let h = 0, s = 0, l = (max + min) / 2;
-            if (max !== min) {
-                const d = max - min;
-                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-                switch (max) {
-                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-                    case g: h = (b - r) / d + 2; break;
-                    case b: h = (r - g) / d + 4; break;
-                }
-                h /= 6;
-            }
-            return `${(h * 360).toFixed(0)} ${(s * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%`;
-        };
-        root.style.setProperty('--user-primary-color', hexToHsl(color));
+        const hslString = hexToHslString(color);
+        const hue = hslString.split(' ')[0];
+        root.style.setProperty('--user-primary-color', hslString);
+        root.style.setProperty('--user-primary-hue', hue);
     } else {
         root.style.removeProperty('--user-primary-color');
+        root.style.removeProperty('--user-primary-hue');
     }
 }
 
@@ -309,7 +314,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   
   return (
-    <div className="flex min-h-screen w-full flex-col items-center bg-gray-100 dark:bg-gray-900">
+    <div className="flex min-h-screen w-full flex-col items-center bg-background">
       
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
@@ -346,7 +351,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           
           <div className="flex justify-between items-center">
              <div className="text-left">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+                <h1 className="text-3xl font-bold text-foreground">
                   Bienvenido
                 </h1>
             </div>
