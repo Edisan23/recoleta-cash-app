@@ -19,7 +19,7 @@ import { PayrollVoucher } from './operator/PayrollVoucher';
 import { useReactToPrint } from 'react-to-print';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
-import { collection, doc, query, where } from 'firebase/firestore';
+import { collection, doc, query, where, setDoc } from 'firebase/firestore';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
 import { addDays, isAfter, parseISO, differenceInDays } from 'date-fns';
@@ -101,33 +101,34 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // Effect to save/update user profile in firestore for subscription management
   useEffect(() => {
-      if (user && !userProfileLoading && firestore) {
-          const profileRef = doc(firestore, "users", user.uid);
-          
-          if (!userProfile) { // If profile doesn't exist, create it.
-                const creationTime = new Date().toISOString();
-                const newUserProfile: Omit<UserProfile, 'id'> = {
-                    uid: user.uid,
-                    displayName: user.displayName || 'Operador Anónimo',
-                    photoURL: user.photoURL || '',
-                    email: user.email || '',
-                    isAnonymous: user.isAnonymous,
-                    createdAt: creationTime,
-                    role: 'operator',
-                    isPremium: false,
-                };
-                setLocalUserProfile({ ...newUserProfile, id: user.uid });
-          } else {
-             // To ensure the local state has the correct ISO string format from the start
-             const profileWithISOStringDate = {
-                 ...userProfile,
-                 createdAt: (userProfile.createdAt && typeof (userProfile.createdAt as any).toDate === 'function')
-                    ? (userProfile.createdAt as any).toDate().toISOString()
-                    : userProfile.createdAt
-             }
-             setLocalUserProfile(profileWithISOStringDate);
-          }
-      }
+    if (user && !userProfileLoading && firestore) {
+        const profileRef = doc(firestore, "users", user.uid);
+        
+        if (!userProfile) { // If profile doesn't exist, create it.
+              const creationTime = new Date().toISOString();
+              const newUserProfile: Omit<UserProfile, 'id'> = {
+                  uid: user.uid,
+                  displayName: user.displayName || 'Operador Anónimo',
+                  photoURL: user.photoURL || '',
+                  email: user.email || '',
+                  isAnonymous: user.isAnonymous,
+                  createdAt: creationTime,
+                  role: 'operator',
+                  isPremium: false,
+              };
+              setDoc(profileRef, newUserProfile); // non-blocking write
+              setLocalUserProfile({ ...newUserProfile, id: user.uid });
+        } else {
+           // To ensure the local state has the correct ISO string format from the start
+           const profileWithISOStringDate = {
+               ...userProfile,
+               createdAt: (userProfile.createdAt && typeof (userProfile.createdAt as any).toDate === 'function')
+                  ? (userProfile.createdAt as any).toDate().toISOString()
+                  : userProfile.createdAt
+           }
+           setLocalUserProfile(profileWithISOStringDate);
+        }
+    }
   }, [user, userProfile, userProfileLoading, firestore]);
   
   // Effect to check for trial period expiration
@@ -332,12 +333,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           </div>
         </header>
 
-        {showTrialBanner && !localUserProfile?.isPremium && trialStatus.daysRemaining !== null && trialStatus.daysRemaining > 0 && (
+        {showTrialBanner && !localUserProfile?.isPremium && trialStatus.daysRemaining !== null && trialStatus.daysRemaining >= 0 && (
              <Alert className="mb-6 border-primary/50 relative">
                 <ShieldAlert className="h-4 w-4" />
                 <AlertTitle>Período de Prueba</AlertTitle>
                 <AlertDescription>
-                    Te quedan {trialStatus.daysRemaining} días de tu prueba gratuita.
+                    {trialStatus.daysRemaining > 0 ? `Te quedan ${trialStatus.daysRemaining} días de tu prueba gratuita.` : 'Tu período de prueba termina hoy.'}
                 </AlertDescription>
                 <Button 
                     variant="ghost" 
