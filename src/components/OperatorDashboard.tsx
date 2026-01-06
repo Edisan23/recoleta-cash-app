@@ -19,10 +19,9 @@ import { PayrollVoucher } from './operator/PayrollVoucher';
 import { useReactToPrint } from 'react-to-print';
 import { LogoSpinner } from './LogoSpinner';
 import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
-import { collection, doc, query, where, writeBatch, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, query, where } from 'firebase/firestore';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
-import { HistorySheet } from './operator/HistorySheet';
 
 
 // --- FAKE DATA & KEYS ---
@@ -61,9 +60,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
   const [localUserProfile, setLocalUserProfile] = useState<UserProfile | null>(null);
 
-  // UI State
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-
 
   // --- Firestore Data ---
   const companyRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
@@ -73,7 +69,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const { data: settings, isLoading: settingsLoading } = useDoc<CompanySettings>(settingsRef);
   
   const shiftsQuery = useMemoFirebase(() => {
-    if (!firestore || !user?.uid) return null;
+    if (!firestore || !user?.uid || !companyId) return null;
     return query(collection(firestore, 'companies', companyId, 'shifts'), where('userId', '==', user.uid));
   }, [firestore, companyId, user]);
   const { data: allShifts, isLoading: shiftsLoading, error: shiftsError } = useCollection<Shift>(shiftsQuery);
@@ -82,13 +78,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const { data: holidaysData, isLoading: holidaysLoading } = useCollection<{ date: string }>(holidaysRef);
   const holidays = useMemo(() => holidaysData?.map(h => new Date(h.date)) || [], [holidaysData]);
 
-  const benefitsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId]);
+  const benefitsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId]);
   const { data: benefits, isLoading: benefitsLoading } = useCollection<Benefit>(benefitsRef);
 
-  const deductionsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
+  const deductionsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
   const { data: deductions, isLoading: deductionsLoading } = useCollection<Deduction>(deductionsRef);
 
-  const itemsRef = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, user, companyId]);
+  const itemsRef = useMemoFirebase(() => (firestore && user && companyId) ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, user, companyId]);
   const { data: companyItems, isLoading: itemsLoading } = useCollection<CompanyItem>(itemsRef);
 
   const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
@@ -116,9 +112,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     createdAt: creationTime,
                     role: 'operator',
                 };
-                writeBatch(firestore).set(profileRef, newUserProfile).commit().catch(err => {
-                    console.error("Error saving user profile:", err);
-                });
                 setLocalUserProfile({ ...newUserProfile, id: user.uid });
           } else {
              // To ensure the local state has the correct ISO string format from the start
@@ -157,7 +150,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           (acc as any)[typedKey] = (acc[typedKey] || 0) + summary[typedKey];
         });
         return acc;
-      });
+      }, {} as Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'>);
       setDailySummary(totalSummary);
     } else {
       setDailySummary(null);
@@ -167,7 +160,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // Effect to calculate accumulated hours for the current period (month/fortnight)
   useEffect(() => {
-    if (!date || !settings || !user || !allShifts || !benefits || !deductions) return;
+    if (!date || !settings || !user || !allShifts || !benefits || !deductions || !companyId) return;
     const summary = calculatePeriodSummary(allShifts, settings, holidays, benefits, deductions, user.uid, companyId, date);
     setPeriodSummary(summary);
   }, [allShifts, user, companyId, settings, date, holidays, benefits, deductions]);
@@ -235,20 +228,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             )}
        </div>
 
-        {user && settings && allShifts && (
-            <HistorySheet 
-                isOpen={isHistoryOpen}
-                setIsOpen={setIsHistoryOpen}
-                user={user}
-                settings={settings}
-                allShifts={allShifts}
-                holidays={holidays}
-                benefits={benefits || []}
-                deductions={deductions || []}
-                companyId={companyId}
-            />
-        )}
-      
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
           <div className="flex justify-between items-start">
@@ -290,7 +269,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle />
-                <Button variant="outline" size="icon" onClick={() => setIsHistoryOpen(true)} title="Ver Historial">
+                <Button variant="outline" size="icon" onClick={() => router.push('/operator/history')} title="Ver Historial">
                     <History />
                     <span className="sr-only">Ver Historial</span>
                 </Button>
@@ -315,7 +294,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 <DatePicker date={date} setDate={setDate} highlightedDays={shiftDays} />
             </div>
 
-            {date && user && !shiftsError && (
+            {date && user && !shiftsError && companyId && (
                  <ShiftForm 
                     key={date.toISOString()} // Force re-mount on date change
                     selectedDate={date}
