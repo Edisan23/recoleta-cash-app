@@ -58,8 +58,7 @@ service cloud.firestore {
       }
       // Payrolls can be read by the user they belong to, or by an admin.
       match /payrolls/{payrollId} {
-        allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
-        allow list: if isAdmin() || isCompanyMember(companyId); // Allow listing for operators and admins
+        allow read, list: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
         // Only admins can create/update payrolls.
         allow write: if isAdmin();
       }
