@@ -23,8 +23,10 @@ const isWithinPeriod = (date: Date, period: { start: Date; end: Date }) => {
     return time >= period.start.getTime() && time <= new Date(period.end).setHours(23, 59, 59, 999);
 }
 
+const formatCurrency = (value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
+
 function HistoryDayDetail({ summary, shiftsForDay }: { summary: Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null, shiftsForDay: Shift[] }) {
-    const formatCurrency = (value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
+    
     const allItemDetails = shiftsForDay.flatMap(shift => shift.itemDetails || []).filter(detail => detail.detail);
 
     return (
@@ -187,6 +189,26 @@ export default function HistoryDetailPage() {
                             <CardTitle>Resumen del Período</CardTitle>
                         </CardHeader>
                         <CardContent>
+                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center mb-6">
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Total Horas</p>
+                                    <p className="text-2xl font-bold">
+                                        {periodSummary ? `${periodSummary.totalHours}h` : '0h'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Pago Bruto</p>
+                                    <p className="text-2xl font-bold">
+                                        {periodSummary ? formatCurrency(periodSummary.grossPay) : '$0'}
+                                    </p>
+                                </div>
+                                 <div>
+                                    <p className="text-sm text-muted-foreground">Pago Neto</p>
+                                    <p className="text-2xl font-bold text-green-600">
+                                        {periodSummary ? formatCurrency(periodSummary.netPay) : '$0'}
+                                    </p>
+                                </div>
+                            </div>
                              <PayrollBreakdown summary={periodSummary} />
                         </CardContent>
                     </Card>
