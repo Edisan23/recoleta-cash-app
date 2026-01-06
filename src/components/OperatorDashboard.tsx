@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Download, Repeat, History } from 'lucide-react';
+import { LogOut, Download, Repeat, History, ShieldAlert } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,6 +22,7 @@ import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 import { collection, doc, query, where } from 'firebase/firestore';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
+import { addDays, isAfter, parseISO } from 'date-fns';
 
 
 // --- FAKE DATA & KEYS ---
@@ -59,6 +60,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
   const [localUserProfile, setLocalUserProfile] = useState<UserProfile | null>(null);
+  const [isTrialExpired, setIsTrialExpired] = useState(false);
 
 
   // --- Firestore Data ---
@@ -125,6 +127,21 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           }
       }
   }, [user, userProfile, userProfileLoading, firestore]);
+  
+  // Effect to check for trial period expiration
+  useEffect(() => {
+    if (localUserProfile && localUserProfile.createdAt) {
+      try {
+        const registrationDate = parseISO(localUserProfile.createdAt);
+        const trialEndDate = addDays(registrationDate, 30);
+        if (isAfter(new Date(), trialEndDate)) {
+          setIsTrialExpired(true);
+        }
+      } catch (error) {
+        console.error("Error parsing user creation date:", error);
+      }
+    }
+  }, [localUserProfile]);
 
 
   // Effect to calculate daily summary for the selected day
@@ -208,6 +225,22 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
               </Button>
           </div>
       )
+    }
+
+    if (isTrialExpired) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen text-center p-4 bg-background">
+          <ShieldAlert className="h-20 w-20 text-destructive mx-auto mb-6" />
+          <h1 className="text-4xl font-bold mb-4">Período de Prueba Terminado</h1>
+          <p className="text-xl text-muted-foreground max-w-md mx-auto mb-8">
+            Tu acceso de 30 días ha finalizado. Por favor, contacta a un administrador para continuar usando el servicio.
+          </p>
+          <Button onClick={handleSignOut} size="lg">
+            <LogOut className="mr-2" />
+            Cerrar Sesión
+          </Button>
+        </div>
+      );
     }
   
   return (
