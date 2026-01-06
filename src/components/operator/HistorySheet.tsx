@@ -42,15 +42,18 @@ export function HistorySheet({ isOpen, setIsOpen, user, company, settings, perio
     const period = useMemo(() => getPeriodDateRange(new Date(), settings.payrollCycle), [settings.payrollCycle]);
 
     const daysWithShifts = useMemo(() => allShifts.map(s => startOfDay(new Date(s.date))), [allShifts]);
+    
+    const shiftsForSelectedDay = useMemo(() => {
+        if (!selectedDay) return [];
+        return allShifts.filter(s => startOfDay(new Date(s.date)).getTime() === startOfDay(selectedDay).getTime());
+    }, [selectedDay, allShifts]);
+
 
     const selectedDaySummary = useMemo(() => {
-        if (!selectedDay) return null;
-
-        const shiftsForDay = allShifts.filter(s => startOfDay(new Date(s.date)).getTime() === startOfDay(selectedDay).getTime());
-        if (shiftsForDay.length === 0) return null;
+        if (shiftsForSelectedDay.length === 0) return null;
 
         let hoursAlreadyWorked = 0;
-        const summaries = shiftsForDay.map(shift => {
+        const summaries = shiftsForSelectedDay.map(shift => {
             const summary = calculateShiftSummary(shift, settings, holidays, hoursAlreadyWorked);
             hoursAlreadyWorked += summary.totalHours;
             return summary;
@@ -64,7 +67,7 @@ export function HistorySheet({ isOpen, setIsOpen, user, company, settings, perio
             return acc;
         });
 
-    }, [selectedDay, allShifts, settings, holidays]);
+    }, [shiftsForSelectedDay, settings, holidays]);
 
     return (
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
@@ -125,6 +128,7 @@ export function HistorySheet({ isOpen, setIsOpen, user, company, settings, perio
                             <HistoryDayDetail
                                 selectedDay={selectedDay}
                                 summary={selectedDaySummary}
+                                shifts={shiftsForSelectedDay}
                             />
                         </div>
                     </div>
