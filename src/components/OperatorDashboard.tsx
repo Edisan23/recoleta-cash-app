@@ -47,6 +47,7 @@ function formatCurrency(value: number) {
 export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, isUserLoading: isUserAuthLoading } = useUser();
   const { toast } = useToast();
   
@@ -416,3 +417,5 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     </div>
   );
 }
+
+    
