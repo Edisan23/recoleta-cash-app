@@ -98,8 +98,8 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
             await batch.commit();
             
             toast({
-                title: 'Turno Guardado',
-                description: 'Tu turno ha sido registrado correctamente.',
+                title: hasShift ? 'Turno Actualizado' : 'Turno Guardado',
+                description: `Tu turno ha sido ${hasShift ? 'actualizado' : 'registrado'} correctamente.`,
             });
         } catch (error) {
             console.error("Error saving shift: ", error);
