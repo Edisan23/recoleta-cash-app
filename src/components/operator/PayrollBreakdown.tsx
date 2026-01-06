@@ -56,7 +56,7 @@ export function PayrollBreakdown({ summary }: { summary: Partial<PayrollSummary>
                     {summary.deductionBreakdown.map(deduction => (
                          <div key={deduction.name} className="flex justify-between items-center text-sm py-1 border-b border-dashed">
                             <span className="text-muted-foreground">{deduction.name}</span>
-                            <span className="font-medium text-destructive">-{formatCurrency(deduction.value)}</span>
+                            <span className="font-medium text-red-600 dark:text-red-500">-{formatCurrency(deduction.value)}</span>
                         </div>
                     ))}
                 </div>
