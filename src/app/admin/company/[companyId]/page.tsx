@@ -12,17 +12,18 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, PlusCircle, Trash2 } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Trash2, ShieldCheck, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
-import type { Company, CompanySettings, Benefit, Deduction, CompanyItem } from '@/types/db-entities';
+import type { Company, CompanySettings, Benefit, Deduction, CompanyItem, Shift, UserProfile } from '@/types/db-entities';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, writeBatch } from 'firebase/firestore';
-
+import { doc, collection, writeBatch, getDocs, addDoc, query, where, Timestamp } from 'firebase/firestore';
+import { getPeriodDateRange, calculatePeriodSummary } from '@/lib/payroll-calculator';
+import { isWithinInterval } from '@/lib/date-helpers';
 
 const initialSettings: Omit<CompanySettings, 'id'> = {
     payrollCycle: 'monthly',
@@ -63,6 +64,7 @@ export default function CompanySettingsPage() {
   const [items, setItems] = useState<CompanyItem[]>([]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isClosingPayroll, setIsClosingPayroll] = useState(false);
 
   // Firestore Hooks
   const companyRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
@@ -80,7 +82,12 @@ export default function CompanySettingsPage() {
   const itemsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId]);
   const { data: itemsData, isLoading: isItemsLoading } = useCollection<CompanyItem>(itemsRef);
   
-  const isLoading = isCompanyLoading || isSettingsLoading || isBenefitsLoading || isDeductionsLoading || isItemsLoading;
+  const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
+  const { data: holidaysData, isLoading: isHolidaysLoading } = useCollection<{date: string}>(holidaysRef);
+  const holidays = useMemo(() => holidaysData?.map(h => new Date(h.date)) || [], [holidaysData]);
+
+
+  const isLoading = isCompanyLoading || isSettingsLoading || isBenefitsLoading || isDeductionsLoading || isItemsLoading || isHolidaysLoading;
   
   useEffect(() => {
     if (companyData) setCompany(companyData);
@@ -121,6 +128,100 @@ export default function CompanySettingsPage() {
   useEffect(() => {
     if (itemsData) setItems(itemsData);
   }, [itemsData]);
+
+  const handleClosePayroll = async () => {
+    if (!firestore || !settings) {
+        toast({ title: 'Error', description: 'Configuración no cargada.', variant: 'destructive'});
+        return;
+    }
+
+    setIsClosingPayroll(true);
+
+    try {
+        const period = getPeriodDateRange(new Date(), settings.payrollCycle);
+        
+        // 1. Get all shifts for the current period for this company
+        const shiftsCollectionRef = collection(firestore, 'companies', companyId, 'shifts');
+        const shiftsQuery = query(shiftsCollectionRef, 
+            where('date', '>=', period.start.toISOString()),
+            where('date', '<=', period.end.toISOString())
+        );
+        const shiftsSnapshot = await getDocs(shiftsQuery);
+        const allPeriodShifts = shiftsSnapshot.docs.map(d => ({ ...d.data(), id: d.id })) as Shift[];
+
+        if (allPeriodShifts.length === 0) {
+            toast({ title: 'Sin Novedades', description: 'No hay turnos registrados en este período para cerrar.'});
+            setIsClosingPayroll(false);
+            return;
+        }
+
+        // 2. Get all user profiles to denormalize names
+        const usersCollectionRef = collection(firestore, 'users');
+        const usersSnapshot = await getDocs(usersCollectionRef);
+        const userProfiles = usersSnapshot.docs.map(d => ({...d.data(), id: d.id})) as UserProfile[];
+        const userProfileMap = userProfiles.reduce((acc, user) => {
+            acc[user.uid] = user;
+            return acc;
+        }, {} as Record<string, UserProfile>);
+
+        // 3. Group shifts by user
+        const shiftsByUser = allPeriodShifts.reduce((acc, shift) => {
+            if (!acc[shift.userId]) {
+                acc[shift.userId] = [];
+            }
+            acc[shift.userId].push(shift);
+            return acc;
+        }, {} as Record<string, Shift[]>);
+
+        // 4. Start a batch write
+        const batch = writeBatch(firestore);
+        const payrollsCollectionRef = collection(firestore, 'companies', companyId, 'payrolls');
+
+        let payrollsGenerated = 0;
+        
+        // 5. For each user, calculate summary and create payroll document
+        for (const userId in shiftsByUser) {
+            const userShifts = shiftsByUser[userId];
+            const user = userProfileMap[userId];
+
+            if (userShifts.length > 0) {
+                const summary = calculatePeriodSummary(userShifts, settings, holidays, benefits || [], deductions || [], userId, companyId, new Date());
+                
+                const payrollDocRef = doc(payrollsCollectionRef); // Create a new doc with a unique ID
+
+                const payrollData = {
+                    userId: userId,
+                    userName: user?.displayName || 'Operador Anónimo',
+                    companyId: companyId,
+                    periodStart: period.start.toISOString(),
+                    periodEnd: period.end.toISOString(),
+                    generatedAt: new Date().toISOString(),
+                    summary: summary,
+                    shifts: userShifts, // Store a snapshot of the shifts
+                };
+
+                batch.set(payrollDocRef, payrollData);
+                payrollsGenerated++;
+            }
+        }
+        
+        // 6. Commit the batch
+        await batch.commit();
+
+        toast({
+            title: 'Nómina Cerrada Exitosamente',
+            description: `Se han guardado ${payrollsGenerated} registros de nómina para el período actual.`,
+        });
+
+    } catch (error) {
+        console.error("Error closing payroll:", error);
+        toast({ title: 'Error', description: 'No se pudo cerrar la nómina.', variant: 'destructive'});
+    } finally {
+        setIsClosingPayroll(false);
+    }
+
+  }
+
 
   const handleSave = async () => {
     if (!firestore || !company || !settings) return;
@@ -368,6 +469,23 @@ export default function CompanySettingsPage() {
                         />
                     </div>
                 </div>
+                <Separator />
+                 <div>
+                    <Label className='text-base'>Acciones de Nómina</Label>
+                     <div className="mt-4 flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
+                        <Button 
+                            variant="secondary" 
+                            onClick={handleClosePayroll} 
+                            disabled={isClosingPayroll || isSaving}
+                        >
+                            {isClosingPayroll ? <LogoSpinner className="mr-2" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                            Cerrar y Guardar Nómina del Período Actual
+                        </Button>
+                        <p className="text-sm text-muted-foreground">
+                            Calcula y guarda un registro permanente de la nómina para todos los operadores en el período actual. Esta acción no se puede deshacer.
+                        </p>
+                    </div>
+                </div>
             </CardContent>
         </Card>
 
@@ -549,9 +667,9 @@ export default function CompanySettingsPage() {
         <Separator />
 
         <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={isSaving} size="lg">
+            <Button onClick={handleSave} disabled={isSaving || isClosingPayroll} size="lg">
                 {isSaving && <LogoSpinner className="mr-2" />}
-                Guardar Cambios
+                Guardar Cambios de Configuración
             </Button>
         </div>
       </main>

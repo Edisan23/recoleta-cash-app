@@ -62,17 +62,45 @@
       },
       "required": ["id", "name", "isActive"]
     },
+    "Shift": {
+        "title": "Shift",
+        "description": "Represents a single work shift or production entry for a user.",
+        "type": "object",
+        "properties": {
+            "id": { "type": "string" },
+            "userId": { "type": "string" },
+            "companyId": { "type": "string" },
+            "date": { "type": "string", "format": "date-time" },
+            "startTime": { "type": "string", "format": "time", "description": "Used for 'hourly' payment model." },
+            "endTime": { "type": "string", "format": "time", "description": "Used for 'hourly' payment model." },
+            "itemId": { "type": "string", "description": "Used for 'production' payment model to link to a CompanyItem." },
+            "quantity": { "type": "number", "description": "Used for 'production' payment model." },
+            "supervisor": { "type": "string" }
+        },
+        "required": ["id", "userId", "companyId", "date"]
+    },
     "Payroll": {
         "title": "Payroll",
-        "description": "Represents a payroll period for a user.",
+        "description": "Represents a saved, closed payroll period for a user.",
         "type": "object",
         "properties": {
             "id": { "type": "string" },
             "userId": { "type": "string" },
             "companyId": { "type": "string" },
             "periodStart": { "type": "string", "format": "date-time" },
-            "periodEnd": { "type": "string", "format": "date-time" }
-        }
+            "periodEnd": { "type": "string", "format": "date-time" },
+            "generatedAt": { "type": "string", "format": "date-time"},
+            "summary": {
+                "type": "object",
+                "description": "The calculated payroll summary object."
+            },
+            "shifts": {
+                "type": "array",
+                "items": { "$ref": "#/entities/Shift" },
+                "description": "A snapshot of the shifts included in this payroll."
+            }
+        },
+        "required": ["id", "userId", "companyId", "periodStart", "periodEnd", "generatedAt", "summary"]
     }
   },
   "auth": {
@@ -87,6 +115,10 @@
       "schema": { "$ref": "#/entities/Company" },
       "description": "Stores company information.",
       "subcollections": {
+        "shifts/{shiftId}": {
+          "schema": { "$ref": "#/entities/Shift" },
+          "description": "All shifts for all users in the company."
+        },
         "payrolls/{payrollId}": {
           "schema": { "$ref": "#/entities/Payroll" },
           "description": "All payrolls for all users in the company."

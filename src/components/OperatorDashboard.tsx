@@ -22,7 +22,6 @@ import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 import { collection, doc, query, where, writeBatch, getDocs, addDoc, deleteDoc } from 'firebase/firestore';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
-import { HistorySheet } from './operator/HistorySheet';
 
 
 // --- FAKE DATA & KEYS ---
@@ -55,7 +54,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   // Form state
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   
   // Calculated Summaries
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
@@ -274,9 +272,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle />
-                <Button variant="outline" size="icon" onClick={() => setIsHistoryOpen(true)} title="Ver Historial">
+                <Button variant="outline" size="icon" onClick={() => router.push('/operator/payroll-history')} title="Ver Historial de Nóminas">
                     <History />
-                    <span className="sr-only">Ver Historial</span>
+                    <span className="sr-only">Ver Historial de Nóminas</span>
                 </Button>
                 <Button variant="outline" size="icon" onClick={handleChangeCompany} title="Cambiar Empresa">
                     <Repeat />
@@ -396,18 +394,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         </main>
       </div>
       <InstallPwaPrompt />
-      {company && user && date && periodSummary && settings && allShifts && (
-            <HistorySheet 
-                isOpen={isHistoryOpen}
-                setIsOpen={setIsHistoryOpen}
-                user={user}
-                company={company}
-                settings={settings}
-                periodSummary={periodSummary}
-                allShifts={allShifts}
-                holidays={holidays}
-            />
-        )}
     </div>
   );
 }

@@ -56,9 +56,10 @@ service cloud.firestore {
           allow read: if isCompanyMember(companyId);
           allow write: if isAdmin();
       }
+      // Payrolls can be read by the user they belong to, or by an admin.
       match /payrolls/{payrollId} {
-        // Admins or the specific user can read a payroll.
         allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
+        allow list: if isAdmin() || isCompanyMember(companyId); // Allow listing for operators and admins
         // Only admins can create/update payrolls.
         allow write: if isAdmin();
       }
@@ -69,13 +70,18 @@ service cloud.firestore {
     match /{path=**}/shifts/{shiftId} {
         // An admin can read any shift.
         // A user can read their own shifts if they are part of the company.
-        allow read: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
+        allow read, list: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
         
         // A user can create their own shifts.
         allow create: if isCompanyMember(path.split('/')[1]) && request.resource.data.userId == request.auth.uid;
         
         // A user can update/delete their own shifts, or an admin can.
         allow update, delete: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
+    }
+
+     match /holidays/{holidayId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

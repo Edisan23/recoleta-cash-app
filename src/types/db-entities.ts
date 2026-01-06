@@ -95,8 +95,12 @@ export type User = {
     id: string;
     userId: string;
     companyId: string;
-    periodStart: string;
-    periodEnd: string;
+    userName: string; // Denormalized for easier display
+    periodStart: string; // ISO string
+    periodEnd: string; // ISO string
+    generatedAt: string; // ISO string
+    summary: PayrollSummary;
+    shifts: Shift[]; // A snapshot of the shifts included in this payroll
   };
   
   export interface PayrollBreakdown {
@@ -127,4 +131,3 @@ export type User = {
     benefitBreakdown: { name: string; value: number }[];
     deductionBreakdown: { name: string; value: number }[];
   }
-    
