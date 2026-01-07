@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Repeat, History, ShieldAlert, X, Palette, Brush } from 'lucide-react';
+import { LogOut, Repeat, History, ShieldAlert, X, Palette, Brush, Zap } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -25,8 +25,10 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
+import { createWompiTransaction } from '@/app/actions/wompi';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
+const PREMIUM_PRICE_COP = 5000; // Precio de la suscripción en COP
 
 
 // --- HELPER FUNCTIONS ---
@@ -44,7 +46,7 @@ function formatCurrency(value: number) {
 }
 
 // Function to convert hex to HSL string: "H S% L%"
-const hexToHslString = (hex: string): string => {
+const hexToHslString = (hex: string): { hsl: string, hue: string } => {
     let r = 0, g = 0, b = 0;
     if (hex.length == 4) {
         r = parseInt(hex[1] + hex[1], 16);
@@ -68,7 +70,9 @@ const hexToHslString = (hex: string): string => {
         }
         h /= 6;
     }
-    return `${(h * 360).toFixed(0)} ${(s * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%`;
+    const hue = (h * 360).toFixed(0);
+    const hsl = `${hue} ${(s * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%`;
+    return { hsl, hue };
 };
 
 // Function to apply the user's theme color
@@ -76,14 +80,82 @@ function applyThemeColor(color: string | null | undefined) {
     if (typeof window === 'undefined') return;
     const root = document.documentElement;
     if (color) {
-        const hslString = hexToHslString(color);
-        const hue = hslString.split(' ')[0];
-        root.style.setProperty('--user-primary-color', hslString);
+        const { hsl, hue } = hexToHslString(color);
+        root.style.setProperty('--user-primary-color', hsl);
         root.style.setProperty('--user-primary-hue', hue);
     } else {
         root.style.removeProperty('--user-primary-color');
         root.style.removeProperty('--user-primary-hue');
     }
+}
+
+
+function UpgradeToPremium({ user }: { user: UserProfile }) {
+    const [isProcessing, setIsProcessing] = useState(false);
+    const { toast } = useToast();
+
+    const handleUpgrade = async () => {
+        if (!user.email) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Se requiere un email para realizar el pago.'
+            });
+            return;
+        }
+        setIsProcessing(true);
+
+        const result = await createWompiTransaction(PREMIUM_PRICE_COP, user.email, user.id);
+        
+        if ('error' in result) {
+            toast({
+                variant: 'destructive',
+                title: 'Error de Pago',
+                description: result.error,
+            });
+            setIsProcessing(false);
+            return;
+        }
+        
+        const { transactionId, reference } = result;
+
+        const checkout = new (window as any).WompiCheckout({
+            currency: 'COP',
+            amountInCents: PREMIUM_PRICE_COP * 100,
+            reference: reference,
+            publicKey: process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY,
+            redirectUrl: `${window.location.origin}/operator/payment/status`,
+        });
+
+        checkout.open(function (result: any) {
+            if (result.transaction.status === 'APPROVED') {
+                // El webhook o la página de status se encargarán de la lógica post-pago
+            } else {
+                 toast({
+                    variant: 'destructive',
+                    title: 'Pago Declinado',
+                    description: 'La transacción no fue aprobada.',
+                });
+            }
+            setIsProcessing(false);
+        })
+    };
+
+    return (
+        <Card className="mb-6 bg-primary/10 border-primary/20">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Zap />¡Actualiza a Premium!</CardTitle>
+                <CardDescription>Obtén acceso ilimitado a todas las funciones de Turno Pro por un pago único.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row items-center justify-between">
+                <p className="text-2xl font-bold text-primary mb-4 sm:mb-0">{formatCurrency(PREMIUM_PRICE_COP)} <span className="text-sm font-normal text-muted-foreground">/ pago único</span></p>
+                <Button onClick={handleUpgrade} disabled={isProcessing} size="lg">
+                    {isProcessing ? <LogoSpinner className="mr-2" /> : <Zap className="mr-2 h-4 w-4" />}
+                    Pagar y Activar Premium
+                </Button>
+            </CardContent>
+        </Card>
+    );
 }
 
 
@@ -289,10 +361,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           <ShieldAlert className="h-20 w-20 text-destructive mx-auto mb-6" />
           <h1 className="text-4xl font-bold mb-4">Período de Prueba Terminado</h1>
           <p className="text-xl text-muted-foreground max-w-md mx-auto mb-8">
-            Tu acceso de 30 días ha finalizado. Por favor, contacta a un administrador para continuar usando el servicio.
+            Tu acceso de 30 días ha finalizado. Por favor, actualiza a Premium para continuar usando el servicio.
           </p>
-          <Button onClick={handleSignOut} size="lg">
-            <LogOut className="mr-2" />
+          {localUserProfile && <UpgradeToPremium user={localUserProfile} />}
+          <Button onClick={handleSignOut} size="lg" variant="ghost">
             Cerrar Sesión
           </Button>
         </div>
@@ -315,6 +387,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-background">
+       <script src="https://checkout.wompi.co/widget.js" async></script>
       
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
@@ -413,6 +486,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </Button>
             </Alert>
         )}
+        
+        {!localUserProfile?.isPremium && localUserProfile && <UpgradeToPremium user={localUserProfile} />}
 
         <main className="space-y-8">
             <div className="flex justify-center mb-8">
