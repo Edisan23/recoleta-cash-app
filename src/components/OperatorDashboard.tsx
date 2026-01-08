@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { DatePicker } from '@/components/DatePicker';
 import { calculateShiftSummary, calculatePeriodSummary } from '@/lib/payroll-calculator';
 import { PayrollBreakdown } from './operator/PayrollBreakdown';
