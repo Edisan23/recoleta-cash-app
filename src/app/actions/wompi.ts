@@ -16,8 +16,8 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     }
 
     const reference = `turnopro-premium-${userId}-${Date.now()}`;
-    const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL}/operator/payment/status`;
-    const eventsUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/wompi/events`;
+    const redirectUrl = `https://turnospros.com/operator/payment/status`;
+    const eventsUrl = `https://turnospros.com/api/wompi/events`;
 
 
     try {
