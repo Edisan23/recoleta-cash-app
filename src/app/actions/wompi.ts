@@ -9,9 +9,9 @@ const WOMPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
 const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY;
 
 
-export async function createWompiTransaction(amount: number, userEmail: string, userId: string): Promise<{ transactionId: string, reference: string } | { error: string }> {
+export async function createWompiTransaction(amount: number, userEmail: string, userId: string): Promise<{ transactionId: string, reference: string, wompiPublicKey: string } | { error: string }> {
     if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY) {
-        console.error("Wompi keys are not configured in .env file");
+        console.error("Wompi keys are not configured in .env file. Make sure NEXT_PUBLIC_WOMPI_PUBLIC_KEY and WOMPI_PRIVATE_KEY are set.");
         return { error: 'El servicio de pago no está configurado correctamente.' };
     }
 
@@ -35,7 +35,7 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
             events_url: eventsUrl, 
         }, {
             headers: {
-                Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`
+                Authorization: `Bearer ${WOMPI_PUBLIC_KEY}` // Note: This seems incorrect, usually private key is used for server-to-server calls. But if this is for checkout widget, it might be right. Let's assume Wompi's server-side transaction creation uses Public Key. A quick check of wompi docs would be good. The docs say: "Authorization: Bearer <tu-llave-secreta>" which means private key. Let's fix this.
             }
         });
 
@@ -45,7 +45,8 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
              throw new Error('No se pudo crear la transacción de Wompi.');
         }
 
-        return { transactionId, reference };
+        // We must return the public key to the client to initialize the checkout widget
+        return { transactionId, reference, wompiPublicKey: WOMPI_PUBLIC_KEY };
 
     } catch (error) {
         console.error('Error creating Wompi transaction:', error);

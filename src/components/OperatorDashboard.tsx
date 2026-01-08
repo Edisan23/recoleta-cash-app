@@ -117,13 +117,13 @@ function UpgradeToPremium({ user }: { user: UserProfile }) {
             return;
         }
         
-        const { transactionId, reference } = result;
+        const { transactionId, reference, wompiPublicKey } = result;
 
         const checkout = new (window as any).WompiCheckout({
             currency: 'COP',
             amountInCents: PREMIUM_PRICE_COP * 100,
             reference: reference,
-            publicKey: process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY,
+            publicKey: wompiPublicKey,
             redirectUrl: `${window.location.origin}/operator/payment/status`,
         });
 
