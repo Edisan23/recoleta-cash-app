@@ -17,6 +17,8 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
 
     const reference = `turnopro-premium-${userId}-${Date.now()}`;
     const redirectUrl = `${process.env.NEXT_PUBLIC_APP_URL}/operator/payment/status`;
+    const eventsUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/wompi/events`;
+
 
     try {
         const response = await axios.post(`${WOMPI_API_URL}/transactions`, {
@@ -28,6 +30,8 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
             },
             reference: reference,
             redirect_url: redirectUrl,
+            // Informa a Wompi a dónde enviar los eventos (webhooks)
+            // events_url: eventsUrl, 
         }, {
             headers: {
                 Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`
