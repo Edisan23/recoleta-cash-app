@@ -16,8 +16,9 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     }
 
     const reference = `turnopro-premium-${userId}-${Date.now()}`;
-    const redirectUrl = `https://turnospros.com/operator/payment/status`;
-    const eventsUrl = `https://turnospros.com/api/wompi/events`;
+    const baseUrl = 'https://studio--recoleta-cash-app.us-central1.hosted.app';
+    const redirectUrl = `${baseUrl}/operator/payment/status`;
+    const eventsUrl = `${baseUrl}/api/wompi/events`;
 
 
     try {
@@ -31,7 +32,7 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
             reference: reference,
             redirect_url: redirectUrl,
             // Informa a Wompi a dónde enviar los eventos (webhooks)
-            // events_url: eventsUrl, 
+            events_url: eventsUrl, 
         }, {
             headers: {
                 Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`
