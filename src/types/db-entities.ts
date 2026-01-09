@@ -44,6 +44,8 @@ export type User = {
     holidayNightRate?: number;
     holidayDayOvertimeRate?: number;
     holidayNightOvertimeRate?: number;
+    premiumPrice?: number; // Cost for premium activation
+    trialPeriodDays?: number; // Duration of the trial period in days
   };
 
   export type Benefit = {

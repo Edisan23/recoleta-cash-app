@@ -38,6 +38,8 @@ const initialSettings: Omit<CompanySettings, 'id'> = {
     holidayNightRate: 0,
     holidayDayOvertimeRate: 0,
     holidayNightOvertimeRate: 0,
+    premiumPrice: 5000,
+    trialPeriodDays: 30,
 };
 
 const initialBenefits: Omit<Benefit, 'id' | 'companyId'>[] = [
@@ -301,6 +303,39 @@ export default function CompanySettingsPage() {
                     onChange={(e) => setCompany({...company, name: e.target.value})}
                 />
             </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+              <CardTitle>Configuración de Operadores</CardTitle>
+              <CardDescription>Define el costo y período de prueba para los operadores de esta empresa.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                  <Label htmlFor="premiumPrice" className="text-base">Costo de Activación Premium (COP)</Label>
+                  <p className="text-sm text-muted-foreground">Valor único que el operador pagará por la membresía.</p>
+                  <Input 
+                      id="premiumPrice"
+                      type="number"
+                      min="0"
+                      value={settings.premiumPrice ?? 5000}
+                      onChange={(e) => handleRateChange('premiumPrice', e.target.value)}
+                      className="mt-2"
+                  />
+              </div>
+              <div>
+                  <Label htmlFor="trialPeriodDays" className="text-base">Días del Período de Prueba</Label>
+                  <p className="text-sm text-muted-foreground">Número de días gratuitos antes de requerir el pago.</p>
+                  <Input 
+                      id="trialPeriodDays"
+                      type="number"
+                      min="0"
+                      value={settings.trialPeriodDays ?? 30}
+                       onChange={(e) => handleRateChange('trialPeriodDays', e.target.value)}
+                      className="mt-2"
+                  />
+              </div>
+          </CardContent>
         </Card>
 
         <Card>

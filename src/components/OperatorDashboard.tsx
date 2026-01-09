@@ -28,8 +28,6 @@ import { Input } from './ui/input';
 import { createWompiTransaction } from '@/app/actions/wompi';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
-const PREMIUM_PRICE_COP = 5000; // Precio de la suscripción en COP
-
 
 // --- HELPER FUNCTIONS ---
 function getInitials(name: string) {
@@ -84,13 +82,16 @@ function applyThemeColor(color: string | null | undefined) {
         root.style.setProperty('--user-primary-color', hsl);
         root.style.setProperty('--user-primary-hue', hue);
     } else {
-        root.style.removeProperty('--user-primary-color');
-        root.style.removeProperty('--user-primary-hue');
+        // Fallback to default if no color is provided
+        const defaultColor = '#6d28d9'; // Deep Purple
+        const { hsl, hue } = hexToHslString(defaultColor);
+        root.style.setProperty('--user-primary-color', hsl);
+        root.style.setProperty('--user-primary-hue', hue);
     }
 }
 
 
-function UpgradeToPremium({ user }: { user: UserProfile }) {
+function UpgradeToPremium({ user, price }: { user: UserProfile, price: number }) {
     const [isProcessing, setIsProcessing] = useState(false);
     const { toast } = useToast();
 
@@ -105,7 +106,7 @@ function UpgradeToPremium({ user }: { user: UserProfile }) {
         }
         setIsProcessing(true);
 
-        const result = await createWompiTransaction(PREMIUM_PRICE_COP, user.email, user.id);
+        const result = await createWompiTransaction(price, user.email, user.id);
         
         if ('error' in result) {
             toast({
@@ -130,7 +131,7 @@ function UpgradeToPremium({ user }: { user: UserProfile }) {
                 <CardDescription>Obtén acceso ilimitado a todas las funciones de Turno Pro por un pago único.</CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col sm:flex-row items-center justify-between">
-                <p className="text-2xl font-bold text-primary mb-4 sm:mb-0">{formatCurrency(PREMIUM_PRICE_COP)} <span className="text-sm font-normal text-muted-foreground">/ pago único</span></p>
+                <p className="text-2xl font-bold text-primary mb-4 sm:mb-0">{formatCurrency(price)} <span className="text-sm font-normal text-muted-foreground">/ pago único</span></p>
                 <Button onClick={handleUpgrade} disabled={isProcessing} size="lg">
                     {isProcessing ? <LogoSpinner className="mr-2" /> : <Zap className="mr-2 h-4 w-4" />}
                     Pagar y Activar Premium
@@ -228,10 +229,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   // Effect to check for trial period expiration
   useEffect(() => {
-    if (localUserProfile && localUserProfile.createdAt && !localUserProfile.isPremium) {
+    if (localUserProfile && localUserProfile.createdAt && !localUserProfile.isPremium && settings) {
       try {
         const registrationDate = parseISO(localUserProfile.createdAt);
-        const trialEndDate = addDays(registrationDate, 30);
+        const trialEndDate = addDays(registrationDate, settings.trialPeriodDays ?? 30);
         const today = new Date();
         
         if (isAfter(today, trialEndDate)) {
@@ -247,7 +248,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         // If user is premium, trial is irrelevant.
         setTrialStatus({ expired: false, daysRemaining: null });
     }
-  }, [localUserProfile]);
+  }, [localUserProfile, settings]);
 
 
   // Effect to calculate daily summary for the selected day
@@ -343,9 +344,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           <ShieldAlert className="h-20 w-20 text-destructive mx-auto mb-6" />
           <h1 className="text-4xl font-bold mb-4">Período de Prueba Terminado</h1>
           <p className="text-xl text-muted-foreground max-w-md mx-auto mb-8">
-            Tu acceso de 30 días ha finalizado. Por favor, actualiza a Premium para continuar usando el servicio.
+            Tu acceso de prueba ha finalizado. Por favor, actualiza a Premium para continuar usando el servicio.
           </p>
-          {localUserProfile && <UpgradeToPremium user={localUserProfile} />}
+          {localUserProfile && settings && <UpgradeToPremium user={localUserProfile} price={settings.premiumPrice ?? 5000} />}
           <Button onClick={handleSignOut} size="lg" variant="ghost">
             Cerrar Sesión
           </Button>
@@ -468,7 +469,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </Alert>
         )}
         
-        {!localUserProfile?.isPremium && localUserProfile && <UpgradeToPremium user={localUserProfile} />}
+        {!localUserProfile?.isPremium && localUserProfile && settings && <UpgradeToPremium user={localUserProfile} price={settings.premiumPrice ?? 5000} />}
 
         <main className="space-y-8">
             <div className="flex justify-center mb-8">
