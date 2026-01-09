@@ -241,12 +241,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const now = new Date();
     
     // `isCurrentlyPremium` is true if premium is for lifetime (null) or if the expiration date is in the future.
-    const isCurrentlyPremium = premiumUntil === null || isAfter(premiumUntil, now);
+    const isCurrentlyPremium = premiumUntilDate === null || (premiumUntilDate && isAfter(premiumUntilDate, now));
     setIsPremium(isCurrentlyPremium);
 
-    if (premiumUntil) { // User has or had a premium subscription
-      if (isAfter(premiumUntil, now)) {
-        const daysLeft = differenceInDays(premiumUntil, now);
+    if (premiumUntilDate) { // User has or had a premium subscription
+      if (isAfter(premiumUntilDate, now)) {
+        const daysLeft = differenceInDays(premiumUntilDate, now);
         setPremiumStatus({ expired: false, daysRemaining: daysLeft });
       } else {
         setPremiumStatus({ expired: true, daysRemaining: 0 });
