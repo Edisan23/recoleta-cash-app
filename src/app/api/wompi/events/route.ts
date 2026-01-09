@@ -2,8 +2,10 @@
 
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/firebase/server-init';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import type { CompanySettings } from '@/types/db-entities';
 import crypto from 'crypto';
+import { addDays } from 'date-fns';
 
 interface WompiTransaction {
     id: string;
@@ -68,17 +70,42 @@ export async function POST(request: Request) {
             console.log(`Processing transaction ${transactionId} with status ${status}`);
 
             if (status === 'APPROVED') {
-                const userId = reference.split('-')[2];
+                // Reference format: turnopro-premium-{userId}-{companyId}-{timestamp}
+                const referenceParts = reference.split('-');
+                const userId = referenceParts[2];
+                const companyId = referenceParts[3];
 
-                if (!userId) {
-                    console.error(`Could not extract userId from reference: ${reference}`);
+                if (!userId || !companyId) {
+                    console.error(`Could not extract userId and companyId from reference: ${reference}`);
                     return new NextResponse('Bad Request: Invalid transaction reference.', { status: 400 });
                 }
 
                 try {
+                    // Get company settings to determine premium duration
+                    const settingsDocRef = doc(adminDb, 'companies', companyId, 'settings', 'main');
+                    const settingsSnap = await getDoc(settingsDocRef);
+                    if (!settingsSnap.exists()) {
+                        console.error(`Settings for company ${companyId} not found.`);
+                        return new NextResponse('Internal Server Error: Company settings not found.', { status: 500 });
+                    }
+                    const settings = settingsSnap.data() as CompanySettings;
+                    const premiumDurationDays = settings.premiumDurationDays ?? 0;
+
+                    const now = new Date();
+                    let premiumUntil: Date | null = null;
+
+                    if (premiumDurationDays > 0) {
+                        premiumUntil = addDays(now, premiumDurationDays);
+                    }
+
                     const userDocRef = doc(adminDb, 'users', userId);
-                    await updateDoc(userDocRef, { isPremium: true });
-                    console.log(`User ${userId} successfully updated to Premium.`);
+                    const updateData: { premiumUntil: string | null } = {
+                        premiumUntil: premiumUntil ? premiumUntil.toISOString() : null,
+                    };
+                    
+                    await updateDoc(userDocRef, updateData);
+                    console.log(`User ${userId} successfully updated. Premium active until: ${updateData.premiumUntil || 'Lifetime'}`);
+
                 } catch (dbError) {
                     console.error(`Failed to update user ${userId} to premium in Firestore:`, dbError);
                     // Return 500 so Wompi retries the webhook

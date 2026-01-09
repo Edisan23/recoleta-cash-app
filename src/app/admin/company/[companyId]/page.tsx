@@ -40,6 +40,7 @@ const initialSettings: Omit<CompanySettings, 'id'> = {
     holidayNightOvertimeRate: 0,
     premiumPrice: 5000,
     trialPeriodDays: 30,
+    premiumDurationDays: 0,
 };
 
 const initialBenefits: Omit<Benefit, 'id' | 'companyId'>[] = [
@@ -306,36 +307,48 @@ export default function CompanySettingsPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-              <CardTitle>Configuración de Operadores</CardTitle>
-              <CardDescription>Define el costo y período de prueba para los operadores de esta empresa.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                  <Label htmlFor="premiumPrice" className="text-base">Costo de Activación Premium (COP)</Label>
-                  <p className="text-sm text-muted-foreground">Valor único que el operador pagará por la membresía.</p>
-                  <Input 
-                      id="premiumPrice"
-                      type="number"
-                      min="0"
-                      value={settings.premiumPrice ?? 5000}
-                      onChange={(e) => handleRateChange('premiumPrice', e.target.value)}
-                      className="mt-2"
-                  />
-              </div>
-              <div>
-                  <Label htmlFor="trialPeriodDays" className="text-base">Días del Período de Prueba</Label>
-                  <p className="text-sm text-muted-foreground">Número de días gratuitos antes de requerir el pago.</p>
-                  <Input 
-                      id="trialPeriodDays"
-                      type="number"
-                      min="0"
-                      value={settings.trialPeriodDays ?? 30}
-                       onChange={(e) => handleRateChange('trialPeriodDays', e.target.value)}
-                      className="mt-2"
-                  />
-              </div>
-          </CardContent>
+            <CardHeader>
+                <CardTitle>Configuración de Operadores</CardTitle>
+                <CardDescription>Define el costo, período de prueba y duración de la membresía para los operadores.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div>
+                    <Label htmlFor="premiumPrice" className="text-base">Costo de Activación (COP)</Label>
+                    <p className="text-sm text-muted-foreground">Valor único que pagará el operador.</p>
+                    <Input 
+                        id="premiumPrice"
+                        type="number"
+                        min="0"
+                        value={settings.premiumPrice ?? 5000}
+                        onChange={(e) => handleRateChange('premiumPrice', e.target.value)}
+                        className="mt-2"
+                    />
+                </div>
+                <div>
+                    <Label htmlFor="trialPeriodDays" className="text-base">Días de Prueba</Label>
+                    <p className="text-sm text-muted-foreground">Días gratuitos antes de requerir el pago.</p>
+                    <Input 
+                        id="trialPeriodDays"
+                        type="number"
+                        min="0"
+                        value={settings.trialPeriodDays ?? 30}
+                        onChange={(e) => handleRateChange('trialPeriodDays', e.target.value)}
+                        className="mt-2"
+                    />
+                </div>
+                 <div>
+                    <Label htmlFor="premiumDurationDays" className="text-base">Duración Premium (días)</Label>
+                    <p className="text-sm text-muted-foreground">Días de validez del pago. `0` para ilimitado.</p>
+                    <Input 
+                        id="premiumDurationDays"
+                        type="number"
+                        min="0"
+                        value={settings.premiumDurationDays ?? 0}
+                        onChange={(e) => handleRateChange('premiumDurationDays', e.target.value)}
+                        className="mt-2"
+                    />
+                </div>
+            </CardContent>
         </Card>
 
         <Card>

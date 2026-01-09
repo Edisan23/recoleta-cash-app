@@ -19,7 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format, isValid, parseISO } from 'date-fns';
+import { format, isValid, parseISO, isAfter } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
     DropdownMenu,
@@ -73,16 +73,19 @@ export function OperatorTable({ user }: OperatorTableProps) {
         );
     }, [operators, searchQuery]);
 
-    const togglePremiumStatus = async (userId: string, currentStatus: boolean | undefined) => {
+    const togglePremiumStatus = async (userId: string, currentPremiumUntil: string | undefined) => {
         if (!firestore) return;
         const userDocRef = doc(firestore, 'users', userId);
-        const newStatus = !currentStatus;
+        
+        const isCurrentlyPremium = currentPremiumUntil && isAfter(parseISO(currentPremiumUntil), new Date());
+        const newPremiumUntil = isCurrentlyPremium ? new Date().toISOString() : null; // Set to now to expire, or null for lifetime
+
         try {
-            await updateDoc(userDocRef, { isPremium: newStatus });
-            setOperators(prev => prev.map(op => op.id === userId ? { ...op, isPremium: newStatus } : op));
+            await updateDoc(userDocRef, { premiumUntil: newPremiumUntil });
+            setOperators(prev => prev.map(op => op.id === userId ? { ...op, premiumUntil: newPremiumUntil || undefined } : op));
             toast({
                 title: "Estado Actualizado",
-                description: `El operador ahora es ${newStatus ? 'Premium' : 'de Prueba'}.`,
+                description: `El operador ahora es ${newPremiumUntil === null ? 'Premium Vitalicio' : 'de Prueba'}.`,
             });
         } catch (error) {
             console.error("Error updating premium status:", error);
@@ -158,6 +161,8 @@ export function OperatorTable({ user }: OperatorTableProps) {
                             ) : filteredOperators.length > 0 ? (
                                 filteredOperators.map((op) => {
                                     const createdAtDate = getCreatedAtDate(op);
+                                    const premiumUntilDate = op.premiumUntil ? parseISO(op.premiumUntil) : null;
+                                    const isPremiumActive = op.premiumUntil === null || (premiumUntilDate && isAfter(premiumUntilDate, new Date()));
 
                                     return (
                                         <TableRow key={op.id}>
@@ -179,8 +184,8 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant={op.isPremium ? 'default' : 'secondary'}>
-                                                    {op.isPremium ? 'Premium' : 'Prueba'}
+                                                <Badge variant={isPremiumActive ? 'default' : 'secondary'}>
+                                                    {isPremiumActive ? (op.premiumUntil === null ? 'Premium Vitalicio' : 'Premium') : 'Prueba'}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-muted-foreground">
@@ -197,15 +202,15 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                                     <DropdownMenuContent align="end">
                                                         <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                                                         <DropdownMenuSeparator />
-                                                        {op.isPremium ? (
-                                                            <DropdownMenuItem onClick={() => togglePremiumStatus(op.id, op.isPremium)}>
+                                                        {isPremiumActive ? (
+                                                            <DropdownMenuItem onClick={() => togglePremiumStatus(op.id, op.premiumUntil)}>
                                                                 <XCircle className="mr-2 h-4 w-4" />
                                                                 Quitar Premium
                                                             </DropdownMenuItem>
                                                         ) : (
-                                                            <DropdownMenuItem onClick={() => togglePremiumStatus(op.id, op.isPremium)}>
+                                                            <DropdownMenuItem onClick={() => togglePremiumStatus(op.id, op.premiumUntil)}>
                                                                 <ShieldCheck className="mr-2 h-4 w-4" />
-                                                                Activar Premium
+                                                                Activar Premium (Vitalicio)
                                                             </DropdownMenuItem>
                                                         )}
                                                         <DropdownMenuSeparator />
@@ -256,3 +261,4 @@ function getCreatedAtDate (profile: UserProfile): Date | null {
     
 
     
+

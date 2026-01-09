@@ -35,16 +35,18 @@ function PaymentStatusContent() {
             }
 
             if (wompiResult.status === 'APPROVED') {
-                const reference = wompiResult.reference;
-                const userId = reference.split('-')[2]; // Extrae userId de la referencia
+                // Reference format: turnopro-premium-{userId}-{companyId}-{timestamp}
+                const referenceParts = wompiResult.reference.split('-');
+                const userId = referenceParts[2];
+                const companyId = referenceParts[3];
 
-                if (!userId) {
+                if (!userId || !companyId) {
                      setStatus('error');
                      setMessage('La referencia de la transacción es inválida.');
                      return;
                 }
 
-                const updateResult = await updateUserToPremium(userId);
+                const updateResult = await updateUserToPremium(userId, companyId);
 
                 if ('error' in updateResult) {
                     setStatus('error');

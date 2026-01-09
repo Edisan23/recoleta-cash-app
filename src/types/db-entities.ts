@@ -18,7 +18,7 @@ export type User = {
     isAnonymous: boolean;
     role: "operator" | "admin";
     createdAt: string; // Simplified to string to avoid build issues.
-    isPremium?: boolean;
+    premiumUntil?: string; // ISO Date string for when premium access expires
     themeColor?: string; // User's preferred theme color (hex)
   }
   
@@ -46,6 +46,7 @@ export type User = {
     holidayNightOvertimeRate?: number;
     premiumPrice?: number; // Cost for premium activation
     trialPeriodDays?: number; // Duration of the trial period in days
+    premiumDurationDays?: number; // Duration of premium access in days after payment. 0 or undefined for lifetime.
   };
 
   export type Benefit = {
@@ -60,7 +61,7 @@ export type User = {
   export type Deduction = {
     id: string;
     companyId: string;
-    name: string;
+    name:string;
     type: 'fixed' | 'percentage';
     value: number;
   }

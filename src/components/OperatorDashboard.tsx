@@ -91,7 +91,7 @@ function applyThemeColor(color: string | null | undefined) {
 }
 
 
-function UpgradeToPremium({ user, price }: { user: UserProfile, price: number }) {
+function UpgradeToPremium({ user, price, companyId }: { user: UserProfile, price: number, companyId: string }) {
     const [isProcessing, setIsProcessing] = useState(false);
     const { toast } = useToast();
 
@@ -106,7 +106,7 @@ function UpgradeToPremium({ user, price }: { user: UserProfile, price: number })
         }
         setIsProcessing(true);
 
-        const result = await createWompiTransaction(price, user.email, user.id);
+        const result = await createWompiTransaction(price, user.email, user.id, companyId);
         
         if ('error' in result) {
             toast({
@@ -157,8 +157,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
   const [localUserProfile, setLocalUserProfile] = useState<UserProfile | null>(null);
+  
   const [trialStatus, setTrialStatus] = useState<{expired: boolean, daysRemaining: number | null}>({ expired: false, daysRemaining: null });
+  const [premiumStatus, setPremiumStatus] = useState<{expired: boolean, daysRemaining: number | null}>({ expired: false, daysRemaining: null });
+  const [isPremium, setIsPremium] = useState(false);
+
   const [showTrialBanner, setShowTrialBanner] = useState(true);
+  const [showPremiumBanner, setShowPremiumBanner] = useState(true);
+
 
   // --- Firestore Data ---
   const companyRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
@@ -210,7 +216,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                   isAnonymous: user.isAnonymous,
                   createdAt: creationTime,
                   role: 'operator',
-                  isPremium: false,
               };
               setDoc(profileRef, newUserProfile); // non-blocking write
               setLocalUserProfile({ ...newUserProfile, id: user.uid });
@@ -227,27 +232,49 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [user, userProfile, userProfileLoading, firestore]);
   
-  // Effect to check for trial period expiration
+  // Effect to check for trial and premium status
   useEffect(() => {
-    if (localUserProfile && localUserProfile.createdAt && !localUserProfile.isPremium && settings) {
+    if (!localUserProfile || !settings) return;
+
+    // Check Premium Status
+    const premiumUntilDate = localUserProfile.premiumUntil ? parseISO(localUserProfile.premiumUntil) : null;
+    const now = new Date();
+    
+    // `isCurrentlyPremium` is true if premium is for lifetime (null) or if the expiration date is in the future.
+    const isCurrentlyPremium = premiumUntil === null || isAfter(premiumUntil, now);
+    setIsPremium(isCurrentlyPremium);
+
+    if (premiumUntil) { // User has or had a premium subscription
+      if (isAfter(premiumUntil, now)) {
+        const daysLeft = differenceInDays(premiumUntil, now);
+        setPremiumStatus({ expired: false, daysRemaining: daysLeft });
+      } else {
+        setPremiumStatus({ expired: true, daysRemaining: 0 });
+      }
+    } else { // No premium history
+        setPremiumStatus({ expired: false, daysRemaining: null });
+    }
+
+    // Check Trial Status (only if not premium)
+    if (!isCurrentlyPremium && localUserProfile.createdAt) {
       try {
         const registrationDate = parseISO(localUserProfile.createdAt);
         const trialEndDate = addDays(registrationDate, settings.trialPeriodDays ?? 30);
-        const today = new Date();
         
-        if (isAfter(today, trialEndDate)) {
+        if (isAfter(now, trialEndDate)) {
           setTrialStatus({ expired: true, daysRemaining: 0 });
         } else {
-          const daysLeft = differenceInDays(trialEndDate, today);
+          const daysLeft = differenceInDays(trialEndDate, now);
           setTrialStatus({ expired: false, daysRemaining: daysLeft });
         }
       } catch (error) {
         console.error("Error parsing user creation date:", error);
       }
-    } else if (localUserProfile?.isPremium) {
+    } else {
         // If user is premium, trial is irrelevant.
         setTrialStatus({ expired: false, daysRemaining: null });
     }
+
   }, [localUserProfile, settings]);
 
 
@@ -338,15 +365,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       );
     }
     
-    if (trialStatus.expired && !localUserProfile?.isPremium) {
+    if ((trialStatus.expired || premiumStatus.expired) && !isPremium) {
       return (
         <div className="flex flex-col items-center justify-center h-screen text-center p-4 bg-background">
           <ShieldAlert className="h-20 w-20 text-destructive mx-auto mb-6" />
-          <h1 className="text-4xl font-bold mb-4">Período de Prueba Terminado</h1>
+          <h1 className="text-4xl font-bold mb-4">{premiumStatus.expired ? "Suscripción Expirada" : "Período de Prueba Terminado"}</h1>
           <p className="text-xl text-muted-foreground max-w-md mx-auto mb-8">
-            Tu acceso de prueba ha finalizado. Por favor, actualiza a Premium para continuar usando el servicio.
+            Tu acceso ha finalizado. Por favor, actualiza a Premium para continuar usando el servicio.
           </p>
-          {localUserProfile && settings && <UpgradeToPremium user={localUserProfile} price={settings.premiumPrice ?? 5000} />}
+          {localUserProfile && settings && <UpgradeToPremium user={localUserProfile} price={settings.premiumPrice ?? 5000} companyId={companyId} />}
           <Button onClick={handleSignOut} size="lg" variant="ghost">
             Cerrar Sesión
           </Button>
@@ -451,7 +478,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           </div>
         </header>
 
-        {showTrialBanner && !localUserProfile?.isPremium && trialStatus.daysRemaining !== null && trialStatus.daysRemaining >= 0 && (
+        {showTrialBanner && !isPremium && trialStatus.daysRemaining !== null && trialStatus.daysRemaining >= 0 && (
              <Alert className="mb-6 border-primary/50 relative">
                 <ShieldAlert className="h-4 w-4" />
                 <AlertTitle>Período de Prueba</AlertTitle>
@@ -468,8 +495,25 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </Button>
             </Alert>
         )}
+         {showPremiumBanner && isPremium && premiumStatus.daysRemaining !== null && premiumStatus.daysRemaining <= 7 && (
+             <Alert className="mb-6 border-yellow-500/50 relative text-yellow-600">
+                <ShieldAlert className="h-4 w-4 text-yellow-600" />
+                <AlertTitle>Tu suscripción está por expirar</AlertTitle>
+                <AlertDescription>
+                    {premiumStatus.daysRemaining > 0 ? `Te quedan ${premiumStatus.daysRemaining} días de acceso Premium. ¡Renueva pronto!` : 'Tu suscripción Premium expira hoy.'}
+                </AlertDescription>
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute top-2 right-2 h-6 w-6"
+                    onClick={() => setShowPremiumBanner(false)}
+                >
+                    <X className="h-4 w-4" />
+                </Button>
+            </Alert>
+        )}
         
-        {!localUserProfile?.isPremium && localUserProfile && settings && <UpgradeToPremium user={localUserProfile} price={settings.premiumPrice ?? 5000} />}
+        {!isPremium && localUserProfile && settings && <UpgradeToPremium user={localUserProfile} price={settings.premiumPrice ?? 5000} companyId={companyId}/>}
 
         <main className="space-y-8">
             <div className="flex justify-center mb-8">
