@@ -9,7 +9,7 @@ const WOMPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
 const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY;
 
 
-export async function createWompiTransaction(amount: number, userEmail: string, userId: string): Promise<{ transactionId: string, reference: string, wompiPublicKey: string } | { error: string }> {
+export async function createWompiTransaction(amount: number, userEmail: string, userId: string): Promise<{ checkoutUrl: string; } | { error: string }> {
     if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY) {
         console.error("Wompi keys are not configured in .env file. Make sure NEXT_PUBLIC_WOMPI_PUBLIC_KEY and WOMPI_PRIVATE_KEY are set.");
         return { error: 'El servicio de pago no está configurado correctamente.' };
@@ -22,34 +22,34 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
 
 
     try {
-        const response = await axios.post(`${WOMPI_API_URL}/transactions`, {
+        const response = await axios.post(`${WOMPI_API_URL}/checkouts`, {
             amount_in_cents: amount * 100, // Wompi trabaja en centavos
             currency: 'COP',
             customer_email: userEmail,
-            payment_method: {
-                type: 'CARD', // O puedes ampliar para más métodos
-            },
             reference: reference,
             redirect_url: redirectUrl,
+            payment_source_id: null, // Required for redirection checkout
             // Informa a Wompi a dónde enviar los eventos (webhooks)
-            events_url: eventsUrl, 
+            // events_url: eventsUrl, 
         }, {
             headers: {
-                Authorization: `Bearer ${WOMPI_PUBLIC_KEY}` // Note: This seems incorrect, usually private key is used for server-to-server calls. But if this is for checkout widget, it might be right. Let's assume Wompi's server-side transaction creation uses Public Key. A quick check of wompi docs would be good. The docs say: "Authorization: Bearer <tu-llave-secreta>" which means private key. Let's fix this.
+                Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`
             }
         });
 
-        const transactionId = response.data.data.id;
+        const checkoutId = response.data.data.id;
         
-        if (!transactionId) {
-             throw new Error('No se pudo crear la transacción de Wompi.');
+        if (!checkoutId) {
+             throw new Error('No se pudo crear la sesión de pago de Wompi.');
         }
 
-        // We must return the public key to the client to initialize the checkout widget
-        return { transactionId, reference, wompiPublicKey: WOMPI_PUBLIC_KEY };
+        const checkoutUrl = `${WOMPI_API_URL}/checkouts/${checkoutId}`;
+
+        // Return the URL for redirection
+        return { checkoutUrl };
 
     } catch (error) {
-        console.error('Error creating Wompi transaction:', error);
+        console.error('Error creating Wompi checkout session:', error);
         return { error: 'No se pudo iniciar el proceso de pago.' };
     }
 }

@@ -117,28 +117,10 @@ function UpgradeToPremium({ user }: { user: UserProfile }) {
             return;
         }
         
-        const { transactionId, reference, wompiPublicKey } = result;
-
-        const checkout = new (window as any).WompiCheckout({
-            currency: 'COP',
-            amountInCents: PREMIUM_PRICE_COP * 100,
-            reference: reference,
-            publicKey: wompiPublicKey,
-            redirectUrl: `${window.location.origin}/operator/payment/status`,
-        });
-
-        checkout.open(function (result: any) {
-            if (result.transaction.status === 'APPROVED') {
-                // El webhook o la página de status se encargarán de la lógica post-pago
-            } else {
-                 toast({
-                    variant: 'destructive',
-                    title: 'Pago Declinado',
-                    description: 'La transacción no fue aprobada.',
-                });
-            }
-            setIsProcessing(false);
-        })
+        const { checkoutUrl } = result;
+        
+        // Redirect the user to Wompi's payment page
+        window.location.href = checkoutUrl;
     };
 
     return (
@@ -387,7 +369,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   return (
     <div className="flex min-h-screen w-full flex-col items-center bg-background">
-       <script src="https://checkout.wompi.co/widget.js" async></script>
       
       <div className="flex-1 w-full max-w-4xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-8 space-y-4">
