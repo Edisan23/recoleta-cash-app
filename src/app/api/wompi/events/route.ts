@@ -30,10 +30,11 @@ interface WompiEvent {
 export async function POST(request: Request) {
     console.log('Received Wompi event...');
 
-    const WOMPI_EVENTS_SECRET = process.env.WOMPI_EVENTS_SECRET;
+    // In this specific environment, server-side code can only access NEXT_PUBLIC_ variables.
+    const WOMPI_EVENTS_SECRET = process.env.NEXT_PUBLIC_WOMPI_EVENTS_SECRET;
 
     if (!WOMPI_EVENTS_SECRET) {
-        console.error('WOMPI_EVENTS_SECRET is not configured.');
+        console.error('`NEXT_PUBLIC_WOMPI_EVENTS_SECRET` is not configured.');
         return new NextResponse('Internal Server Error: Webhook secret not configured.', { status: 500 });
     }
 

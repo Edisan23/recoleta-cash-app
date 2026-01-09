@@ -9,13 +9,14 @@ import { addDays } from 'date-fns';
 const WOMPI_API_URL = 'https://sandbox.wompi.co/v1'; // URL de sandbox de Wompi
 
 export async function createWompiTransaction(amount: number, userEmail: string, userId: string, companyId: string): Promise<{ checkoutUrl: string; } | { error: string }> {
+    // In this specific environment, server-side code can only access NEXT_PUBLIC_ variables.
     const WOMPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
-    const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY;
+    const WOMPI_PRIVATE_KEY = process.env.NEXT_PUBLIC_WOMPI_PRIVATE_KEY;
     
     if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY) {
         console.error("Wompi keys are not configured. Check .env file.");
         if (!WOMPI_PUBLIC_KEY) console.error("`NEXT_PUBLIC_WOMPI_PUBLIC_KEY` is missing.");
-        if (!WOMPI_PRIVATE_KEY) console.error("`WOMPI_PRIVATE_KEY` is missing.");
+        if (!WOMPI_PRIVATE_KEY) console.error("`NEXT_PUBLIC_WOMPI_PRIVATE_KEY` is missing.");
         return { error: 'El servicio de pago no está configurado correctamente.' };
     }
 
@@ -58,7 +59,7 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
 
 
 export async function getWompiTransactionStatus(transactionId: string): Promise<{ status: string; reference: string } | { error: string }> {
-    const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY;
+    const WOMPI_PRIVATE_KEY = process.env.NEXT_PUBLIC_WOMPI_PRIVATE_KEY;
     if (!WOMPI_PRIVATE_KEY) {
         return { error: 'El servicio de pago no está configurado.' };
     }
