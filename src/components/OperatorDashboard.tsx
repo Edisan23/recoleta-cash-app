@@ -239,9 +239,12 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     // Check Premium Status
     const premiumUntilDate = localUserProfile.premiumUntil ? parseISO(localUserProfile.premiumUntil) : null;
     const now = new Date();
-    
+
     // `isCurrentlyPremium` is true if premium is for lifetime (null) or if the expiration date is in the future.
-    const isCurrentlyPremium = premiumUntilDate === null ? true : (premiumUntilDate && isAfter(premiumUntilDate, now));
+    const isLifetimePremium = localUserProfile.premiumUntil === null;
+    const isSubscriptionActive = premiumUntilDate && isAfter(premiumUntilDate, now);
+    const isCurrentlyPremium = isLifetimePremium || isSubscriptionActive;
+
     setIsPremium(isCurrentlyPremium);
 
     if (premiumUntilDate) { // User has or had a premium subscription
@@ -251,7 +254,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       } else {
         setPremiumStatus({ expired: true, daysRemaining: 0 });
       }
-    } else { // No premium history, so it's not expired and has no days remaining.
+    } else if (!isLifetimePremium) { // Not lifetime and no subscription, so it's not expired and has no days remaining.
         setPremiumStatus({ expired: false, daysRemaining: null });
     }
 
