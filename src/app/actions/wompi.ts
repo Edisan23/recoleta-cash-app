@@ -30,8 +30,7 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     const concatenation = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_SECRET}`;
     const integrityHash = crypto.createHash('sha256').update(concatenation).digest('hex');
 
-    const baseUrl = 'https://studio--recoleta-cash-app.us-central1.hosted.app';
-    const redirectUrl = `${baseUrl}/operator/payment/status`;
+    const redirectUrl = `https://turnospros.com/confirmacion`;
 
     const payload = {
         amount_in_cents: amountInCents,
