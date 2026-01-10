@@ -69,19 +69,19 @@ export default function CompanySettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   
   // Firestore Hooks
-  const companyRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
+  const companyRef = useMemoFirebase(() => firestore && companyId ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
   const { data: companyData, isLoading: isCompanyLoading } = useDoc<Company>(companyRef);
 
-  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId]);
+  const settingsRef = useMemoFirebase(() => firestore && companyId ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId]);
   const { data: settingsData, isLoading: isSettingsLoading } = useDoc<CompanySettings>(settingsRef);
   
-  const benefitsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId]);
+  const benefitsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId]);
   const { data: benefitsData, isLoading: isBenefitsLoading } = useCollection<Benefit>(benefitsRef);
 
-  const deductionsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
+  const deductionsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
   const { data: deductionsData, isLoading: isDeductionsLoading } = useCollection<Deduction>(deductionsRef);
   
-  const itemsRef = useMemoFirebase(() => firestore ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId]);
+  const itemsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId]);
   const { data: itemsData, isLoading: isItemsLoading } = useCollection<CompanyItem>(itemsRef);
   
   const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
@@ -612,5 +612,3 @@ export default function CompanySettingsPage() {
     </div>
   );
 }
-
-    
