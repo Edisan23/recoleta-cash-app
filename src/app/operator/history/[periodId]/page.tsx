@@ -127,7 +127,7 @@ export default function HistoryDetailPage() {
         }
     }, [isUserAuthLoading, user, router]);
 
-    const companyRef = useMemoFirebase(() => firestore && companyId ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
+    const companyRef = useMemoFirebase(() => firestore && companyId && user ? doc(firestore, 'companies', companyId) : null, [firestore, companyId, user]);
     const { data: company, isLoading: companyLoading } = useDoc<Company>(companyRef);
 
     const shiftsQuery = useMemoFirebase(() => {
