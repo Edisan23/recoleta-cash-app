@@ -6,7 +6,7 @@ import { adminDb } from '@/firebase/server-init';
 import type { CompanySettings } from '@/types/db-entities';
 import { addDays } from 'date-fns';
 
-const WOMPI_API_URL = 'https://sandbox.wompi.co/v1'; // URL de sandbox de Wompi
+const WOMPI_API_URL = 'https://production.wompi.co/v1'; // URL de PRODUCCIÓN de Wompi
 
 export async function createWompiTransaction(amount: number, userEmail: string, userId: string, companyId: string): Promise<{ checkoutUrl: string; } | { error: string }> {
     // In this specific environment, server-side code can only access NEXT_PUBLIC_ variables.
@@ -32,9 +32,15 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
             amount_in_cents: amount * 100,
             currency: 'COP',
             customer_email: userEmail,
+            public_key: WOMPI_PUBLIC_KEY,
             reference: reference,
             redirect_url: redirectUrl,
-            events_url: eventsUrl,
+            // Wompi docs says events_url is for webhooks, but let's try sending it here as well.
+            // Some integrations might require it at checkout creation.
+            'payment_method': {
+                'installments': 1 // Example for credit card, adjust if needed
+            },
+            events_url: eventsUrl
         }, {
             headers: {
                 Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`
@@ -51,8 +57,8 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
 
         return { checkoutUrl };
 
-    } catch (error) {
-        console.error('Error creating Wompi checkout session:', error);
+    } catch (error: any) {
+        console.error('Error creating Wompi checkout session:', error.response?.data || error.message);
         return { error: 'No se pudo iniciar el proceso de pago.' };
     }
 }
