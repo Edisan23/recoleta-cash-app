@@ -12,13 +12,11 @@ const WOMPI_API_URL = 'https://production.wompi.co/v1'; // URL de PRODUCCIÓN de
 export async function createWompiTransaction(amount: number, userEmail: string, userId: string, companyId: string): Promise<{ checkoutUrl: string; } | { error: string }> {
     // In this specific environment, server-side code can only access NEXT_PUBLIC_ variables.
     const WOMPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
-    const WOMPI_PRIVATE_KEY = process.env.NEXT_PUBLIC_WOMPI_PRIVATE_KEY;
     const WOMPI_INTEGRITY_SECRET = process.env.NEXT_PUBLIC_WOMPI_INTEGRITY_SECRET;
     
-    if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY || !WOMPI_INTEGRITY_SECRET) {
+    if (!WOMPI_PUBLIC_KEY || !WOMPI_INTEGRITY_SECRET) {
         console.error("Wompi keys are not configured. Check .env file.");
         if (!WOMPI_PUBLIC_KEY) console.error("`NEXT_PUBLIC_WOMPI_PUBLIC_KEY` is missing.");
-        if (!WOMPI_PRIVATE_KEY) console.error("`NEXT_PUBLIC_WOMPI_PRIVATE_KEY` is missing.");
         if (!WOMPI_INTEGRITY_SECRET) console.error("`NEXT_PUBLIC_WOMPI_INTEGRITY_SECRET` is missing.");
         return { error: 'El servicio de pago no está configurado correctamente.' };
     }
@@ -28,12 +26,12 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     const currency = 'COP';
 
     // Generate integrity hash
+    // El orden de la cadena es vital: referencia + monto + moneda + secreto de integridad
     const concatenation = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_SECRET}`;
     const integrityHash = crypto.createHash('sha256').update(concatenation).digest('hex');
 
     const baseUrl = 'https://studio--recoleta-cash-app.us-central1.hosted.app';
     const redirectUrl = `${baseUrl}/operator/payment/status`;
-    const eventsUrl = `${baseUrl}/api/wompi/events`;
 
     const payload = {
         amount_in_cents: amountInCents,
@@ -47,8 +45,10 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
         }
     };
     
+    // For Wompi, the private key is not used to create the checkout, it's used for other API calls.
+    // The public key and integrity signature are used for checkout creation.
     const headers = {
-        Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`
+        // Authorization is not needed for checkout creation with a public key
     };
 
     try {
@@ -72,16 +72,16 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
 
 
 export async function getWompiTransactionStatus(transactionId: string): Promise<{ status: string; reference: string } | { error: string }> {
-    const WOMPI_PRIVATE_KEY = process.env.NEXT_PUBLIC_WOMPI_PRIVATE_KEY;
-    if (!WOMPI_PRIVATE_KEY) {
-        return { error: 'El servicio de pago no está configurado.' };
-    }
+    // This function might not be needed if all status updates are handled via webhook.
+    // However, it's good for manual verification on the redirect page.
+    // For this, we'd need the WOMPI_PRIVATE_KEY if we were fetching from our backend,
+    // but Wompi redirects with the status in the URL query params. Let's assume we get it from the redirect.
+    // This server action version is for server-to-server check.
+    const WOMPI_API_URL_TRANSACTIONS = 'https://production.wompi.co/v1/transactions';
+    
     try {
-        const response = await axios.get(`${WOMPI_API_URL}/transactions/${transactionId}`, {
-            headers: {
-                Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`
-            }
-        });
+        // Public endpoint to check transaction status
+        const response = await axios.get(`${WOMPI_API_URL_TRANSACTIONS}/${transactionId}`);
         const { status, reference } = response.data.data;
         return { status, reference };
     } catch (error) {

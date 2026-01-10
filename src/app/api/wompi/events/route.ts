@@ -21,6 +21,7 @@ interface WompiEvent {
         transaction: WompiTransaction;
     };
     sent_at: string;
+    timestamp: number; // Unix timestamp in milliseconds
     signature?: {
         properties: string[];
         checksum: string;
@@ -43,21 +44,18 @@ export async function POST(request: Request) {
 
         // --- Verify Event Signature ---
         const signatureChecksum = event.signature?.checksum;
-        const signatureProperties = event.signature?.properties;
         const transaction = event.data.transaction;
+        const timestamp = event.timestamp; // The timestamp is at the root level for events
 
-        if (!signatureChecksum || !signatureProperties) {
-             console.warn('Wompi event received without a signature.');
-             return new NextResponse('Bad Request: Missing signature.', { status: 400 });
+        if (!signatureChecksum || !timestamp) {
+             console.warn('Wompi event received without a signature or timestamp.');
+             return new NextResponse('Bad Request: Missing signature or timestamp.', { status: 400 });
         }
         
-        // As per Wompi docs: stringToSign = `${transaction.id}${transaction.status}${transaction.amount_in_cents}`
-        const stringToSign = `${transaction.id}${transaction.status}${transaction.amount_in_cents}`;
+        // As per Wompi docs for events: id + status + amount_in_cents + timestamp + secreto_eventos
+        const stringToSign = `${transaction.id}${transaction.status}${transaction.amount_in_cents}${timestamp}${WOMPI_EVENTS_SECRET}`;
 
-        const calculatedSignature = crypto
-            .createHmac('sha256', WOMPI_EVENTS_SECRET)
-            .update(stringToSign)
-            .digest('hex');
+        const calculatedSignature = crypto.createHash('sha256').update(stringToSign).digest('hex');
 
         if (calculatedSignature !== signatureChecksum) {
             console.error('Invalid Wompi event signature.');

@@ -6,7 +6,7 @@ import { getWompiTransactionStatus, updateUserToPremium } from '@/app/actions/wo
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 function PaymentStatusContent() {
@@ -14,7 +14,7 @@ function PaymentStatusContent() {
     const searchParams = useSearchParams();
     const { toast } = useToast();
 
-    const [status, setStatus] = useState<'loading' | 'success' | 'declined' | 'error'>('loading');
+    const [status, setStatus] = useState<'loading' | 'success' | 'declined' | 'error' | 'pending'>('loading');
     const [message, setMessage] = useState('Verificando el estado de tu pago...');
 
     useEffect(() => {
@@ -35,6 +35,7 @@ function PaymentStatusContent() {
             }
 
             if (wompiResult.status === 'APPROVED') {
+                // The webhook should handle the update, but we can do it here as a fallback
                 // Reference format: turnopro-premium-{userId}-{companyId}-{timestamp}
                 const referenceParts = wompiResult.reference.split('-');
                 const userId = referenceParts[2];
@@ -42,7 +43,7 @@ function PaymentStatusContent() {
 
                 if (!userId || !companyId) {
                      setStatus('error');
-                     setMessage('La referencia de la transacción es inválida.');
+                     setMessage('La referencia de la transacción es inválida. Contacta a soporte.');
                      return;
                 }
 
@@ -63,9 +64,9 @@ function PaymentStatusContent() {
             } else if (wompiResult.status === 'DECLINED' || wompiResult.status === 'VOIDED' || wompiResult.status === 'ERROR') {
                 setStatus('declined');
                 setMessage(`Tu pago fue ${wompiResult.status === 'DECLINED' ? 'declinado' : 'cancelado'}. Por favor, intenta de nuevo o usa otro método de pago.`);
-            } else {
-                 setStatus('declined'); // Otro estado como PENDING
-                 setMessage('Tu pago está pendiente de confirmación. Te notificaremos cuando se complete.');
+            } else { // PENDING
+                 setStatus('pending');
+                 setMessage('Tu pago está pendiente de confirmación. Te notificaremos cuando se complete. Puedes cerrar esta ventana.');
             }
         };
 
@@ -81,6 +82,8 @@ function PaymentStatusContent() {
                 return <CheckCircle className="h-16 w-16 text-green-500" />;
             case 'declined':
                 return <XCircle className="h-16 w-16 text-destructive" />;
+            case 'pending':
+                return <Clock className="h-16 w-16 text-blue-500" />;
             case 'error':
                 return <AlertCircle className="h-16 w-16 text-yellow-500" />;
         }
@@ -94,6 +97,8 @@ function PaymentStatusContent() {
                 return '¡Felicidades!';
             case 'declined':
                 return 'Pago Declinado';
+            case 'pending':
+                return 'Pago Pendiente';
             case 'error':
                 return 'Ocurrió un Error';
         }
