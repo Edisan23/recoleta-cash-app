@@ -9,16 +9,17 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { es } from 'date-fns/locale';
 import { format, isSameDay, startOfDay } from 'date-fns';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, doc, writeBatch } from 'firebase/firestore';
 
 export default function HolidaysPage() {
   const router = useRouter();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { user } = useUser();
   const [holidays, setHolidays] = useState<Date[]>([]);
   
-  const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
+  const holidaysRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'holidays') : null, [firestore, user]);
   const { data: holidaysData, isLoading } = useCollection<{ date: string }>(holidaysRef);
 
   useEffect(() => {
