@@ -20,7 +20,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LogoSpinner } from '@/components/LogoSpinner';
-import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { doc, collection, writeBatch, getDocs, addDoc, query, where, Timestamp } from 'firebase/firestore';
 import { getPeriodDateRange, calculatePeriodSummary } from '@/lib/payroll-calculator';
 import { isWithinInterval } from '@/lib/date-helpers';
@@ -59,6 +59,7 @@ export default function CompanySettingsPage() {
   const companyId = params.companyId as string;
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { user, isUserLoading } = useUser();
 
   const [company, setCompany] = useState<Company | null>(null);
   const [settings, setSettings] = useState<CompanySettings | null>(null);
@@ -72,16 +73,16 @@ export default function CompanySettingsPage() {
   const companyRef = useMemoFirebase(() => firestore && companyId ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
   const { data: companyData, isLoading: isCompanyLoading } = useDoc<Company>(companyRef);
 
-  const settingsRef = useMemoFirebase(() => firestore && companyId ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId]);
+  const settingsRef = useMemoFirebase(() => firestore && companyId && user ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId, user]);
   const { data: settingsData, isLoading: isSettingsLoading } = useDoc<CompanySettings>(settingsRef);
   
-  const benefitsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId]);
+  const benefitsRef = useMemoFirebase(() => firestore && companyId && user ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId, user]);
   const { data: benefitsData, isLoading: isBenefitsLoading } = useCollection<Benefit>(benefitsRef);
 
-  const deductionsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
+  const deductionsRef = useMemoFirebase(() => firestore && companyId && user ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId, user]);
   const { data: deductionsData, isLoading: isDeductionsLoading } = useCollection<Deduction>(deductionsRef);
   
-  const itemsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId]);
+  const itemsRef = useMemoFirebase(() => firestore && companyId && user ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId, user]);
   const { data: itemsData, isLoading: isItemsLoading } = useCollection<CompanyItem>(itemsRef);
   
   const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
@@ -89,7 +90,7 @@ export default function CompanySettingsPage() {
   const holidays = useMemo(() => holidaysData?.map(h => new Date(h.date)) || [], [holidaysData]);
 
 
-  const isLoading = isCompanyLoading || isSettingsLoading || isBenefitsLoading || isDeductionsLoading || isItemsLoading || isHolidaysLoading;
+  const isLoading = isUserLoading || isCompanyLoading || isSettingsLoading || isBenefitsLoading || isDeductionsLoading || isItemsLoading || isHolidaysLoading;
   
   useEffect(() => {
     if (companyData) setCompany(companyData);
