@@ -5,7 +5,16 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { adminDb } from '@/firebase/server-init';
 import type { CompanySettings } from '@/types/db-entities';
 import { addDays } from 'date-fns';
-import crypto from 'crypto';
+
+// SubtleCrypto is available in Node.js 16+ and Edge environments
+async function createSha256Hash(text: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 
 const WOMPI_API_URL = 'https://production.wompi.co/v1'; // URL de PRODUCCIÓN de Wompi
 
@@ -28,7 +37,7 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     // Generate integrity hash
     // El orden de la cadena es vital: referencia + monto + moneda + secreto de integridad
     const concatenation = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_SECRET}`;
-    const integrityHash = crypto.createHash('sha256').update(concatenation).digest('hex');
+    const integrityHash = await createSha256Hash(concatenation);
 
     const redirectUrl = `https://turnospros.com/confirmacion`;
 

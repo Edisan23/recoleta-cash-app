@@ -4,8 +4,16 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/firebase/server-init';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { CompanySettings } from '@/types/db-entities';
-import crypto from 'crypto';
 import { addDays } from 'date-fns';
+
+// SubtleCrypto is available in Node.js 16+ and Edge environments
+async function createSha256Hash(text: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 interface WompiTransaction {
     id: string;
@@ -55,7 +63,7 @@ export async function POST(request: Request) {
         // As per Wompi docs for events: id + status + amount_in_cents + timestamp + secreto_eventos
         const stringToSign = `${transaction.id}${transaction.status}${transaction.amount_in_cents}${timestamp}${WOMPI_EVENTS_SECRET}`;
 
-        const calculatedSignature = crypto.createHash('sha256').update(stringToSign).digest('hex');
+        const calculatedSignature = await createSha256Hash(stringToSign);
 
         if (calculatedSignature !== signatureChecksum) {
             console.error('Invalid Wompi event signature.');
