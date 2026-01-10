@@ -47,7 +47,10 @@ export default function SelectCompanyPage() {
             title: '¡Listo!',
             description: 'Has seleccionado la empresa.',
         });
-        router.push('/operator/dashboard'); // Redirect to dashboard
+        // Introduce a micro-delay to allow state to propagate before navigation.
+        setTimeout(() => {
+            router.push('/operator/dashboard');
+        }, 0);
     } catch(e) {
         console.error('Error saving company selection:', e);
         toast({
