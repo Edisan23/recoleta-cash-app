@@ -26,6 +26,7 @@ export default function OperatorDashboardPage() {
     if (isUserLoading) {
       return; // Wait until user state is resolved
     }
+
     if (!user) {
       router.replace('/login'); // Not authenticated, redirect to login
       return;
@@ -39,10 +40,12 @@ export default function OperatorDashboardPage() {
       router.replace('/select-company');
     } else {
       setCompanyId(storedCompanyId);
-      setIsLoading(false);
+      setIsLoading(false); // We have the companyId, main loading is done.
     }
   }, [user, isUserLoading, router, isMounted]);
 
+  // Combined loading state: we need the component to be mounted, user loading to be finished,
+  // a user to exist, and a companyId to be set.
   if (isLoading || isUserLoading || !companyId || !user || !isMounted) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
