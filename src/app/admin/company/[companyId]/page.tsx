@@ -70,7 +70,7 @@ export default function CompanySettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   
   // Firestore Hooks
-  const companyRef = useMemoFirebase(() => firestore && companyId ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
+  const companyRef = useMemoFirebase(() => firestore && companyId && user ? doc(firestore, 'companies', companyId) : null, [firestore, companyId, user]);
   const { data: companyData, isLoading: isCompanyLoading } = useDoc<Company>(companyRef);
 
   const settingsRef = useMemoFirebase(() => firestore && companyId && user ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId, user]);
