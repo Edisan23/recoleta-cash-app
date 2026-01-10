@@ -168,12 +168,15 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   // --- Firestore Data ---
   const companyRef = useMemoFirebase(() => {
-    if (!firestore || !companyId || !user) return null; // Wait for user
+    if (!firestore || !companyId || !user) return null;
     return doc(firestore, 'companies', companyId);
   }, [firestore, companyId, user]);
   const { data: company, isLoading: companyLoading, error: companyError } = useDoc<Company>(companyRef);
 
-  const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId]);
+  const settingsRef = useMemoFirebase(() => {
+    if (!firestore || !companyId || !user) return null;
+    return doc(firestore, 'companies', companyId, 'settings', 'main');
+  }, [firestore, companyId, user]);
   const { data: settings, isLoading: settingsLoading } = useDoc<CompanySettings>(settingsRef);
   
   const shiftsQuery = useMemoFirebase(() => {
@@ -186,13 +189,22 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const { data: holidaysData, isLoading: holidaysLoading } = useCollection<{ date: string }>(holidaysRef);
   const holidays = useMemo(() => holidaysData?.map(h => new Date(h.date)) || [], [holidaysData]);
 
-  const benefitsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId]);
+  const benefitsRef = useMemoFirebase(() => {
+    if (!firestore || !companyId || !user) return null;
+    return collection(firestore, 'companies', companyId, 'benefits');
+  }, [firestore, companyId, user]);
   const { data: benefits, isLoading: benefitsLoading } = useCollection<Benefit>(benefitsRef);
 
-  const deductionsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
+  const deductionsRef = useMemoFirebase(() => {
+    if (!firestore || !companyId || !user) return null;
+    return collection(firestore, 'companies', companyId, 'deductions');
+  }, [firestore, companyId, user]);
   const { data: deductions, isLoading: deductionsLoading } = useCollection<Deduction>(deductionsRef);
 
-  const itemsRef = useMemoFirebase(() => (firestore && user && companyId) ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, user, companyId]);
+  const itemsRef = useMemoFirebase(() => {
+    if (!firestore || !companyId || !user) return null;
+    return collection(firestore, 'companies', companyId, 'items');
+  }, [firestore, companyId, user]);
   const { data: companyItems, isLoading: itemsLoading } = useCollection<CompanyItem>(itemsRef);
 
   const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
