@@ -5,6 +5,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { adminDb } from '@/firebase/server-init';
 import type { CompanySettings } from '@/types/db-entities';
 import { addDays } from 'date-fns';
+import crypto from 'crypto';
 
 const WOMPI_API_URL = 'https://production.wompi.co/v1'; // URL de PRODUCCIÓN de Wompi
 
@@ -12,16 +13,24 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     // In this specific environment, server-side code can only access NEXT_PUBLIC_ variables.
     const WOMPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
     const WOMPI_PRIVATE_KEY = process.env.NEXT_PUBLIC_WOMPI_PRIVATE_KEY;
+    const WOMPI_INTEGRITY_SECRET = process.env.NEXT_PUBLIC_WOMPI_INTEGRITY_SECRET;
     
-    if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY) {
+    if (!WOMPI_PUBLIC_KEY || !WOMPI_PRIVATE_KEY || !WOMPI_INTEGRITY_SECRET) {
         console.error("Wompi keys are not configured. Check .env file.");
         if (!WOMPI_PUBLIC_KEY) console.error("`NEXT_PUBLIC_WOMPI_PUBLIC_KEY` is missing.");
         if (!WOMPI_PRIVATE_KEY) console.error("`NEXT_PUBLIC_WOMPI_PRIVATE_KEY` is missing.");
+        if (!WOMPI_INTEGRITY_SECRET) console.error("`NEXT_PUBLIC_WOMPI_INTEGRITY_SECRET` is missing.");
         return { error: 'El servicio de pago no está configurado correctamente.' };
     }
 
-    // Include companyId in the reference
     const reference = `turnopro-premium-${userId}-${companyId}-${Date.now()}`;
+    const amountInCents = amount * 100;
+    const currency = 'COP';
+
+    // Generate integrity hash
+    const concatenation = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_SECRET}`;
+    const integrityHash = crypto.createHash('sha256').update(concatenation).digest('hex');
+
     const baseUrl = 'https://studio--recoleta-cash-app.us-central1.hosted.app';
     const redirectUrl = `${baseUrl}/operator/payment/status`;
     const eventsUrl = `${baseUrl}/api/wompi/events`;
@@ -29,13 +38,15 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
 
     try {
         const response = await axios.post(`${WOMPI_API_URL}/checkouts`, {
-            amount_in_cents: amount * 100,
-            currency: 'COP',
+            amount_in_cents: amountInCents,
+            currency: currency,
             customer_email: userEmail,
             public_key: WOMPI_PUBLIC_KEY,
             reference: reference,
             redirect_url: redirectUrl,
-            events_url: eventsUrl
+            signature: {
+                integrity: integrityHash
+            }
         }, {
             headers: {
                 Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`
