@@ -35,23 +35,24 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     const redirectUrl = `${baseUrl}/operator/payment/status`;
     const eventsUrl = `${baseUrl}/api/wompi/events`;
 
+    const payload = {
+        amount_in_cents: amountInCents,
+        currency: currency,
+        customer_email: userEmail,
+        public_key: WOMPI_PUBLIC_KEY,
+        reference: reference,
+        redirect_url: redirectUrl,
+        signature: {
+            integrity: integrityHash
+        }
+    };
+    
+    const headers = {
+        Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`
+    };
 
     try {
-        const response = await axios.post(`${WOMPI_API_URL}/checkouts`, {
-            amount_in_cents: amountInCents,
-            currency: currency,
-            customer_email: userEmail,
-            public_key: WOMPI_PUBLIC_KEY,
-            reference: reference,
-            redirect_url: redirectUrl,
-            signature: {
-                integrity: integrityHash
-            }
-        }, {
-            headers: {
-                Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`
-            }
-        });
+        const response = await axios.post(`${WOMPI_API_URL}/checkouts`, payload, { headers });
 
         const checkoutId = response.data.data.id;
         
