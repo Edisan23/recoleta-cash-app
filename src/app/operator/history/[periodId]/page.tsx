@@ -136,17 +136,17 @@ export default function HistoryDetailPage() {
     }, [firestore, companyId, user]);
     const { data: allShifts, isLoading: shiftsLoading } = useCollection<Shift>(shiftsQuery);
     
-    const settingsRef = useMemoFirebase(() => firestore && companyId ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId]);
+    const settingsRef = useMemoFirebase(() => firestore && companyId && user ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId, user]);
     const { data: settings, isLoading: settingsLoading } = useDoc<CompanySettings>(settingsRef);
     
     const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
     const { data: holidaysData, isLoading: holidaysLoading } = useCollection<{ date: string }>(holidaysRef);
     const holidays = useMemo(() => holidaysData?.map(h => new Date(h.date)) || [], [holidaysData]);
 
-    const benefitsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId]);
+    const benefitsRef = useMemoFirebase(() => firestore && companyId && user ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId, user]);
     const { data: benefits, isLoading: benefitsLoading } = useCollection<Benefit>(benefitsRef);
 
-    const deductionsRef = useMemoFirebase(() => firestore && companyId ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId]);
+    const deductionsRef = useMemoFirebase(() => firestore && companyId && user ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId, user]);
     const { data: deductions, isLoading: deductionsLoading } = useCollection<Deduction>(deductionsRef);
 
     const isLoading = isUserAuthLoading || shiftsLoading || settingsLoading || holidaysLoading || benefitsLoading || deductionsLoading || companyLoading;
