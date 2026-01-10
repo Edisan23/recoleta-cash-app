@@ -35,11 +35,6 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
             public_key: WOMPI_PUBLIC_KEY,
             reference: reference,
             redirect_url: redirectUrl,
-            // Wompi docs says events_url is for webhooks, but let's try sending it here as well.
-            // Some integrations might require it at checkout creation.
-            'payment_method': {
-                'installments': 1 // Example for credit card, adjust if needed
-            },
             events_url: eventsUrl
         }, {
             headers: {
