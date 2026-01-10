@@ -167,7 +167,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
 
   // --- Firestore Data ---
-  const companyRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId) : null, [firestore, companyId]);
+  const companyRef = useMemoFirebase(() => {
+    if (!firestore || !companyId || !user) return null; // Wait for user
+    return doc(firestore, 'companies', companyId);
+  }, [firestore, companyId, user]);
   const { data: company, isLoading: companyLoading, error: companyError } = useDoc<Company>(companyRef);
 
   const settingsRef = useMemoFirebase(() => firestore ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId]);
@@ -237,14 +240,14 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     if (!localUserProfile || !settings) return;
 
     // Check Premium Status
-    const premiumUntilDate = localUserProfile.premiumUntil ? parseISO(localUserProfile.premiumUntil) : null;
+    const premiumUntilDate = localUserProfile.premiumUntil ? parseISO(localUserProfile.premiumUntil) : undefined;
     const now = new Date();
 
     // `isCurrentlyPremium` is true if premium is for lifetime (null) or if the expiration date is in the future.
     const isLifetimePremium = localUserProfile.premiumUntil === null;
     const isSubscriptionActive = premiumUntilDate && isAfter(premiumUntilDate, now);
     const isCurrentlyPremium = isLifetimePremium || isSubscriptionActive;
-
+    
     setIsPremium(isCurrentlyPremium);
 
     if (premiumUntilDate) { // User has or had a premium subscription
@@ -254,7 +257,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
       } else {
         setPremiumStatus({ expired: true, daysRemaining: 0 });
       }
-    } else if (!isLifetimePremium) { // Not lifetime and no subscription, so it's not expired and has no days remaining.
+    } else if (premiumUntilDate === undefined) { // premiumUntil field does not exist, not premium yet.
         setPremiumStatus({ expired: false, daysRemaining: null });
     }
 
