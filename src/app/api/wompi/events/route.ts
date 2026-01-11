@@ -6,8 +6,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import type { CompanySettings } from '@/types/db-entities';
 import { addDays } from 'date-fns';
 
-// SubtleCrypto is available in Node.js 16+ and Edge environments
-async function createSha256Hash(text: string): Promise<string> {
+async function sha256(text: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(text);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -39,7 +38,6 @@ interface WompiEvent {
 export async function POST(request: Request) {
     console.log('Received Wompi event...');
 
-    // In this specific environment, server-side code can only access NEXT_PUBLIC_ variables.
     const WOMPI_EVENTS_SECRET = process.env.NEXT_PUBLIC_WOMPI_EVENTS_SECRET;
 
     if (!WOMPI_EVENTS_SECRET) {
@@ -50,20 +48,18 @@ export async function POST(request: Request) {
     try {
         const event = await request.json() as WompiEvent;
 
-        // --- Verify Event Signature ---
         const signatureChecksum = event.signature?.checksum;
         const transaction = event.data.transaction;
-        const timestamp = event.timestamp; // The timestamp is at the root level for events
+        const timestamp = event.timestamp;
 
         if (!signatureChecksum || !timestamp) {
              console.warn('Wompi event received without a signature or timestamp.');
              return new NextResponse('Bad Request: Missing signature or timestamp.', { status: 400 });
         }
         
-        // As per Wompi docs for events: id + status + amount_in_cents + timestamp + secreto_eventos
         const stringToSign = `${transaction.id}${transaction.status}${transaction.amount_in_cents}${timestamp}${WOMPI_EVENTS_SECRET}`;
 
-        const calculatedSignature = await createSha256Hash(stringToSign);
+        const calculatedSignature = await sha256(stringToSign);
 
         if (calculatedSignature !== signatureChecksum) {
             console.error('Invalid Wompi event signature.');
@@ -71,13 +67,11 @@ export async function POST(request: Request) {
         }
         console.log('Wompi event signature verified.');
 
-        // --- Process Event ---
         if (event.event === 'transaction.updated') {
             const { id: transactionId, status, reference } = transaction;
             console.log(`Processing transaction ${transactionId} with status ${status}`);
 
             if (status === 'APPROVED') {
-                // Reference format: turnopro-premium-{userId}-{companyId}-{timestamp}
                 const referenceParts = reference.split('-');
                 if (referenceParts.length < 4) {
                     console.error(`Could not extract userId and companyId from reference: ${reference}`);
@@ -86,14 +80,12 @@ export async function POST(request: Request) {
                 const userId = referenceParts[2];
                 const companyId = referenceParts[3];
 
-
                 if (!userId || !companyId) {
                     console.error(`Could not extract userId and companyId from reference: ${reference}`);
                     return new NextResponse('Bad Request: Invalid transaction reference.', { status: 400 });
                 }
 
                 try {
-                    // Get company settings to determine premium duration
                     const settingsDocRef = doc(adminDb, 'companies', companyId, 'settings', 'main');
                     const settingsSnap = await getDoc(settingsDocRef);
                     if (!settingsSnap.exists()) {
@@ -120,7 +112,6 @@ export async function POST(request: Request) {
 
                 } catch (dbError) {
                     console.error(`Failed to update user ${userId} to premium in Firestore:`, dbError);
-                    // Return 500 so Wompi retries the webhook
                     return new NextResponse('Internal Server Error: Failed to update user status.', { status: 500 });
                 }
             }

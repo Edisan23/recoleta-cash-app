@@ -5,8 +5,7 @@ import { adminDb } from '@/firebase/server-init';
 import type { CompanySettings } from '@/types/db-entities';
 import { addDays } from 'date-fns';
 
-// SubtleCrypto is available in Node.js 16+ and Edge environments
-async function createSha256Hash(text: string): Promise<string> {
+async function sha256(text: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(text);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -14,16 +13,13 @@ async function createSha256Hash(text: string): Promise<string> {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+const WOMPI_API_URL = 'https://production.wompi.co/v1';
 
-const WOMPI_API_URL = 'https://production.wompi.co/v1'; // URL de PRODUCCIÓN de Wompi
-
-async function wompiFetch(url: string, options: any) {
-    const fetch = (await import('node-fetch')).default;
+async function wompiFetch(url: string, options: RequestInit) {
     return fetch(url, options);
 }
 
 export async function createWompiTransaction(amount: number, userEmail: string, userId: string, companyId: string): Promise<{ checkoutUrl: string; } | { error: string }> {
-    // In this specific environment, server-side code can only access NEXT_PUBLIC_ variables.
     const WOMPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
     const WOMPI_INTEGRITY_SECRET = process.env.NEXT_PUBLIC_WOMPI_INTEGRITY_SECRET;
     
@@ -39,10 +35,8 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     const currency = 'COP';
     const redirectUrl = `https://turnospros.com/confirmacion`;
 
-    // Generate integrity hash
-    // The string order is vital: reference + amount + currency + integrity secret
     const concatenation = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_SECRET}`;
-    const integrityHash = await createSha256Hash(concatenation);
+    const integrityHash = await sha256(concatenation);
 
     const payload = {
         amount_in_cents: amountInCents,
@@ -59,9 +53,7 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     try {
         const response = await wompiFetch(`${WOMPI_API_URL}/checkouts`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
         
@@ -93,8 +85,10 @@ export async function getWompiTransactionStatus(transactionId: string): Promise<
     const WOMPI_API_URL_TRANSACTIONS = 'https://production.wompi.co/v1/transactions';
     
     try {
-        // Public endpoint to check transaction status by ID
-        const response = await wompiFetch(`${WOMPI_API_URL_TRANSACTIONS}/${transactionId}`);
+        const response = await wompiFetch(`${WOMPI_API_URL_TRANSACTIONS}/${transactionId}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+        });
         
         if (!response.ok) {
             const errorData = await response.json();
@@ -115,7 +109,6 @@ export async function getWompiTransactionStatus(transactionId: string): Promise<
 
 export async function updateUserToPremium(userId: string, companyId: string): Promise<{ success: boolean } | { error: string }> {
     try {
-        // 1. Get company settings to determine premium duration
         const settingsDocRef = doc(adminDb, 'companies', companyId, 'settings', 'main');
         const settingsSnap = await getDoc(settingsDocRef);
 
@@ -125,7 +118,6 @@ export async function updateUserToPremium(userId: string, companyId: string): Pr
         const settings = settingsSnap.data() as CompanySettings;
         const premiumDurationDays = settings.premiumDurationDays ?? 0;
 
-        // 2. Calculate the new expiration date
         const now = new Date();
         let premiumUntil: Date | null = null;
 
@@ -133,10 +125,9 @@ export async function updateUserToPremium(userId: string, companyId: string): Pr
             premiumUntil = addDays(now, premiumDurationDays);
         }
 
-        // 3. Update the user document
         const userDocRef = doc(adminDb, 'users', userId);
         const updateData: { premiumUntil: string | null } = {
-            premiumUntil: premiumUntil ? premiumUntil.toISOString() : null, // Store as ISO string or null for lifetime
+            premiumUntil: premiumUntil ? premiumUntil.toISOString() : null,
         };
 
         await updateDoc(userDocRef, updateData);
