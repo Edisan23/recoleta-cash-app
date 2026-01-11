@@ -33,13 +33,12 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     const reference = `turnopro-premium-${userId}-${companyId}-${Date.now()}`;
     const amountInCents = amount * 100;
     const currency = 'COP';
+    const redirectUrl = `https://turnospros.com/confirmacion`;
 
     // Generate integrity hash
-    // El orden de la cadena es vital: referencia + monto + moneda + secreto de integridad
+    // The string order is vital: reference + amount + currency + integrity secret
     const concatenation = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_SECRET}`;
     const integrityHash = await createSha256Hash(concatenation);
-
-    const redirectUrl = `https://turnospros.com/confirmacion`;
 
     const payload = {
         amount_in_cents: amountInCents,
@@ -53,14 +52,12 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
         }
     };
     
-    // For Wompi, the private key is not used to create the checkout, it's used for other API calls.
-    // The public key and integrity signature are used for checkout creation.
-    const headers = {
-        // Authorization is not needed for checkout creation with a public key
-    };
-
     try {
-        const response = await axios.post(`${WOMPI_API_URL}/checkouts`, payload, { headers });
+        const response = await axios.post(`${WOMPI_API_URL}/checkouts`, payload, {
+            headers: {
+                // The private key is not used for checkout creation. The public key authenticates the merchant.
+            }
+        });
 
         const checkoutId = response.data.data.id;
         
@@ -80,15 +77,10 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
 
 
 export async function getWompiTransactionStatus(transactionId: string): Promise<{ status: string; reference: string } | { error: string }> {
-    // This function might not be needed if all status updates are handled via webhook.
-    // However, it's good for manual verification on the redirect page.
-    // For this, we'd need the WOMPI_PRIVATE_KEY if we were fetching from our backend,
-    // but Wompi redirects with the status in the URL query params. Let's assume we get it from the redirect.
-    // This server action version is for server-to-server check.
     const WOMPI_API_URL_TRANSACTIONS = 'https://production.wompi.co/v1/transactions';
     
     try {
-        // Public endpoint to check transaction status
+        // Public endpoint to check transaction status by ID
         const response = await axios.get(`${WOMPI_API_URL_TRANSACTIONS}/${transactionId}`);
         const { status, reference } = response.data.data;
         return { status, reference };
