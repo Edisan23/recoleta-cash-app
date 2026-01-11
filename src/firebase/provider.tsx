@@ -2,11 +2,12 @@
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore } from 'firebase/firestore';
+import { Firestore, doc, onSnapshot } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseStorage } from 'firebase/storage';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
 import { LogoSpinner } from '@/components/LogoSpinner';
+import type { UserProfile } from '@/types/db-entities';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -16,9 +17,10 @@ interface FirebaseProviderProps {
   storage?: FirebaseStorage;
 }
 
-// Internal state for user authentication
-interface UserAuthState {
+// Internal state for user authentication and profile
+interface UserState {
   user: User | null;
+  userProfile: UserProfile | null;
   isUserLoading: boolean;
   userError: Error | null;
 }
@@ -30,10 +32,11 @@ export interface FirebaseContextState {
   firestore: Firestore | null;
   auth: Auth | null; // The Auth service instance
   storage: FirebaseStorage | null;
-  // User authentication state
+  // User authentication and profile state
   user: User | null;
-  isUserLoading: boolean; // True during initial auth check
-  userError: Error | null; // Error from auth listener
+  userProfile: UserProfile | null;
+  isUserLoading: boolean; // True during initial auth/profile check
+  userError: Error | null; // Error from auth/profile listener
 }
 
 // Return type for useFirebase()
@@ -43,13 +46,15 @@ export interface FirebaseServicesAndUser {
   auth: Auth;
   storage: FirebaseStorage;
   user: User | null;
+  userProfile: UserProfile | null;
   isUserLoading: boolean;
   userError: Error | null;
 }
 
-// Return type for useUser() - specific to user auth state
-export interface UserHookResult { // Renamed from UserAuthHookResult for consistency if desired, or keep as UserAuthHookResult
+// Return type for useUser() - specific to user auth and profile state
+export interface UserHookResult {
   user: User | null;
+  userProfile: UserProfile | null;
   isUserLoading: boolean;
   userError: Error | null;
 }
@@ -67,33 +72,63 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   auth,
   storage,
 }) => {
-  const [userAuthState, setUserAuthState] = useState<UserAuthState>({
+  const [userState, setUserState] = useState<UserState>({
     user: null,
+    userProfile: null,
     isUserLoading: true, // Start loading until first auth event
     userError: null,
   });
 
-  // Effect to subscribe to Firebase auth state changes
+  // Effect to subscribe to Firebase auth state changes and fetch profile
   useEffect(() => {
-    if (!auth) { // If no Auth service instance, cannot determine user state
-      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
+    if (!auth || !firestore) {
+      setUserState({ user: null, userProfile: null, isUserLoading: false, userError: new Error("Auth or Firestore service not provided.") });
       return;
     }
 
-    setUserAuthState({ user: auth.currentUser, isUserLoading: true, userError: null }); // Reset on auth instance change
+    let profileUnsubscribe: (() => void) | undefined;
 
-    const unsubscribe = onAuthStateChanged(
+    const authUnsubscribe = onAuthStateChanged(
       auth,
-      (firebaseUser) => { // Auth state determined
-        setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
+      (firebaseUser) => {
+        if (profileUnsubscribe) {
+          profileUnsubscribe(); // Unsubscribe from previous user's profile listener
+        }
+        
+        if (firebaseUser) {
+          // User is signed in, set auth state and listen for profile changes
+          setUserState(prevState => ({ ...prevState, user: firebaseUser, isUserLoading: true, userError: null }));
+          
+          const profileDocRef = doc(firestore, 'users', firebaseUser.uid);
+          profileUnsubscribe = onSnapshot(profileDocRef, 
+            (doc) => {
+              const profileData = doc.exists() ? { id: doc.id, ...doc.data() } as UserProfile : null;
+              setUserState({ user: firebaseUser, userProfile: profileData, isUserLoading: false, userError: null });
+            },
+            (error) => {
+              console.error("FirebaseProvider: Profile onSnapshot error:", error);
+              setUserState({ user: firebaseUser, userProfile: null, isUserLoading: false, userError: error });
+            }
+          );
+        } else {
+          // User is signed out
+          setUserState({ user: null, userProfile: null, isUserLoading: false, userError: null });
+        }
       },
       (error) => { // Auth listener error
         console.error("FirebaseProvider: onAuthStateChanged error:", error);
-        setUserAuthState({ user: null, isUserLoading: false, userError: error });
+        if (profileUnsubscribe) profileUnsubscribe();
+        setUserState({ user: null, userProfile: null, isUserLoading: false, userError: error });
       }
     );
-    return () => unsubscribe(); // Cleanup
-  }, [auth]); // Depends on the auth instance
+
+    return () => {
+      authUnsubscribe();
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+      }
+    };
+  }, [auth, firestore]);
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {
@@ -104,11 +139,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       firestore: servicesAvailable ? firestore : null,
       auth: servicesAvailable ? auth : null,
       storage: servicesAvailable ? storage : null,
-      user: userAuthState.user,
-      isUserLoading: userAuthState.isUserLoading,
-      userError: userAuthState.userError,
+      user: userState.user,
+      userProfile: userState.userProfile,
+      isUserLoading: userState.isUserLoading,
+      userError: userState.userError,
     };
-  }, [firebaseApp, firestore, auth, storage, userAuthState]);
+  }, [firebaseApp, firestore, auth, storage, userState]);
   
   // If services are not yet available (e.g., during initial client-side init), show a loader.
   if (!contextValue.areServicesAvailable) {
@@ -118,7 +154,6 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       </div>
     );
   }
-
 
   return (
     <FirebaseContext.Provider value={contextValue}>
@@ -149,6 +184,7 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     auth: context.auth,
     storage: context.storage,
     user: context.user,
+    userProfile: context.userProfile,
     isUserLoading: context.isUserLoading,
     userError: context.userError,
   };
@@ -158,8 +194,6 @@ export const useFirebase = (): FirebaseServicesAndUser => {
 export const useAuth = (): Auth | null => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
-    // This allows the hook to be used in components that might not be wrapped by the provider yet,
-    // though functionality will be limited. A check for `null` is now required by the consumer.
     return null;
   }
   return context.auth;
@@ -206,13 +240,13 @@ export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | 
 /**
  * Hook specifically for accessing the authenticated user's state.
  * This provides the User object, loading status, and any auth errors.
- * @returns {UserHookResult} Object with user, isUserLoading, userError.
+ * @returns {UserHookResult} Object with user, userProfile, isUserLoading, userError.
  */
-export const useUser = (): UserHookResult => { // Renamed from useAuthUser
+export const useUser = (): UserHookResult => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
     throw new Error('useUser must be used within a FirebaseProvider.');
   }
-  const { user, isUserLoading, userError } = context;
-  return { user, isUserLoading, userError };
+  const { user, userProfile, isUserLoading, userError } = context;
+  return { user, userProfile, isUserLoading, userError };
 };

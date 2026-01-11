@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import type { UserProfile } from '@/types/db-entities';
+import { useUser } from '@/firebase';
 
 // Function to convert hex to HSL string: "H S% L%"
 const hexToHslString = (hex: string): { hsl: string; hue: string } => {
@@ -48,14 +46,7 @@ function applyThemeColor(color: string | null | undefined) {
 }
 
 export function UserThemeProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useUser();
-  const firestore = useFirestore();
-
-  const userProfileRef = useMemoFirebase(
-    () => (firestore && user ? doc(firestore, 'users', user.uid) : null),
-    [firestore, user]
-  );
-  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+  const { userProfile, user } = useUser();
 
   useEffect(() => {
     // Apply theme based on user profile, or reset to default if logged out
