@@ -17,9 +17,12 @@ async function createSha256Hash(text: string): Promise<string> {
 
 const WOMPI_API_URL = 'https://production.wompi.co/v1'; // URL de PRODUCCIÓN de Wompi
 
-export async function createWompiTransaction(amount: number, userEmail: string, userId: string, companyId: string): Promise<{ checkoutUrl: string; } | { error: string }> {
+async function wompiFetch(url: string, options: any) {
     const fetch = (await import('node-fetch')).default;
-    
+    return fetch(url, options);
+}
+
+export async function createWompiTransaction(amount: number, userEmail: string, userId: string, companyId: string): Promise<{ checkoutUrl: string; } | { error: string }> {
     // In this specific environment, server-side code can only access NEXT_PUBLIC_ variables.
     const WOMPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
     const WOMPI_INTEGRITY_SECRET = process.env.NEXT_PUBLIC_WOMPI_INTEGRITY_SECRET;
@@ -54,7 +57,7 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     };
     
     try {
-        const response = await fetch(`${WOMPI_API_URL}/checkouts`, {
+        const response = await wompiFetch(`${WOMPI_API_URL}/checkouts`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -87,12 +90,11 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
 
 
 export async function getWompiTransactionStatus(transactionId: string): Promise<{ status: string; reference: string } | { error: string }> {
-    const fetch = (await import('node-fetch')).default;
     const WOMPI_API_URL_TRANSACTIONS = 'https://production.wompi.co/v1/transactions';
     
     try {
         // Public endpoint to check transaction status by ID
-        const response = await fetch(`${WOMPI_API_URL_TRANSACTIONS}/${transactionId}`);
+        const response = await wompiFetch(`${WOMPI_API_URL_TRANSACTIONS}/${transactionId}`);
         
         if (!response.ok) {
             const errorData = await response.json();

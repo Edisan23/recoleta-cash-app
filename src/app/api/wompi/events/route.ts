@@ -79,8 +79,13 @@ export async function POST(request: Request) {
             if (status === 'APPROVED') {
                 // Reference format: turnopro-premium-{userId}-{companyId}-{timestamp}
                 const referenceParts = reference.split('-');
+                if (referenceParts.length < 4) {
+                    console.error(`Could not extract userId and companyId from reference: ${reference}`);
+                    return new NextResponse('Bad Request: Invalid transaction reference format.', { status: 400 });
+                }
                 const userId = referenceParts[2];
                 const companyId = referenceParts[3];
+
 
                 if (!userId || !companyId) {
                     console.error(`Could not extract userId and companyId from reference: ${reference}`);
