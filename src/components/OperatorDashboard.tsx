@@ -372,7 +372,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                 id="theme-color"
                                 type="color" 
                                 className="h-10 w-20 p-1"
-                                defaultValue={localUserProfile?.themeColor || '#6d28d9'}
+                                defaultValue={userProfile?.themeColor || '#6d28d9'}
                                 onChange={(e) => handleThemeColorChange(e.target.value)}
                             />
                              <Button variant="ghost" size="sm" onClick={() => handleThemeColorChange(null)}>
