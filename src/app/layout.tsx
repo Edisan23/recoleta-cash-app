@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseProviderWrapper } from "@/firebase/client-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { UserThemeProvider } from "@/components/UserThemeProvider";
 
 
 const playfair = Playfair_Display({
@@ -44,7 +45,9 @@ export default function RootLayout({
             disableTransitionOnChange
         >
           <FirebaseProviderWrapper>
-            {children}
+            <UserThemeProvider>
+              {children}
+            </UserThemeProvider>
           </FirebaseProviderWrapper>
           <Toaster />
         </ThemeProvider>

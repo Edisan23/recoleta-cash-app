@@ -42,53 +42,6 @@ function formatCurrency(value: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
 
-// Function to convert hex to HSL string: "H S% L%"
-const hexToHslString = (hex: string): { hsl: string, hue: string } => {
-    let r = 0, g = 0, b = 0;
-    if (hex.length == 4) {
-        r = parseInt(hex[1] + hex[1], 16);
-        g = parseInt(hex[2] + hex[2], 16);
-        b = parseInt(hex[3] + hex[3], 16);
-    } else if (hex.length == 7) {
-        r = parseInt(hex.substring(1, 3), 16);
-        g = parseInt(hex.substring(3, 5), 16);
-        b = parseInt(hex.substring(5, 7), 16);
-    }
-    r /= 255; g /= 255; b /= 255;
-    const max = Math.max(r, g, b), min = Math.min(r, g, b);
-    let h = 0, s = 0, l = (max + min) / 2;
-    if (max !== min) {
-        const d = max - min;
-        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-        switch (max) {
-            case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-            case g: h = (b - r) / d + 2; break;
-            case b: h = (r - g) / d + 4; break;
-        }
-        h /= 6;
-    }
-    const hue = (h * 360).toFixed(0);
-    const hsl = `${hue} ${(s * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%`;
-    return { hsl, hue };
-};
-
-// Function to apply the user's theme color
-function applyThemeColor(color: string | null | undefined) {
-    if (typeof window === 'undefined') return;
-    const root = document.documentElement;
-    if (color) {
-        const { hsl, hue } = hexToHslString(color);
-        root.style.setProperty('--user-primary-color', hsl);
-        root.style.setProperty('--user-primary-hue', hue);
-    } else {
-        // Fallback to default if no color is provided
-        const defaultColor = '#6d28d9'; // Deep Purple
-        const { hsl, hue } = hexToHslString(defaultColor);
-        root.style.setProperty('--user-primary-color', hsl);
-        root.style.setProperty('--user-primary-hue', hue);
-    }
-}
-
 // --- SUB-COMPONENTS ---
 function UpgradeToPremium({ price, onClick }: { price: number, onClick: () => void }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -301,11 +254,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     setPeriodSummary(summary);
   }, [allShifts, user, companyId, settings, date, holidays, benefits, deductions]);
 
-    // Effect to apply user's custom theme color
-    useEffect(() => {
-        applyThemeColor(localUserProfile?.themeColor);
-    }, [localUserProfile]);
-  
   const handleSignOut = async () => {
     try {
         if(auth) await auth.signOut();
@@ -330,7 +278,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 title: 'Tema Actualizado',
                 description: color ? 'Se ha aplicado tu nuevo color.' : 'Se ha restaurado el color por defecto.',
             });
-            // The userProfile listener will update localUserProfile and trigger the effect to apply the color
+            // The global UserThemeProvider will automatically pick up the change.
         } catch (error) {
             console.error("Failed to save theme color", error);
             toast({
@@ -424,7 +372,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                                 id="theme-color"
                                 type="color" 
                                 className="h-10 w-20 p-1"
-                                value={localUserProfile?.themeColor || '#6d28d9'}
+                                defaultValue={localUserProfile?.themeColor || '#6d28d9'}
                                 onChange={(e) => handleThemeColorChange(e.target.value)}
                             />
                              <Button variant="ghost" size="sm" onClick={() => handleThemeColorChange(null)}>
