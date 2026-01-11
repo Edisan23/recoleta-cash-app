@@ -1,6 +1,5 @@
 'use server';
 
-import axios from 'axios';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { adminDb } from '@/firebase/server-init';
 import type { CompanySettings } from '@/types/db-entities';
@@ -19,6 +18,8 @@ async function createSha256Hash(text: string): Promise<string> {
 const WOMPI_API_URL = 'https://production.wompi.co/v1'; // URL de PRODUCCIÓN de Wompi
 
 export async function createWompiTransaction(amount: number, userEmail: string, userId: string, companyId: string): Promise<{ checkoutUrl: string; } | { error: string }> {
+    const fetch = (await import('node-fetch')).default;
+    
     // In this specific environment, server-side code can only access NEXT_PUBLIC_ variables.
     const WOMPI_PUBLIC_KEY = process.env.NEXT_PUBLIC_WOMPI_PUBLIC_KEY;
     const WOMPI_INTEGRITY_SECRET = process.env.NEXT_PUBLIC_WOMPI_INTEGRITY_SECRET;
@@ -53,16 +54,25 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
     };
     
     try {
-        const response = await axios.post(`${WOMPI_API_URL}/checkouts`, payload, {
+        const response = await fetch(`${WOMPI_API_URL}/checkouts`, {
+            method: 'POST',
             headers: {
-                // The private key is not used for checkout creation. The public key authenticates the merchant.
-            }
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
         });
+        
+        const responseData = await response.json() as any;
 
-        const checkoutId = response.data.data.id;
+        if (!response.ok) {
+            console.error('Error creating Wompi checkout session:', responseData);
+            throw new Error(responseData.error?.messages?.join(', ') || 'No se pudo crear la sesión de pago de Wompi.');
+        }
+
+        const checkoutId = responseData.data.id;
         
         if (!checkoutId) {
-             throw new Error('No se pudo crear la sesión de pago de Wompi.');
+             throw new Error('No se pudo obtener el ID de la sesión de pago de Wompi.');
         }
 
         const checkoutUrl = `https://checkout.wompi.co/p/${checkoutId}`;
@@ -70,22 +80,32 @@ export async function createWompiTransaction(amount: number, userEmail: string, 
         return { checkoutUrl };
 
     } catch (error: any) {
-        console.error('Error creating Wompi checkout session:', error.response?.data || error.message);
+        console.error('Error creating Wompi checkout session:', error.message);
         return { error: 'No se pudo iniciar el proceso de pago.' };
     }
 }
 
 
 export async function getWompiTransactionStatus(transactionId: string): Promise<{ status: string; reference: string } | { error: string }> {
+    const fetch = (await import('node-fetch')).default;
     const WOMPI_API_URL_TRANSACTIONS = 'https://production.wompi.co/v1/transactions';
     
     try {
         // Public endpoint to check transaction status by ID
-        const response = await axios.get(`${WOMPI_API_URL_TRANSACTIONS}/${transactionId}`);
-        const { status, reference } = response.data.data;
+        const response = await fetch(`${WOMPI_API_URL_TRANSACTIONS}/${transactionId}`);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error("Error fetching Wompi transaction status:", errorData);
+            throw new Error('Respuesta no válida de Wompi al verificar el pago.');
+        }
+        
+        const responseData = await response.json() as any;
+        const { status, reference } = responseData.data;
+
         return { status, reference };
-    } catch (error) {
-        console.error("Error fetching Wompi transaction status:", error);
+    } catch (error: any) {
+        console.error("Error fetching Wompi transaction status:", error.message);
         return { error: 'No se pudo verificar el estado del pago.' };
     }
 }
