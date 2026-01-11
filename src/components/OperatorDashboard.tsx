@@ -25,7 +25,6 @@ import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
-import { createWompiTransaction } from '@/app/actions/wompi';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -91,57 +90,6 @@ function applyThemeColor(color: string | null | undefined) {
 }
 
 
-function UpgradeToPremium({ user, price, companyId }: { user: UserProfile, price: number, companyId: string }) {
-    const [isProcessing, setIsProcessing] = useState(false);
-    const { toast } = useToast();
-
-    const handleUpgrade = async () => {
-        if (!user.email) {
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Se requiere un email para realizar el pago.'
-            });
-            return;
-        }
-        setIsProcessing(true);
-
-        const result = await createWompiTransaction(price, user.email, user.id, companyId);
-        
-        if ('error' in result) {
-            toast({
-                variant: 'destructive',
-                title: 'Error de Pago',
-                description: result.error,
-            });
-            setIsProcessing(false);
-            return;
-        }
-        
-        const { checkoutUrl } = result;
-        
-        // Redirect the user to Wompi's payment page
-        window.location.href = checkoutUrl;
-    };
-
-    return (
-        <Card className="mb-6 bg-primary/10 border-primary/20">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Zap />¡Actualiza a Premium!</CardTitle>
-                <CardDescription>Obtén acceso ilimitado a todas las funciones de Turno Pro por un pago único.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col sm:flex-row items-center justify-between">
-                <p className="text-2xl font-bold text-primary mb-4 sm:mb-0">{formatCurrency(price)} <span className="text-sm font-normal text-muted-foreground">/ pago único</span></p>
-                <Button onClick={handleUpgrade} disabled={isProcessing} size="lg">
-                    {isProcessing ? <LogoSpinner className="mr-2" /> : <Zap className="mr-2 h-4 w-4" />}
-                    Pagar y Activar Premium
-                </Button>
-            </CardContent>
-        </Card>
-    );
-}
-
-
 // --- COMPONENT ---
 export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
@@ -160,7 +108,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   const [trialStatus, setTrialStatus] = useState<{expired: boolean, daysRemaining: number | null}>({ expired: false, daysRemaining: null });
   const [premiumStatus, setPremiumStatus] = useState<{expired: boolean, daysRemaining: number | null}>({ expired: false, daysRemaining: null });
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState(true); // Assume premium for now to avoid blocking UI
 
   const [showTrialBanner, setShowTrialBanner] = useState(true);
   const [showPremiumBanner, setShowPremiumBanner] = useState(true);
@@ -247,54 +195,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [user, userProfile, userProfileLoading, firestore]);
   
-  // Effect to check for trial and premium status
-  useEffect(() => {
-    if (!localUserProfile || !settings) return;
-
-    // Check Premium Status
-    const premiumUntilDate = localUserProfile.premiumUntil ? parseISO(localUserProfile.premiumUntil) : undefined;
-    const now = new Date();
-
-    // `isCurrentlyPremium` is true if premium is for lifetime (null) or if the expiration date is in the future.
-    const isLifetimePremium = localUserProfile.premiumUntil === null;
-    const isSubscriptionActive = premiumUntilDate && isAfter(premiumUntilDate, now);
-    const isCurrentlyPremium = isLifetimePremium || isSubscriptionActive;
-    
-    setIsPremium(isCurrentlyPremium);
-
-    if (premiumUntilDate) { // User has or had a premium subscription
-      if (isAfter(premiumUntilDate, now)) {
-        const daysLeft = differenceInDays(premiumUntilDate, now);
-        setPremiumStatus({ expired: false, daysRemaining: daysLeft });
-      } else {
-        setPremiumStatus({ expired: true, daysRemaining: 0 });
-      }
-    } else if (premiumUntilDate === undefined) { // premiumUntil field does not exist, not premium yet.
-        setPremiumStatus({ expired: false, daysRemaining: null });
-    }
-
-    // Check Trial Status (only if not premium)
-    if (!isCurrentlyPremium && localUserProfile.createdAt) {
-      try {
-        const registrationDate = parseISO(localUserProfile.createdAt);
-        const trialEndDate = addDays(registrationDate, settings.trialPeriodDays ?? 30);
-        
-        if (isAfter(now, trialEndDate)) {
-          setTrialStatus({ expired: true, daysRemaining: 0 });
-        } else {
-          const daysLeft = differenceInDays(trialEndDate, now);
-          setTrialStatus({ expired: false, daysRemaining: daysLeft });
-        }
-      } catch (error) {
-        console.error("Error parsing user creation date:", error);
-      }
-    } else {
-        // If user is premium, trial is irrelevant.
-        setTrialStatus({ expired: false, daysRemaining: null });
-    }
-
-  }, [localUserProfile, settings]);
-
 
   // Effect to calculate daily summary for the selected day
   useEffect(() => {
@@ -380,22 +280,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           <div className="flex h-screen w-full items-center justify-center">
               <LogoSpinner />
           </div>
-      );
-    }
-    
-    if ((trialStatus.expired || premiumStatus.expired) && !isPremium) {
-      return (
-        <div className="flex flex-col items-center justify-center h-screen text-center p-4 bg-background">
-          <ShieldAlert className="h-20 w-20 text-destructive mx-auto mb-6" />
-          <h1 className="text-4xl font-bold mb-4">{premiumStatus.expired ? "Suscripción Expirada" : "Período de Prueba Terminado"}</h1>
-          <p className="text-xl text-muted-foreground max-w-md mx-auto mb-8">
-            Tu acceso ha finalizado. Por favor, actualiza a Premium para continuar usando el servicio.
-          </p>
-          {localUserProfile && settings && <UpgradeToPremium user={localUserProfile} price={settings.premiumPrice ?? 5000} companyId={companyId} />}
-          <Button onClick={handleSignOut} size="lg" variant="ghost">
-            Cerrar Sesión
-          </Button>
-        </div>
       );
     }
 
@@ -495,43 +379,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </div>
           </div>
         </header>
-
-        {showTrialBanner && !isPremium && trialStatus.daysRemaining !== null && trialStatus.daysRemaining >= 0 && (
-             <Alert className="mb-6 border-primary/50 relative">
-                <ShieldAlert className="h-4 w-4" />
-                <AlertTitle>Período de Prueba</AlertTitle>
-                <AlertDescription>
-                    {trialStatus.daysRemaining > 0 ? `Te quedan ${trialStatus.daysRemaining} días de tu prueba gratuita.` : 'Tu período de prueba termina hoy.'}
-                </AlertDescription>
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute top-2 right-2 h-6 w-6"
-                    onClick={() => setShowTrialBanner(false)}
-                >
-                    <X className="h-4 w-4" />
-                </Button>
-            </Alert>
-        )}
-         {showPremiumBanner && isPremium && premiumStatus.daysRemaining !== null && premiumStatus.daysRemaining <= 7 && (
-             <Alert className="mb-6 border-yellow-500/50 relative text-yellow-600">
-                <ShieldAlert className="h-4 w-4 text-yellow-600" />
-                <AlertTitle>Tu suscripción está por expirar</AlertTitle>
-                <AlertDescription>
-                    {premiumStatus.daysRemaining > 0 ? `Te quedan ${premiumStatus.daysRemaining} días de acceso Premium. ¡Renueva pronto!` : 'Tu suscripción Premium expira hoy.'}
-                </AlertDescription>
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute top-2 right-2 h-6 w-6"
-                    onClick={() => setShowPremiumBanner(false)}
-                >
-                    <X className="h-4 w-4" />
-                </Button>
-            </Alert>
-        )}
-        
-        {!isPremium && localUserProfile && settings && <UpgradeToPremium user={localUserProfile} price={settings.premiumPrice ?? 5000} companyId={companyId}/>}
 
         <main className="space-y-8">
             <div className="flex justify-center mb-8">
