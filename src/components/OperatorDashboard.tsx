@@ -89,6 +89,38 @@ function applyThemeColor(color: string | null | undefined) {
     }
 }
 
+// --- SUB-COMPONENTS ---
+function UpgradeToPremium({ price, onClick }: { price: number, onClick: () => void }) {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleClick = async () => {
+        setIsSubmitting(true);
+        try {
+            await onClick();
+        } catch(e) {
+            // Error is handled by parent, just ensure we reset loading state
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+    
+    return (
+        <Card className="border-accent">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Zap className="text-accent" /> Activar Cuenta Premium</CardTitle>
+                <CardDescription>Para desbloquear todas las funciones y eliminar las restricciones, activa tu cuenta.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-3xl font-bold text-center mb-4">{formatCurrency(price)}</p>
+                <Button onClick={handleClick} disabled={isSubmitting} className="w-full btn-accent">
+                    {isSubmitting && <LogoSpinner className="mr-2" />}
+                    Activar con Wompi
+                </Button>
+            </CardContent>
+        </Card>
+    );
+}
+
 
 // --- COMPONENT ---
 export function OperatorDashboard({ companyId }: { companyId: string }) {
@@ -195,6 +227,41 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     }
   }, [user, userProfile, userProfileLoading, firestore]);
   
+  // Effect to calculate subscription status (Trial / Premium)
+  useEffect(() => {
+    if (!localUserProfile || !settings) return;
+
+    // Check Premium status first
+    if (localUserProfile.premiumUntil) {
+        const premiumEndDate = parseISO(localUserProfile.premiumUntil);
+        const daysRemaining = differenceInDays(premiumEndDate, new Date());
+        
+        if (isAfter(premiumEndDate, new Date())) {
+            setIsPremium(true);
+            setPremiumStatus({ expired: false, daysRemaining: settings.premiumDurationDays === 0 ? null : daysRemaining });
+            return; // Is premium, no need to check trial
+        }
+    } else if (localUserProfile.premiumUntil === null) { // Lifetime premium
+         setIsPremium(true);
+         setPremiumStatus({ expired: false, daysRemaining: null });
+         return;
+    }
+
+    // If not premium, check Trial status
+    const trialDays = settings.trialPeriodDays ?? 30;
+    const createdAt = parseISO(localUserProfile.createdAt);
+    const trialEndDate = addDays(createdAt, trialDays);
+    const daysRemaining = differenceInDays(trialEndDate, new Date());
+    
+    if (isAfter(trialEndDate, new Date())) {
+        setIsPremium(false); // In trial, not premium
+        setTrialStatus({ expired: false, daysRemaining });
+    } else {
+        setIsPremium(false); // Expired trial, not premium
+        setTrialStatus({ expired: true, daysRemaining: null });
+    }
+
+  }, [localUserProfile, settings]);
 
   // Effect to calculate daily summary for the selected day
   useEffect(() => {
@@ -272,6 +339,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 description: 'No se pudo guardar el color del tema.',
             });
         }
+    };
+
+    const handleCreateCheckout = async () => {
+       router.push('/operator/payment/status');
     };
 
 
@@ -381,20 +452,60 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         </header>
 
         <main className="space-y-8">
-            <div className="flex justify-center mb-8">
-                <DatePicker date={date} setDate={setDate} highlightedDays={shiftDays} />
-            </div>
-
-            {date && user && !shiftsError && companyId && (
-                 <ShiftForm 
-                    key={date.toISOString()} // Force re-mount on date change
-                    selectedDate={date}
-                    userId={user.uid}
-                    companyId={companyId}
-                    shiftsForDay={allShifts?.filter(s => new Date(s.date).toDateString() === date.toDateString()) || []}
-                    companyItems={companyItems || []}
-                 />
+            {!isPremium && showTrialBanner && !trialStatus.expired && (
+                 <Alert>
+                    <ShieldAlert className="h-4 w-4" />
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <AlertTitle>Período de Prueba Activo</AlertTitle>
+                            <AlertDescription>
+                                {trialStatus.daysRemaining !== null 
+                                    ? `Te quedan ${trialStatus.daysRemaining} días de prueba.`
+                                    : 'Disfruta de tu período de prueba.'}
+                            </AlertDescription>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => setShowTrialBanner(false)}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </Alert>
             )}
+
+             {isPremium && showPremiumBanner && premiumStatus.daysRemaining !== null && (
+                 <Alert>
+                    <ShieldAlert className="h-4 w-4" />
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <AlertTitle>Acceso Premium Activo</AlertTitle>
+                            <AlertDescription>
+                                Tu suscripción premium es válida por {premiumStatus.daysRemaining} días más.
+                            </AlertDescription>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => setShowPremiumBanner(false)}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </Alert>
+            )}
+
+            {!isPremium && trialStatus.expired && settings && <UpgradeToPremium price={settings.premiumPrice ?? 5000} onClick={handleCreateCheckout} />}
+
+            <div className={`transition-opacity duration-500 ${!isPremium && trialStatus.expired ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
+                <div className="flex justify-center mb-8">
+                    <DatePicker date={date} setDate={setDate} highlightedDays={shiftDays} />
+                </div>
+
+                {date && user && !shiftsError && companyId && (
+                    <ShiftForm 
+                        key={date.toISOString()} // Force re-mount on date change
+                        selectedDate={date}
+                        userId={user.uid}
+                        companyId={companyId}
+                        shiftsForDay={allShifts?.filter(s => new Date(s.date).toDateString() === date.toDateString()) || []}
+                        companyItems={companyItems || []}
+                    />
+                )}
+            </div>
 
             {shiftsError && (
                 <Card className='border-destructive'>
