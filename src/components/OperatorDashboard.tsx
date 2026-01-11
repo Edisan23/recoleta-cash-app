@@ -43,31 +43,19 @@ function formatCurrency(value: number) {
 }
 
 // --- SUB-COMPONENTS ---
-function UpgradeToPremium({ price, onClick }: { price: number, onClick: () => void }) {
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleClick = async () => {
-        setIsSubmitting(true);
-        try {
-            await onClick();
-        } catch(e) {
-            // Error is handled by parent, just ensure we reset loading state
-        } finally {
-            setIsSubmitting(false);
-        }
-    }
+function UpgradeToPremium({ price }: { price: number }) {
     
     return (
         <Card className="border-accent">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Zap className="text-accent" /> Activar Cuenta Premium</CardTitle>
-                <CardDescription>Para desbloquear todas las funciones y eliminar las restricciones, activa tu cuenta.</CardDescription>
+                <CardDescription>Para desbloquear todas las funciones y eliminar las restricciones, contacta a tu administrador.</CardDescription>
             </CardHeader>
             <CardContent>
+                <p className="text-muted-foreground text-center">El acceso premium tiene un costo de activación de</p>
                 <p className="text-3xl font-bold text-center mb-4">{formatCurrency(price)}</p>
-                <Button onClick={handleClick} disabled={isSubmitting} className="w-full btn-accent">
-                    {isSubmitting && <LogoSpinner className="mr-2" />}
-                    Activar con Wompi
+                <Button disabled={true} className="w-full btn-accent">
+                    Activación Manual
                 </Button>
             </CardContent>
         </Card>
@@ -80,7 +68,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user, isUserLoading: isUserAuthLoading } = useUser();
+  const { user, isUserLoading: isUserAuthLoading, userProfile } = useUser();
   const { toast } = useToast();
   
   // Form state
@@ -89,7 +77,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   // Calculated Summaries
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
   const [periodSummary, setPeriodSummary] = useState<PayrollSummary | null>(null);
-  const [localUserProfile, setLocalUserProfile] = useState<UserProfile | null>(null);
   
   const [trialStatus, setTrialStatus] = useState<{expired: boolean, daysRemaining: number | null}>({ expired: false, daysRemaining: null });
   const [premiumStatus, setPremiumStatus] = useState<{expired: boolean, daysRemaining: number | null}>({ expired: false, daysRemaining: null });
@@ -140,53 +127,19 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }, [firestore, companyId, user]);
   const { data: companyItems, isLoading: itemsLoading } = useCollection<CompanyItem>(itemsRef);
 
-  const userProfileRef = useMemoFirebase(() => firestore && user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userProfile, isLoading: userProfileLoading } = useDoc<UserProfile>(userProfileRef);
-
-  const isLoading = isUserAuthLoading || companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || userProfileLoading || itemsLoading;
+  const isLoading = isUserAuthLoading || companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || itemsLoading;
 
   const shiftDays = useMemo(() => {
     return allShifts?.map(s => new Date(s.date)) || [];
   }, [allShifts]);
-
-  // Effect to save/update user profile in firestore for subscription management
-  useEffect(() => {
-    if (user && !userProfileLoading && firestore) {
-        const profileRef = doc(firestore, "users", user.uid);
-        
-        if (!userProfile) { // If profile doesn't exist, create it.
-              const creationTime = new Date().toISOString();
-              const newUserProfile: Omit<UserProfile, 'id'> = {
-                  uid: user.uid,
-                  displayName: user.displayName || 'Operador Anónimo',
-                  photoURL: user.photoURL || '',
-                  email: user.email || '',
-                  isAnonymous: user.isAnonymous,
-                  createdAt: creationTime,
-                  role: 'operator',
-              };
-              setDoc(profileRef, newUserProfile); // non-blocking write
-              setLocalUserProfile({ ...newUserProfile, id: user.uid });
-        } else {
-           // To ensure the local state has the correct ISO string format from the start
-           const profileWithISOStringDate = {
-               ...userProfile,
-               createdAt: (userProfile.createdAt && typeof (userProfile.createdAt as any).toDate === 'function')
-                  ? (userProfile.createdAt as any).toDate().toISOString()
-                  : userProfile.createdAt
-           }
-           setLocalUserProfile(profileWithISOStringDate);
-        }
-    }
-  }, [user, userProfile, userProfileLoading, firestore]);
   
   // Effect to calculate subscription status (Trial / Premium)
   useEffect(() => {
-    if (!localUserProfile || !settings) return;
+    if (!userProfile || !settings) return;
 
     // Check Premium status first
-    if (localUserProfile.premiumUntil) {
-        const premiumEndDate = parseISO(localUserProfile.premiumUntil);
+    if (userProfile.premiumUntil) {
+        const premiumEndDate = parseISO(userProfile.premiumUntil);
         const daysRemaining = differenceInDays(premiumEndDate, new Date());
         
         if (isAfter(premiumEndDate, new Date())) {
@@ -194,7 +147,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             setPremiumStatus({ expired: false, daysRemaining: settings.premiumDurationDays === 0 ? null : daysRemaining });
             return; // Is premium, no need to check trial
         }
-    } else if (localUserProfile.premiumUntil === null) { // Lifetime premium
+    } else if (userProfile.premiumUntil === null) { // Lifetime premium
          setIsPremium(true);
          setPremiumStatus({ expired: false, daysRemaining: null });
          return;
@@ -202,7 +155,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
     // If not premium, check Trial status
     const trialDays = settings.trialPeriodDays ?? 30;
-    const createdAt = parseISO(localUserProfile.createdAt);
+    const createdAt = parseISO(userProfile.createdAt);
     const trialEndDate = addDays(createdAt, trialDays);
     const daysRemaining = differenceInDays(trialEndDate, new Date());
     
@@ -214,7 +167,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         setTrialStatus({ expired: true, daysRemaining: null });
     }
 
-  }, [localUserProfile, settings]);
+  }, [userProfile, settings]);
 
   // Effect to calculate daily summary for the selected day
   useEffect(() => {
@@ -287,10 +240,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 description: 'No se pudo guardar el color del tema.',
             });
         }
-    };
-
-    const handleCreateCheckout = async () => {
-       router.push('/operator/payment/status');
     };
 
 
@@ -436,7 +385,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </Alert>
             )}
 
-            {!isPremium && trialStatus.expired && settings && <UpgradeToPremium price={settings.premiumPrice ?? 5000} onClick={handleCreateCheckout} />}
+            {!isPremium && trialStatus.expired && settings && <UpgradeToPremium price={settings.premiumPrice ?? 5000} />}
 
             <div className={`transition-opacity duration-500 ${!isPremium && trialStatus.expired ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                 <div className="flex justify-center mb-8">
