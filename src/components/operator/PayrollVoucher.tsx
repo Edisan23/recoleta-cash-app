@@ -1,134 +1,266 @@
 'use client';
 
-import React from 'react';
-import { PayrollSummary, Shift } from '@/types/db-entities';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { LogoSpinner } from '@/components/LogoSpinner';
+import type { Shift, Company, CompanySettings, PayrollSummary } from '@/types/db-entities';
+import { collection, query, where, doc } from 'firebase/firestore';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
-import { Separator } from '../ui/separator';
+import { calculatePeriodSummary, calculateShiftSummary } from '@/lib/payroll-calculator';
+import { ArrowLeft } from 'lucide-react';
+import { PayrollBreakdown } from '@/components/operator/PayrollBreakdown';
+import { Calendar } from '@/components/ui/calendar';
+import { Separator } from '@/components/ui/separator';
 
-interface PayrollVoucherProps {
-    operatorName: string;
-    companyName: string;
-    period: { start: Date; end: Date };
-    summary: PayrollSummary;
-    shifts: Shift[];
+const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
+
+const isWithinPeriod = (date: Date, period: { start: Date; end: Date }) => {
+    const time = date.getTime();
+    return time >= period.start.getTime() && time <= new Date(period.end).setHours(23, 59, 59, 999);
 }
 
-function formatCurrency(value: number) {
-    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
+const formatCurrency = (value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
+
+// Helper function to clean up item names for display in history
+const formatItemNameForHistory = (name: string): string => {
+    const wordsToRemove = ['agregar', 'añadir', 'ingresar', 'registrar'];
+    const nameParts = name.split(' ');
+    if (wordsToRemove.includes(nameParts[0].toLowerCase())) {
+        const newName = nameParts.slice(1).join(' ');
+        return newName.charAt(0).toUpperCase() + newName.slice(1);
+    }
+    return name;
 }
 
-const BreakdownRow = ({ label, value }: { label: string; value: number }) => {
-    if (value === 0) return null;
+function HistoryDayDetail({ summary, shiftsForDay }: { summary: Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null, shiftsForDay: Shift[] }) {
+    
+    const allItemDetails = shiftsForDay.flatMap(shift => shift.itemDetails || []).filter(detail => detail.detail);
+    const allNotes = shiftsForDay.map(shift => shift.notes).filter(Boolean);
+
+
     return (
-        <div className="flex justify-between py-2 text-sm">
-            <p className="text-gray-600">{label}</p>
-            <p className="font-medium">{formatCurrency(value)}</p>
-        </div>
-    );
-};
+        <Card className="mt-4 border-primary/20">
+            <CardHeader>
+                <CardTitle>Detalle del Día Seleccionado</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {!summary || summary.grossPay === 0 ? (
+                    <p className="text-muted-foreground text-center py-4">No hay actividad registrada para este día.</p>
+                ) : (
+                    <>
+                        <div className="flex justify-around items-center text-center mb-4">
+                            <div>
+                                <p className="text-sm text-muted-foreground">Total Horas</p>
+                                <p className="text-xl font-bold">{summary.totalHours}h</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Pago del Día</p>
+                                <p className="text-xl font-bold text-green-600">{formatCurrency(summary.grossPay)}</p>
+                            </div>
+                        </div>
+                        <PayrollBreakdown summary={summary} />
 
-export const PayrollVoucher = React.forwardRef<HTMLDivElement, PayrollVoucherProps>(
-    ({ operatorName, companyName, period, summary, shifts }, ref) => {
-    const detailedShifts = shifts.filter(s => s.itemDetails && s.itemDetails.length > 0);
+                        {(allItemDetails.length > 0 || allNotes.length > 0) && (
+                            <>
+                                <Separator className="my-4" />
+                                <div className="space-y-4">
+                                     <h4 className="font-semibold">Detalles Adicionales</h4>
+                                     {allItemDetails.length > 0 && (
+                                        <div className="space-y-1 text-sm p-3 bg-muted/50 rounded-md">
+                                            {allItemDetails.map((detail, index) => (
+                                                <div key={index} className="flex justify-between">
+                                                    <span className="text-muted-foreground">{formatItemNameForHistory(detail.itemName)}:</span>
+                                                    <span className="font-medium">{detail.detail}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                     )}
+                                     {allNotes.map((note, index) => (
+                                         <div key={index} className="space-y-1 text-sm p-3 bg-muted/50 rounded-md">
+                                             <p className="font-medium">Notas:</p>
+                                             <p className="text-muted-foreground whitespace-pre-wrap">{note}</p>
+                                         </div>
+                                     ))}
+                                </div>
+                            </>
+                        )}
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+export default function HistoryDetailPage() {
+    const router = useRouter();
+    const params = useParams();
+    const firestore = useFirestore();
+    const { user, isUserLoading: isUserAuthLoading } = useUser();
+
+    const [companyId, setCompanyId] = useState<string | null>(null);
+    const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
+
+    const periodId = params.periodId as string;
+    const [startStr, endStr] = periodId.split('_');
+
+    const period = useMemo(() => {
+        const start = parseISO(`${startStr}T00:00:00`);
+        const end = parseISO(`${endStr}T23:59:59`);
+        return { start, end };
+    }, [startStr, endStr]);
+
+    useEffect(() => {
+        const storedCompanyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
+        if (storedCompanyId) {
+            setCompanyId(storedCompanyId);
+        } else if (!isUserAuthLoading && user) {
+            router.replace('/select-company');
+        }
+    }, [isUserAuthLoading, user, router]);
+
+    const companyRef = useMemoFirebase(() => firestore && companyId && user ? doc(firestore, 'companies', companyId) : null, [firestore, companyId, user]);
+    const { data: company, isLoading: companyLoading } = useDoc<Company>(companyRef);
+
+    const shiftsQuery = useMemoFirebase(() => {
+        if (!firestore || !user?.uid || !companyId) return null;
+        return query(collection(firestore, 'companies', companyId, 'shifts'), where('userId', '==', user.uid));
+    }, [firestore, companyId, user]);
+    const { data: allShifts, isLoading: shiftsLoading } = useCollection<Shift>(shiftsQuery);
+    
+    const settingsRef = useMemoFirebase(() => firestore && companyId && user ? doc(firestore, 'companies', companyId, 'settings', 'main') : null, [firestore, companyId, user]);
+    const { data: settings, isLoading: settingsLoading } = useDoc<CompanySettings>(settingsRef);
+    
+    const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
+    const { data: holidaysData, isLoading: holidaysLoading } = useCollection<{ date: string }>(holidaysRef);
+    const holidays = useMemo(() => holidaysData?.map(h => new Date(h.date)) || [], [holidaysData]);
+
+    const benefitsRef = useMemoFirebase(() => firestore && companyId && user ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId, user]);
+    const { data: benefits, isLoading: benefitsLoading } = useCollection<any>(benefitsRef);
+
+    const deductionsRef = useMemoFirebase(() => firestore && companyId && user ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId, user]);
+    const { data: deductions, isLoading: deductionsLoading } = useCollection<any>(deductionsRef);
+
+    const isLoading = isUserAuthLoading || shiftsLoading || settingsLoading || holidaysLoading || benefitsLoading || deductionsLoading || companyLoading;
+
+    const periodSummary = useMemo(() => {
+        if (!allShifts || !settings || !user || !holidays || !benefits || !deductions || !companyId) return null;
+        return calculatePeriodSummary(allShifts, settings, holidays, benefits, deductions, user.uid, companyId, period.start);
+    }, [allShifts, settings, holidays, benefits, deductions, user, companyId, period.start]);
+
+    const shiftsInPeriod = useMemo(() => {
+        if (!allShifts) return [];
+        return allShifts.filter(s => isWithinPeriod(new Date(s.date), period));
+      }, [allShifts, period]);
+    
+    const shiftDaysInPeriod = useMemo(() => shiftsInPeriod.map(s => new Date(s.date)), [shiftsInPeriod]);
+
+    const dailyDetail = useMemo(() => {
+        if (!selectedDay || !allShifts || !settings || !holidays) return null;
+        
+        const shiftsForDay = allShifts.filter(s => new Date(s.date).toDateString() === selectedDay.toDateString());
+
+        let hoursAlreadyWorkedOnDay = 0;
+        const summaryList = shiftsForDay.map(shift => {
+            const shiftSummary = calculateShiftSummary(shift, settings, holidays, hoursAlreadyWorkedOnDay);
+            hoursAlreadyWorkedOnDay += shiftSummary.totalHours;
+            return shiftSummary;
+        });
+
+        if (summaryList.length > 0) {
+          const totalSummary = summaryList.reduce((acc, summary) => {
+            Object.keys(summary).forEach(key => {
+              const typedKey = key as keyof typeof summary;
+              (acc as any)[typedKey] = (acc[typedKey] || 0) + summary[typedKey];
+            });
+            return acc;
+          }, {} as Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'>);
+          return { summary: totalSummary, shiftsForDay: shiftsForDay };
+        }
+        return { summary: null, shiftsForDay: [] };
+    
+    }, [selectedDay, allShifts, settings, holidays]);
+
+    if (isLoading || !periodSummary) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center">
+                <LogoSpinner />
+            </div>
+        );
+    }
     
     return (
-        <div ref={ref}>
-            <Card className="w-[800px] shadow-lg border-2 font-sans bg-white text-black">
-                <CardHeader className="text-center bg-gray-50 p-6">
-                    <CardTitle className="text-3xl font-bold">Comprobante de Pago</CardTitle>
-                    <CardDescription className="text-lg text-gray-700">
-                        {companyName}
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="p-8 space-y-6">
-                    <div className="grid grid-cols-2 gap-8 text-sm">
-                        <div>
-                            <p className="font-semibold text-gray-500">OPERADOR</p>
-                            <p className="text-lg font-medium">{operatorName}</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="font-semibold text-gray-500">PERÍODO DE PAGO</p>
-                            <p className="text-lg font-medium">
-                                {format(period.start, "d 'de' MMMM", { locale: es })} - {format(period.end, "d 'de' MMMM, yyyy", { locale: es })}
-                            </p>
-                        </div>
-                    </div>
-
-                    <Separator className="bg-gray-200" />
-
-                    <div className="grid grid-cols-2 gap-x-12 gap-y-4">
-                        {/* Earnings Column */}
-                        <div className='space-y-2'>
-                            <h3 className="text-lg font-semibold border-b border-gray-200 pb-2 mb-2">Ingresos</h3>
-                            <BreakdownRow label="Pago Horas Regulares" value={summary.dayPay + summary.nightPay} />
-                            <BreakdownRow label="Pago Horas Extra" value={summary.dayOvertimePay + summary.nightOvertimePay} />
-                            <BreakdownRow label="Pago Horas Festivas" value={summary.holidayDayPay + summary.holidayNightPay} />
-                            <BreakdownRow label="Pago Horas Extra Festivas" value={summary.holidayDayOvertimePay + summary.holidayNightOvertimePay} />
-                            {summary.benefitBreakdown.map(b => <BreakdownRow key={b.name} label={b.name} value={b.value} />)}
-                        </div>
-
-                        {/* Deductions Column */}
-                        <div className='space-y-2'>
-                            <h3 className="text-lg font-semibold border-b border-gray-200 pb-2 mb-2">Deducciones</h3>
-                            {summary.deductionBreakdown.length > 0 ? (
-                                summary.deductionBreakdown.map(d => <BreakdownRow key={d.name} label={d.name} value={d.value} />)
-                            ) : (
-                                <p className="text-sm text-gray-500">No hay deducciones.</p>
-                            )}
-                        </div>
-                    </div>
-
-                    <Separator className="bg-gray-200" />
-                    
-                    {/* Summary Section */}
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center font-medium text-lg">
-                            <p>Total Ingresos (Bruto)</p>
-                            <p>{formatCurrency(summary.grossPay + summary.totalBenefits)}</p>
-                        </div>
-                        <div className="flex justify-between items-center font-medium text-lg">
-                            <p>Total Deducciones</p>
-                            <p className='text-red-600'>-{formatCurrency(summary.totalDeductions)}</p>
-                        </div>
-                        <div className="flex justify-between items-center font-bold text-2xl bg-green-100 p-4 rounded-lg">
-                            <p>Neto a Pagar</p>
-                            <p>{formatCurrency(summary.netPay)}</p>
-                        </div>
-                    </div>
-
-                    {detailedShifts.length > 0 && (
-                        <>
-                            <Separator className="bg-gray-200" />
-                            <div className="space-y-2">
-                                <h3 className="text-lg font-semibold border-b border-gray-200 pb-2 mb-2">Actividades Detalladas</h3>
-                                <div className="text-sm text-gray-700 space-y-1">
-                                    {detailedShifts.map(shift => (
-                                        shift.itemDetails?.map(detail => (
-                                            <div key={`${shift.id}-${detail.itemId}`} className="grid grid-cols-3 gap-2 border-b pb-1">
-                                                <p>{format(parseISO(shift.date), 'd MMM yyyy', {locale: es})}</p>
-                                                <p className="font-medium col-span-2">{detail.itemName}: <span className="font-normal text-gray-600">{detail.detail}</span></p>
-                                            </div>
-                                        ))
-                                    ))}
+        <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+            <header className="flex items-center justify-between mb-8">
+                <div>
+                    <button onClick={() => router.push('/operator/history')} className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 p-1 -ml-1">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Volver a Períodos
+                    </button>
+                    <h1 className="text-3xl font-bold">Detalle del Período</h1>
+                    <p className="text-muted-foreground capitalize text-lg">
+                        {format(period.start, "d 'de' MMMM", { locale: es })} - {format(period.end, "d 'de' MMMM, yyyy", { locale: es })}
+                    </p>
+                </div>
+            </header>
+            <main className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className='space-y-6'>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Resumen del Período</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center mb-6">
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Total Horas</p>
+                                    <p className="text-2xl font-bold">
+                                        {periodSummary ? `${periodSummary.totalHours}h` : '0h'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Pago Bruto</p>
+                                    <p className="text-2xl font-bold">
+                                        {periodSummary ? formatCurrency(periodSummary.grossPay) : '$0'}
+                                    </p>
+                                </div>
+                                 <div>
+                                    <p className="text-sm text-muted-foreground">Pago Neto</p>
+                                    <p className="text-2xl font-bold text-green-600">
+                                        {periodSummary ? formatCurrency(periodSummary.netPay) : '$0'}
+                                    </p>
                                 </div>
                             </div>
-                        </>
+                             <PayrollBreakdown summary={periodSummary} />
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <div className='space-y-6'>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Detalle por Día</CardTitle>
+                            <CardDescription>Selecciona un día en el calendario para ver su detalle.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex justify-center">
+                            <Calendar 
+                                mode="single"
+                                selected={selectedDay}
+                                onSelect={setSelectedDay}
+                                month={period.start}
+                                disabled={(date) => date < period.start || date > period.end }
+                                modifiers={{ highlighted: shiftDaysInPeriod }}
+                                modifiersClassNames={{ highlighted: 'bg-primary/20 rounded-full' }}
+                                locale={es}
+                            />
+                        </CardContent>
+                    </Card>
+                     {selectedDay && (
+                        <HistoryDayDetail summary={dailyDetail?.summary || null} shiftsForDay={dailyDetail?.shiftsForDay || []} />
                     )}
-
-
-                    <div className="text-center text-sm text-gray-500 pt-4">
-                        <p>Total Horas Trabajadas en el Período: <span className="font-semibold">{summary.totalHours.toFixed(2)} horas</span></p>
-                    </div>
-
-                </CardContent>
-                <CardFooter className="text-center text-xs text-gray-400 p-4 bg-gray-50">
-                    <p>Este es un documento generado por el sistema Turno Pro. Para cualquier duda o reclamo, por favor contacta a tu supervisor o al departamento de recursos humanos.</p>
-                </CardFooter>
-            </Card>
+                </div>
+            </main>
         </div>
-    );
-});
-
-PayrollVoucher.displayName = 'PayrollVoucher';
+    )
+}

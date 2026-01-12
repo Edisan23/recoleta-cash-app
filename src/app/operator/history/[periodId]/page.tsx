@@ -1,21 +1,19 @@
 'use client';
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
-import type { Shift, Company, CompanySettings, PayrollSummary, Benefit, Deduction, CompanyItem } from '@/types/db-entities';
+import type { Shift, Company, CompanySettings, PayrollSummary } from '@/types/db-entities';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { calculatePeriodSummary, calculateShiftSummary, getPeriodDateRange } from '@/lib/payroll-calculator';
+import { calculatePeriodSummary, calculateShiftSummary } from '@/lib/payroll-calculator';
 import { ArrowLeft } from 'lucide-react';
 import { PayrollBreakdown } from '@/components/operator/PayrollBreakdown';
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
-import { PayrollVoucher } from '@/components/operator/PayrollVoucher';
-import { PrintVoucherButton } from '@/components/operator/PrintVoucherButton';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -101,7 +99,6 @@ export default function HistoryDetailPage() {
     const params = useParams();
     const firestore = useFirestore();
     const { user, isUserLoading: isUserAuthLoading } = useUser();
-    const voucherRef = useRef<HTMLDivElement>(null);
 
     const [companyId, setCompanyId] = useState<string | null>(null);
     const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
@@ -141,10 +138,10 @@ export default function HistoryDetailPage() {
     const holidays = useMemo(() => holidaysData?.map(h => new Date(h.date)) || [], [holidaysData]);
 
     const benefitsRef = useMemoFirebase(() => firestore && companyId && user ? collection(firestore, 'companies', companyId, 'benefits') : null, [firestore, companyId, user]);
-    const { data: benefits, isLoading: benefitsLoading } = useCollection<Benefit>(benefitsRef);
+    const { data: benefits, isLoading: benefitsLoading } = useCollection<any>(benefitsRef);
 
     const deductionsRef = useMemoFirebase(() => firestore && companyId && user ? collection(firestore, 'companies', companyId, 'deductions') : null, [firestore, companyId, user]);
-    const { data: deductions, isLoading: deductionsLoading } = useCollection<Deduction>(deductionsRef);
+    const { data: deductions, isLoading: deductionsLoading } = useCollection<any>(deductionsRef);
 
     const isLoading = isUserAuthLoading || shiftsLoading || settingsLoading || holidaysLoading || benefitsLoading || deductionsLoading || companyLoading;
 
@@ -196,21 +193,6 @@ export default function HistoryDetailPage() {
     
     return (
         <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-            {/* Hidden element for PDF generation */}
-            <div className="hidden">
-                {company && user && periodSummary && settings && (
-                    <div ref={voucherRef} className="bg-white text-black p-8">
-                        <PayrollVoucher 
-                            operatorName={user.displayName || 'Operador'}
-                            companyName={company.name}
-                            period={getPeriodDateRange(period.start, settings.payrollCycle)}
-                            summary={periodSummary}
-                            shifts={shiftsInPeriod}
-                        />
-                    </div>
-                )}
-            </div>
-
             <header className="flex items-center justify-between mb-8">
                 <div>
                     <button onClick={() => router.push('/operator/history')} className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 p-1 -ml-1">
@@ -221,13 +203,6 @@ export default function HistoryDetailPage() {
                     <p className="text-muted-foreground capitalize text-lg">
                         {format(period.start, "d 'de' MMMM", { locale: es })} - {format(period.end, "d 'de' MMMM, yyyy", { locale: es })}
                     </p>
-                </div>
-                 <div>
-                    <PrintVoucherButton 
-                      voucherRef={voucherRef} 
-                      isDisabled={!periodSummary}
-                      operatorName={user?.displayName || 'operador'} 
-                    />
                 </div>
             </header>
             <main className="grid grid-cols-1 md:grid-cols-2 gap-8">
