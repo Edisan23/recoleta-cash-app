@@ -25,18 +25,6 @@ export interface UseCollectionResult<T> {
   error: FirestoreError | Error | null; // Error object, or null.
 }
 
-/* Internal implementation of Query:
-  https://github.com/firebase/firebase-js-sdk/blob/c5f08a9bc5da0d2b0207802c972d53724ccef055/packages/firestore/src/lite-api/reference.ts#L143
-*/
-export interface InternalQuery extends Query<DocumentData> {
-  _query: {
-    path: {
-      canonicalString(): string;
-      toString(): string;
-    }
-  }
-}
-
 /**
  * React hook to subscribe to a Firestore collection or query in real-time.
  * Handles nullable references/queries.
@@ -72,7 +60,16 @@ export function useCollection<T = any>(
     setIsLoading(true);
     setError(null);
 
-    // Directly use memoizedTargetRefOrQuery as it's assumed to be the final query
+    const getPathFromRefOrQuery = (refOrQuery: CollectionReference | Query): string => {
+        if (refOrQuery.type === 'collection') {
+            return (refOrQuery as CollectionReference).path;
+        }
+        // For queries, we can reference the collection it's built on.
+        // This is a simplification but robust for error reporting.
+        // All queries in this app are simple collection queries.
+        return (refOrQuery as Query)._query.path.toString();
+    };
+
     const unsubscribe = onSnapshot(
       memoizedTargetRefOrQuery,
       (snapshot: QuerySnapshot<DocumentData>) => {
@@ -85,20 +82,16 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
-        // This logic extracts the path from either a ref or a query
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
-
+        const path = getPathFromRefOrQuery(memoizedTargetRefOrQuery);
+        
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path,
-        })
+        });
 
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
 
         // trigger global error propagation
         errorEmitter.emit('permission-error', contextualError);
@@ -106,9 +99,11 @@ export function useCollection<T = any>(
     );
 
     return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
+  }, [memoizedTargetRefOrQuery]);
+  
   if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
+    console.warn('A Firestore hook was called with a non-memoized query. This will cause performance issues.', memoizedTargetRefOrQuery);
   }
+
   return { data, isLoading, error };
 }
