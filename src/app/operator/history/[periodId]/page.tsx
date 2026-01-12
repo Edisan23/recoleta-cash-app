@@ -7,17 +7,15 @@ import { LogoSpinner } from '@/components/LogoSpinner';
 import type { Shift, Company, CompanySettings, PayrollSummary, Benefit, Deduction, CompanyItem } from '@/types/db-entities';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { calculatePeriodSummary, calculateShiftSummary, getPeriodDateRange } from '@/lib/payroll-calculator';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { PayrollBreakdown } from '@/components/operator/PayrollBreakdown';
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
 import { PayrollVoucher } from '@/components/operator/PayrollVoucher';
-import { useReactToPrint } from 'react-to-print';
-import { useToast } from '@/hooks/use-toast';
+import { PrintVoucherButton } from '@/components/operator/PrintVoucherButton';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -103,7 +101,6 @@ export default function HistoryDetailPage() {
     const params = useParams();
     const firestore = useFirestore();
     const { user, isUserLoading: isUserAuthLoading } = useUser();
-    const { toast } = useToast();
     const voucherRef = useRef<HTMLDivElement>(null);
 
     const [companyId, setCompanyId] = useState<string | null>(null);
@@ -189,14 +186,6 @@ export default function HistoryDetailPage() {
     
     }, [selectedDay, allShifts, settings, holidays]);
 
-     const handlePrint = useReactToPrint({
-      content: () => voucherRef.current,
-      documentTitle: `comprobante-de-pago-${user?.displayName?.replace(/\s/g, '-').toLowerCase() || 'operador'}`,
-      onAfterPrint: () => toast({ title: "Comprobante generado", description: "Tu comprobante se ha descargado."}),
-      onPrintError: () => toast({ variant: 'destructive', title: 'Error', description: 'No se pudo generar el comprobante.'}),
-    });
-
-
     if (isLoading || !periodSummary) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
@@ -224,20 +213,21 @@ export default function HistoryDetailPage() {
 
             <header className="flex items-center justify-between mb-8">
                 <div>
-                    <Button variant="ghost" onClick={() => router.push('/operator/history')} className="mb-4">
-                        <ArrowLeft className="mr-2" />
+                    <button onClick={() => router.push('/operator/history')} className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 p-1 -ml-1">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
                         Volver a Períodos
-                    </Button>
+                    </button>
                     <h1 className="text-3xl font-bold">Detalle del Período</h1>
                     <p className="text-muted-foreground capitalize text-lg">
                         {format(period.start, "d 'de' MMMM", { locale: es })} - {format(period.end, "d 'de' MMMM, yyyy", { locale: es })}
                     </p>
                 </div>
                  <div>
-                    <Button onClick={handlePrint} disabled={!periodSummary}>
-                        <Download className="mr-2 h-4 w-4" />
-                        Descargar Comprobante
-                    </Button>
+                    <PrintVoucherButton 
+                      voucherRef={voucherRef} 
+                      isDisabled={!periodSummary}
+                      operatorName={user?.displayName || 'operador'} 
+                    />
                 </div>
             </header>
             <main className="grid grid-cols-1 md:grid-cols-2 gap-8">
