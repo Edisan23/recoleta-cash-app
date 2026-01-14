@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss"
 
 const config = {
@@ -7,8 +6,9 @@ const config = {
     './pages/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
     './app/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}'
-	],
+    './src/**/*.{ts,tsx}',
+  ],
+  prefix: "",
   theme: {
     container: {
       center: true,
