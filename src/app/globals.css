@@ -10,7 +10,7 @@
     --card-foreground: hsl(262 52% 10%);
     --popover: hsl(264 84% 97%);
     --popover-foreground: hsl(262 52% 10%);
-    --primary: hsl(262 52% 47%);
+    --primary: hsl(var(--user-primary-hue, 262) 52% 47%);
     --primary-foreground: hsl(264 84% 97%);
     --secondary: hsl(264 84% 91%);
     --secondary-foreground: hsl(262 52% 10%);
@@ -22,7 +22,7 @@
     --destructive-foreground: hsl(0 0% 100%);
     --border: hsl(264 84% 85%);
     --input: hsl(264 84% 85%);
-    --ring: hsl(262 52% 47%);
+    --ring: hsl(var(--user-primary-hue, 262) 52% 47%);
     --radius: 0.5rem;
   }
  
@@ -33,7 +33,7 @@
     --card-foreground: hsl(264 84% 98%);
     --popover: hsl(262 52% 10%);
     --popover-foreground: hsl(264 84% 98%);
-    --primary: hsl(264 84% 98%);
+    --primary: hsl(var(--user-primary-hue, 264) 84% 98%);
     --primary-foreground: hsl(262 52% 10%);
     --secondary: hsl(262 52% 20%);
     --secondary-foreground: hsl(264 84% 98%);
@@ -45,7 +45,7 @@
     --destructive-foreground: hsl(0 0% 100%);
     --border: hsl(262 52% 20%);
     --input: hsl(262 52% 20%);
-    --ring: hsl(336 78% 60%);
+    --ring: hsl(var(--user-primary-hue, 336) 78% 60%);
   }
 }
 
