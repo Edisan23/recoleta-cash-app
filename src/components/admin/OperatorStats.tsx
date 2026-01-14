@@ -40,17 +40,7 @@ export function OperatorStats({ user }: OperatorStatsProps) {
     const isLoading = profilesLoading || companiesLoading || shiftsLoading;
 
     useEffect(() => {
-        if (profilesLoading || companiesLoading || shiftsLoading) return;
-        if (!profiles || !companies || !allShifts) {
-             // Handle case where data is not available yet, maybe set a default state
-            setStats({
-                totalOperators: profiles?.filter(p => p.role === 'operator').length || 0,
-                anonymousCount: profiles?.filter(p => p.role === 'operator' && p.isAnonymous).length || 0,
-                googleCount: profiles?.filter(p => p.role === 'operator' && !p.isAnonymous).length || 0,
-                operatorsByCompany: {},
-            });
-            return;
-        };
+        if (isLoading || !profiles || !companies || !allShifts) return;
 
         try {
             const operators = profiles.filter(p => p.role === 'operator');
@@ -85,7 +75,7 @@ export function OperatorStats({ user }: OperatorStatsProps) {
         } catch (error) {
             console.error("Error calculating stats:", error);
         }
-    }, [profiles, companies, allShifts, profilesLoading, companiesLoading, shiftsLoading]);
+    }, [profiles, companies, allShifts, isLoading]);
 
     if (isLoading) {
         return (
@@ -179,5 +169,3 @@ export function OperatorStats({ user }: OperatorStatsProps) {
         </Card>
     );
 }
-
-    
