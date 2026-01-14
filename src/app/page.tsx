@@ -13,7 +13,7 @@ export default function HomePage() {
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
-    // Solo redirigir si la carga ha terminado y hay un usuario
+    // Only redirect if loading is finished and there is a user.
     if (!isUserLoading && user) {
       const companyId = localStorage.getItem(OPERATOR_COMPANY_KEY);
       if (companyId) {
@@ -24,8 +24,8 @@ export default function HomePage() {
     }
   }, [user, isUserLoading, router]);
 
-  // Muestra un spinner mientras se verifica el estado de autenticación
-  if (isUserLoading || user) {
+  // While checking auth state, show a spinner. This is the first gate.
+  if (isUserLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
@@ -33,6 +33,16 @@ export default function HomePage() {
     );
   }
 
-  // Si no hay usuario y la carga ha finalizado, muestra la página de bienvenida
+  // After loading, if there's a user, we're in the process of redirecting.
+  // Keep showing the spinner to avoid a flash of the landing page.
+  if (user) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center">
+            <LogoSpinner />
+        </div>
+    );
+  }
+  
+  // If loading is finished and there's no user, show the landing page.
   return <LandingPage />;
 }
