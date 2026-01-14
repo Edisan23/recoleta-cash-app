@@ -6,33 +6,33 @@
   :root {
     --user-primary-hue: 265; /* Default hue (Deep Purple) */
 
-    --background: var(--user-primary-hue) 50% 96%;
-    --foreground: var(--user-primary-hue) 20% 25%;
+    --background: hsl(var(--user-primary-hue) 50% 96%);
+    --foreground: hsl(var(--user-primary-hue) 20% 25%);
 
-    --card: var(--user-primary-hue) 50% 100% / 0.8;
-    --card-foreground: var(--user-primary-hue) 20% 25%;
+    --card: hsl(var(--user-primary-hue) 50% 100% / 0.8);
+    --card-foreground: hsl(var(--user-primary-hue) 20% 25%);
  
-    --popover: var(--user-primary-hue) 50% 100%;
-    --popover-foreground: var(--user-primary-hue) 20% 25%;
+    --popover: hsl(var(--user-primary-hue) 50% 100%);
+    --popover-foreground: hsl(var(--user-primary-hue) 20% 25%);
  
-    --primary: var(--user-primary-color, 265 53% 41%); /* Deep Purple */
-    --primary-foreground: 300 100% 98%;
+    --primary: hsl(var(--user-primary-color, 265 53% 41%)); /* Deep Purple */
+    --primary-foreground: hsl(300 100% 98%);
  
-    --secondary: var(--user-primary-hue) 50% 90%;
-    --secondary-foreground: var(--user-primary-color, 265 53% 41%);
+    --secondary: hsl(var(--user-primary-hue) 50% 90%);
+    --secondary-foreground: hsl(var(--user-primary-color, 265 53% 41%));
  
-    --muted: var(--user-primary-hue) 50% 90%;
-    --muted-foreground: var(--user-primary-hue) 15% 50%;
+    --muted: hsl(var(--user-primary-hue) 50% 90%);
+    --muted-foreground: hsl(var(--user-primary-hue) 15% 50%);
  
-    --accent: 336 78% 50%; /* Pink */
-    --accent-foreground: 300 100% 98%;
+    --accent: hsl(336 78% 50%); /* Pink */
+    --accent-foreground: hsl(300 100% 98%);
  
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: hsl(0 84.2% 60.2%);
+    --destructive-foreground: hsl(0 0% 98%);
 
-    --border: var(--user-primary-hue) 30% 85%;
-    --input: var(--user-primary-hue) 30% 90%;
-    --ring: var(--user-primary-color, 265 53% 41%);
+    --border: hsl(var(--user-primary-hue) 30% 85%);
+    --input: hsl(var(--user-primary-hue) 30% 90%);
+    --ring: hsl(var(--user-primary-color, 265 53% 41%));
  
     --radius: 0.5rem;
   }
@@ -40,33 +40,33 @@
   .dark {
     --user-primary-hue: 265; /* Default hue (Deep Purple) */
     
-    --background: var(--user-primary-hue) 15% 10%;
-    --foreground: var(--user-primary-hue) 20% 95%;
+    --background: hsl(var(--user-primary-hue) 15% 10%);
+    --foreground: hsl(var(--user-primary-hue) 20% 95%);
 
-    --card: var(--user-primary-hue) 15% 15% / 0.8;
-    --card-foreground: var(--user-primary-hue) 20% 95%;
+    --card: hsl(var(--user-primary-hue) 15% 15% / 0.8);
+    --card-foreground: hsl(var(--user-primary-hue) 20% 95%);
 
-    --popover: var(--user-primary-hue) 15% 10%;
-    --popover-foreground: var(--user-primary-hue) 20% 95%;
+    --popover: hsl(var(--user-primary-hue) 15% 10%);
+    --popover-foreground: hsl(var(--user-primary-hue) 20% 95%);
 
-    --primary: var(--user-primary-color, 265 63% 61%); /* Lighter Deep Purple for dark mode */
-    --primary-foreground: 270 20% 10%;
+    --primary: hsl(var(--user-primary-color, 265 63% 61%)); /* Lighter Deep Purple for dark mode */
+    --primary-foreground: hsl(270 20% 10%);
 
-    --secondary: var(--user-primary-hue) 15% 25%;
-    --secondary-foreground: var(--user-primary-hue) 20% 95%;
+    --secondary: hsl(var(--user-primary-hue) 15% 25%);
+    --secondary-foreground: hsl(var(--user-primary-hue) 20% 95%);
 
-    --muted: var(--user-primary-hue) 15% 25%;
-    --muted-foreground: var(--user-primary-hue) 15% 60%;
+    --muted: hsl(var(--user-primary-hue) 15% 25%);
+    --muted-foreground: hsl(var(--user-primary-hue) 15% 60%);
 
-    --accent: 336 88% 70%; /* Lighter Pink for dark mode */
-    --accent-foreground: 270 20% 10%;
+    --accent: hsl(336 88% 70%); /* Lighter Pink for dark mode */
+    --accent-foreground: hsl(270 20% 10%);
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: hsl(0 62.8% 30.6%);
+    --destructive-foreground: hsl(0 0% 98%);
 
-    --border: var(--user-primary-hue) 15% 30%;
-    --input: var(--user-primary-hue) 15% 25%;
-    --ring: var(--user-primary-color, 265 63% 61%);
+    --border: hsl(var(--user-primary-hue) 15% 30%);
+    --input: hsl(var(--user-primary-hue) 15% 25%);
+    --ring: hsl(var(--user-primary-color, 265 63% 61%));
   }
 }
  
