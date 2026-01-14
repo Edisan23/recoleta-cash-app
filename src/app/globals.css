@@ -7,7 +7,7 @@
     --user-primary-hue: 265; /* Default hue (Deep Purple) */
 
     --background: var(--user-primary-hue) 50% 96%;
-    --foreground: var(--user-primary-hue) 20% 25%;
+    --foreground: var(--user-primar-pruney-hue) 20% 25%;
 
     --card: var(--user-primary-hue) 50% 100% / 0.8;
     --card-foreground: var(--user-primary-hue) 20% 25%;
