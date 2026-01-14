@@ -7,7 +7,7 @@ import { LogoSpinner } from '@/components/LogoSpinner';
 import type { Shift, Company, CompanySettings, PayrollSummary } from '@/types/db-entities';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isWithinInterval as isWithinIntervalFns } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { calculatePeriodSummary, calculateShiftSummary } from '@/lib/payroll-calculator';
 import { ArrowLeft } from 'lucide-react';
@@ -248,8 +248,9 @@ export default function HistoryDetailPage() {
                                 mode="single"
                                 selected={selectedDay}
                                 onSelect={setSelectedDay}
-                                month={period.start}
-                                disabled={(date) => date < period.start || date > period.end }
+                                fromDate={period.start}
+                                toDate={period.end}
+                                defaultMonth={period.start}
                                 modifiers={{ highlighted: shiftDaysInPeriod }}
                                 modifiersClassNames={{ highlighted: 'bg-primary/20 rounded-full' }}
                                 locale={es}

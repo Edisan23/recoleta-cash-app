@@ -35,10 +35,9 @@ export default function HolidaysPage() {
     try {
       const batch = writeBatch(firestore);
       
-      // Delete old holidays
-      holidaysData?.forEach(h => {
-        const docRef = doc(firestore, 'holidays', h.id);
-        batch.delete(docRef);
+      const existingHolidays = await getDocs(collection(firestore, 'holidays'));
+      existingHolidays.forEach(doc => {
+        batch.delete(doc.ref);
       });
 
       // Add new holidays
@@ -57,31 +56,9 @@ export default function HolidaysPage() {
   };
 
   const handleDateSelect = (dates: Date[] | undefined) => {
-    if (!dates) {
-        dates = [];
-    }
-
-    const previouslySelectedCount = holidays.length;
-    const currentlySelectedCount = dates.length;
-
-    // Determine if a date was added or removed
-    if (currentlySelectedCount > previouslySelectedCount) {
-        // Date added
-        const newDate = dates.find(d => !holidays.some(h => isSameDay(h, d)));
-        if (newDate) {
-            toast({ title: "Feriado agregado", description: `Se añadió el ${format(newDate, 'PPP', { locale: es })}.` });
-        }
-    } else {
-        // Date removed
-        const removedDate = holidays.find(h => !dates.some(d => isSameDay(h, d)));
-        if (removedDate) {
-            toast({ title: "Feriado eliminado", description: `Se quitó el ${format(removedDate, 'PPP', { locale: es })}.` });
-        }
-    }
-
-    const updatedHolidays = dates.map(d => startOfDay(d)).sort((a, b) => a.getTime() - b.getTime());
-    setHolidays(updatedHolidays);
-    saveHolidaysToFirestore(updatedHolidays);
+    const newHolidays = dates || [];
+    setHolidays(newHolidays);
+    saveHolidaysToFirestore(newHolidays);
   };
 
   const handleRemoveHoliday = (dateToRemove: Date) => {
