@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -188,6 +189,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       userError: userState.userError,
     };
   }, [firebaseApp, firestore, auth, storage, userState]);
+  
+  // Apply theme based on the userProfile in the context.
+  // This effect runs on the client after hydration and whenever the user profile changes.
+  useEffect(() => {
+    applyThemeColor(contextValue.userProfile?.themeColor);
+  }, [contextValue.userProfile]);
   
   // If services are not yet available (e.g., during initial client-side init), show a loader.
   if (!contextValue.areServicesAvailable) {
