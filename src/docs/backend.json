@@ -28,10 +28,6 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the user account was created."
-        },
-        "themeColor": {
-            "type": "string",
-            "description": "The user's preferred theme color in hex format."
         }
       },
       "required": ["id", "name", "email", "createdAt"]
@@ -58,10 +54,6 @@
         "isActive": {
             "type": "boolean",
             "description": "Whether the company is active or not."
-        },
-        "themeColor": {
-            "type": "string",
-            "description": "A hex color code for the company's theme."
         }
       },
       "required": ["id", "name", "isActive"]

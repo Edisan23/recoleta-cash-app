@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Repeat, History, ShieldAlert, X, Palette, Brush, Zap } from 'lucide-react';
+import { LogOut, Repeat, History, ShieldAlert, X, Zap } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,9 +22,6 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
 import { addDays, isAfter, parseISO, differenceInDays } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Label } from './ui/label';
-import { Input } from './ui/input';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -222,27 +219,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         router.replace('/select-company');
     };
 
-    const handleThemeColorChange = async (color: string | null) => {
-        if (!firestore || !user) return;
-        const userDocRef = doc(firestore, 'users', user.uid);
-        try {
-            await updateDoc(userDocRef, { themeColor: color });
-             toast({
-                title: 'Tema Actualizado',
-                description: color ? 'Se ha aplicado tu nuevo color.' : 'Se ha restaurado el color por defecto.',
-            });
-            // The global UserThemeProvider will automatically pick up the change.
-        } catch (error) {
-            console.error("Failed to save theme color", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'No se pudo guardar el color del tema.',
-            });
-        }
-    };
-
-
     if (isLoading || !user) {
       return (
           <div className="flex h-screen w-full items-center justify-center">
@@ -308,29 +284,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </h1>
             </div>
             <div className="flex items-center gap-2">
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" size="icon" title="Personalizar Color">
-                            <Palette />
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-4">
-                        <div className="flex flex-col gap-4 items-center">
-                            <Label htmlFor="theme-color">Color Primario</Label>
-                            <Input 
-                                id="theme-color"
-                                type="color" 
-                                className="h-10 w-20 p-1"
-                                defaultValue={userProfile?.themeColor || '#6d28d9'}
-                                onChange={(e) => handleThemeColorChange(e.target.value)}
-                            />
-                             <Button variant="ghost" size="sm" onClick={() => handleThemeColorChange(null)}>
-                                <Brush className="mr-2 h-4 w-4" />
-                                Restaurar por defecto
-                            </Button>
-                        </div>
-                    </PopoverContent>
-                </Popover>
                 <ThemeToggle />
                 <Button variant="outline" size="icon" onClick={() => router.push('/operator/history')} title="Ver Historial">
                     <History />

@@ -73,7 +73,6 @@ export function CreateCompanyDialog({ onCompanyCreated }: CreateCompanyDialogPro
         name: companyName,
         logoUrl: logoPreview || 'https://placehold.co/100x100/e2e8f0/64748b?text=Logo',
         isActive: true,
-        themeColor: '#2563eb' // Default theme color
     };
 
     await onCompanyCreated(newCompanyData);

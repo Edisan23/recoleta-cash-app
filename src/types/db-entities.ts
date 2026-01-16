@@ -19,7 +19,6 @@ export type User = {
     role: "operator" | "admin";
     createdAt: string; // Simplified to string to avoid build issues.
     premiumUntil?: string; // ISO Date string for when premium access expires
-    themeColor?: string; // User's preferred theme color (hex)
   }
   
   export type Company = {
@@ -27,7 +26,6 @@ export type User = {
     name: string; // The name of the company.
     logoUrl?: string; // URL of the company's logo.
     isActive: boolean; // Whether the company is active or not.
-    themeColor?: string; // A hex color code for the company's theme.
   };
 
   export type CompanySettings = {
