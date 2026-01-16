@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from 'react';
 import type { UserProfile } from '@/types/db-entities';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getInitials } from '@/lib/utils';
+import { getInitials, toDate } from '@/lib/utils';
 import { Users, MoreHorizontal, Search, Trash2, CheckCircle, XCircle, ShieldCheck } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -58,8 +58,8 @@ export function OperatorTable({ user }: OperatorTableProps) {
 
     const filteredOperators = useMemo(() => {
         const sortedOperators = [...operators].sort((a, b) => {
-            const dateA = getCreatedAtDate(a);
-            const dateB = getCreatedAtDate(b);
+            const dateA = toDate(a.createdAt);
+            const dateB = toDate(b.createdAt);
             if (!dateA || !dateB || !isValid(dateA) || !isValid(dateB)) return 0;
             return dateB.getTime() - dateA.getTime();
         });
@@ -77,7 +77,9 @@ export function OperatorTable({ user }: OperatorTableProps) {
         if (!firestore) return;
         const userDocRef = doc(firestore, 'users', userId);
         
-        const isCurrentlyPremium = currentPremiumUntil && isAfter(parseISO(currentPremiumUntil), new Date());
+        const premiumUntilDate = toDate(currentPremiumUntil);
+        const isCurrentlyPremium = premiumUntilDate && isAfter(premiumUntilDate, new Date());
+        
         const newPremiumUntil = isCurrentlyPremium ? new Date().toISOString() : null; // Set to now to expire, or null for lifetime
 
         try {
@@ -160,8 +162,8 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                 </TableRow>
                             ) : filteredOperators.length > 0 ? (
                                 filteredOperators.map((op) => {
-                                    const createdAtDate = getCreatedAtDate(op);
-                                    const premiumUntilDate = op.premiumUntil ? parseISO(op.premiumUntil) : null;
+                                    const createdAtDate = toDate(op.createdAt);
+                                    const premiumUntilDate = toDate(op.premiumUntil);
                                     const isPremiumActive = op.premiumUntil === null || (premiumUntilDate && isAfter(premiumUntilDate, new Date()));
 
                                     return (
@@ -246,19 +248,3 @@ export function OperatorTable({ user }: OperatorTableProps) {
         </Card>
     );
 }
-
-function getCreatedAtDate (profile: UserProfile): Date | null {
-    if (!profile.createdAt) return null;
-    if (typeof (profile.createdAt as any).toDate === 'function') {
-        return (profile.createdAt as any).toDate();
-    }
-    if (typeof profile.createdAt === 'string') {
-        const parsed = parseISO(profile.createdAt);
-        return isValid(parsed) ? parsed : null;
-    }
-    return null;
-}
-    
-
-    
-

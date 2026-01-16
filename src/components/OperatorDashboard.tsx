@@ -22,6 +22,7 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
 import { addDays, isAfter, parseISO, differenceInDays } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { toDate } from '@/lib/utils';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -135,8 +136,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     if (!userProfile || !settings) return;
 
     // Check Premium status first
-    if (userProfile.premiumUntil) {
-        const premiumEndDate = parseISO(userProfile.premiumUntil);
+    const premiumEndDate = toDate(userProfile.premiumUntil);
+    if (premiumEndDate) {
         const daysRemaining = differenceInDays(premiumEndDate, new Date());
         
         if (isAfter(premiumEndDate, new Date())) {
@@ -152,7 +153,9 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
     // If not premium, check Trial status
     const trialDays = settings.trialPeriodDays ?? 30;
-    const createdAt = parseISO(userProfile.createdAt);
+    const createdAt = toDate(userProfile.createdAt);
+    if (!createdAt) return; // Can't determine trial status
+
     const trialEndDate = addDays(createdAt, trialDays);
     const daysRemaining = differenceInDays(trialEndDate, new Date());
     
