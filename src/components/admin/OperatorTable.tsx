@@ -19,7 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { format, isValid, parseISO, isAfter } from 'date-fns';
+import { format, isValid, isAfter } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
     DropdownMenu,
