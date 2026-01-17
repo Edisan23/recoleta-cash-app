@@ -1,21 +1,9 @@
 import type { Metadata } from "next";
-import { Playfair_Display, PT_Sans } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseProviderWrapper } from "@/firebase/client-provider";
 import { ThemeProvider } from "@/components/theme-provider";
-
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  variable: "--font-playfair",
-});
-const ptSans = PT_Sans({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-pt-sans",
-});
 
 export const metadata: Metadata = {
   title: "Turno Pro",
@@ -32,9 +20,7 @@ export default function RootLayout({
     <html lang="es" suppressHydrationWarning>
        <body
         className={cn(
-          "min-h-screen bg-background font-sans antialiased",
-          playfair.variable,
-          ptSans.variable
+          "min-h-screen bg-background font-sans antialiased"
         )}
       >
         <ThemeProvider

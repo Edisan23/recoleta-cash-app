@@ -1,16 +1,9 @@
 {
   "name": "Turno Pro",
-  "short_name": "Turno Pro",
-  "description": "Shift and Payroll Management",
+  "short_name": "TurnoPro",
+  "description": "Gestiona y visualiza tus cobros de forma sencilla.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#1e3a8a",
-  "icons": [
-    {
-      "src": "icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    }
-  ]
+  "theme_color": "#000000"
 }
