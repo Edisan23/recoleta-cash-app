@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import { Toaster } from "@/components/ui/toaster";
-import { FirebaseProviderWrapper } from "@/firebase/client-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { FirebaseProviderWrapper } from "@/firebase/client-provider";
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "Turno Pro",
@@ -18,21 +18,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" suppressHydrationWarning>
-       <body
+      <body
         className={cn(
           "min-h-screen bg-background font-sans antialiased"
         )}
       >
         <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
         >
           <FirebaseProviderWrapper>
-              {children}
+            {children}
+            <Toaster />
           </FirebaseProviderWrapper>
-          <Toaster />
         </ThemeProvider>
       </body>
     </html>
