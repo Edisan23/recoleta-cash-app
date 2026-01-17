@@ -7,7 +7,7 @@ import { LogoSpinner } from '@/components/LogoSpinner';
 import type { Shift, Company, CompanySettings, PayrollSummary } from '@/types/db-entities';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { format, parseISO, isWithinInterval as isWithinIntervalFns } from 'date-fns';
+import { format, isWithinInterval as isWithinIntervalFns } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { calculatePeriodSummary, calculateShiftSummary } from '@/lib/payroll-calculator';
 import { ArrowLeft } from 'lucide-react';
@@ -104,11 +104,12 @@ export default function HistoryDetailPage() {
     const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
 
     const periodId = params.periodId as string;
-    const [startStr, endStr] = periodId.split('_');
+    const [startStr, endStr] = periodId ? periodId.split('_') : [null, null];
 
     const period = useMemo(() => {
-        const start = parseISO(`${startStr}T00:00:00`);
-        const end = parseISO(`${endStr}T23:59:59`);
+        if (!startStr || !endStr) return { start: new Date(), end: new Date() };
+        const start = new Date(`${startStr}T00:00:00`);
+        const end = new Date(`${endStr}T23:59:59`);
         return { start, end };
     }, [startStr, endStr]);
 
