@@ -295,7 +295,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     {user?.isAnonymous ? 'OP' : (user?.displayName ? getInitials(user.displayName) : 'U')}
                 </AvatarFallback>
               </Avatar>
-              <div className="text-left sm:hidden">
+              <div className="text-left">
                   <p className="font-semibold">{user?.isAnonymous ? 'Operador Anónimo' : user?.displayName || 'Usuario'}</p>
                   <p className="text-sm text-muted-foreground">Operador</p>
               </div>
@@ -303,7 +303,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
             {company && (
               <div className="flex items-center gap-3 text-right">
-                  <div className="text-right sm:hidden">
+                  <div className="text-right">
                         <p className="font-semibold">{company.name}</p>
                         <p className="text-sm text-muted-foreground">Empresa</p>
                     </div>
