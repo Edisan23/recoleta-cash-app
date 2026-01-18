@@ -61,6 +61,19 @@ function HistoryDayDetail({ summary, shiftsForDay }: { summary: Omit<PayrollSumm
                                 <p className="text-xl font-bold text-green-600">{formatCurrency(summary.grossPay)}</p>
                             </div>
                         </div>
+
+                        <div className="space-y-2 text-sm p-3 bg-muted/50 rounded-md mb-4">
+                            <h4 className="font-semibold mb-1">Turnos Registrados</h4>
+                            {shiftsForDay.map((shift, index) => (
+                                <div key={shift.id || index} className="flex justify-between items-center border-b border-dashed pb-1 last:border-b-0 last:pb-0">
+                                    <span className="text-muted-foreground">
+                                        {shiftsForDay.length > 1 ? `Turno ${index + 1}`: 'Horario'}
+                                    </span>
+                                    <span className="font-mono font-semibold">{shift.startTime} - {shift.endTime}</span>
+                                </div>
+                            ))}
+                        </div>
+
                         <PayrollBreakdown summary={summary} />
 
                         {(allItemDetails.length > 0 || allNotes.length > 0) && (
