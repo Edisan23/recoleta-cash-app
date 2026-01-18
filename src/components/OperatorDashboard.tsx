@@ -20,7 +20,7 @@ import { InstallPwaPrompt } from './operator/InstallPwaPrompt';
 import { collection, doc, query, where, setDoc, updateDoc } from 'firebase/firestore';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
-import { addDays, isAfter, differenceInDays } from 'date-fns';
+import { addDays, isAfter, differenceInDays, startOfDay } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { toDate } from '@/lib/utils';
 
@@ -138,7 +138,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     // Check Premium status first
     const premiumEndDate = toDate(userProfile.premiumUntil);
     if (premiumEndDate) {
-        const daysRemaining = differenceInDays(premiumEndDate, new Date());
+        const daysRemaining = differenceInDays(startOfDay(premiumEndDate), startOfDay(new Date()));
         
         if (isAfter(premiumEndDate, new Date())) {
             setIsPremium(true);
@@ -156,10 +156,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     const createdAt = toDate(userProfile.createdAt);
     if (!createdAt) return; // Can't determine trial status
 
-    const trialEndDate = addDays(createdAt, trialDays);
-    const daysRemaining = differenceInDays(trialEndDate, new Date());
+    const trialStartDate = startOfDay(createdAt); // Start trial from beginning of creation day
+    const trialEndDate = addDays(trialStartDate, trialDays);
     
-    if (isAfter(trialEndDate, new Date())) {
+    const today = startOfDay(new Date());
+    const daysRemaining = differenceInDays(trialEndDate, today);
+    
+    if (isAfter(trialEndDate, new Date())) { // Use new Date() here to check against exact time for expiration
         setIsPremium(false); // In trial, not premium
         setTrialStatus({ expired: false, daysRemaining });
     } else {
