@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { es } from 'date-fns/locale';
 import { format, isSameDay, startOfDay } from 'date-fns';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, writeBatch } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs } from 'firebase/firestore';
 
 export default function HolidaysPage() {
   const router = useRouter();

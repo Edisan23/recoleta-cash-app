@@ -67,7 +67,7 @@ export function useCollection<T = any>(
         // For queries, we can reference the collection it's built on.
         // This is a simplification but robust for error reporting.
         // All queries in this app are simple collection queries.
-        return (refOrQuery as Query)._query.path.toString();
+        return (refOrQuery as any).path?.toString() || 'query-' + Math.random().toString(36).substr(2, 9);
     };
 
     const unsubscribe = onSnapshot(
