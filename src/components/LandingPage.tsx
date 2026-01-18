@@ -44,7 +44,7 @@ export function LandingPage() {
         <div className="flex items-center justify-center gap-2">
             <p>Edward Santiago Riascos Cwl. 3213118124</p>
             <Link href="/admin/login" title="Acceso de Administrador">
-                <LogoIcon className="h-5 w-5 text-muted-foreground hover:text-primary transition-colors" />
+                <LogoIcon className="h-5 w-5 text-primary hover:opacity-75 transition-colors" />
             </Link>
         </div>
       </footer>
