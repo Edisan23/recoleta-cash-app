@@ -14,6 +14,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Textarea } from '../ui/textarea';
+import { PlusCircle, Trash2 } from 'lucide-react';
 
 interface ShiftFormProps {
     selectedDate: Date;
@@ -23,9 +24,13 @@ interface ShiftFormProps {
     companyItems: CompanyItem[];
 }
 
+interface DailyShift {
+    startTime: string;
+    endTime: string;
+}
+
 export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, companyItems }: ShiftFormProps) {
-    const [startTime, setStartTime] = useState('');
-    const [endTime, setEndTime] = useState('');
+    const [dailyShifts, setDailyShifts] = useState<DailyShift[]>([{ startTime: '', endTime: '' }]);
     const [itemDetails, setItemDetails] = useState<Record<string, string>>({});
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -34,38 +39,64 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
     const firestore = useFirestore();
     const { toast } = useToast();
 
-    // When the selected date or shifts for that day change, update the form
     useEffect(() => {
         if (shiftsForDay.length > 0) {
-            const shift = shiftsForDay[0]; // Simplified to handle one shift per day
-            setStartTime(shift.startTime);
-            setEndTime(shift.endTime);
-            const details = shift.itemDetails?.reduce((acc, detail) => {
+            setDailyShifts(shiftsForDay.map(s => ({ startTime: s.startTime, endTime: s.endTime })));
+            
+            const firstShift = shiftsForDay[0];
+            const details = firstShift.itemDetails?.reduce((acc, detail) => {
                 acc[detail.itemId] = detail.detail;
                 return acc;
             }, {} as Record<string, string>) || {};
             setItemDetails(details);
-            setNotes(shift.notes || '');
+            setNotes(firstShift.notes || '');
         } else {
-            // Reset form if there are no shifts for the new date
-            setStartTime('');
-            setEndTime('');
+            setDailyShifts([{ startTime: '', endTime: '' }]);
             setItemDetails({});
             setNotes('');
         }
-    }, [shiftsForDay, selectedDate]);
+    }, [shiftsForDay]);
+
+    const handleShiftTimeChange = (index: number, field: 'startTime' | 'endTime', value: string) => {
+        const newShifts = [...dailyShifts];
+        newShifts[index][field] = value;
+        setDailyShifts(newShifts);
+    };
+
+    const addShift = () => {
+        setDailyShifts([...dailyShifts, { startTime: '', endTime: '' }]);
+    };
+
+    const removeShift = (index: number) => {
+        const newShifts = dailyShifts.filter((_, i) => i !== index);
+        setDailyShifts(newShifts);
+    };
 
     const handleItemDetailChange = (itemId: string, value: string) => {
         setItemDetails(prev => ({...prev, [itemId]: value}));
     };
 
+    const hasShifts = shiftsForDay.length > 0;
+
     const handleSave = async () => {
         if (!firestore) return;
-        if (!startTime || !endTime) {
+        
+        const shiftsToSave = dailyShifts.filter(s => s.startTime && s.endTime);
+
+        if (shiftsToSave.length === 0 && !hasShifts) {
             toast({
                 variant: 'destructive',
                 title: 'Campos requeridos',
-                description: 'Por favor, ingresa la hora de entrada y salida.',
+                description: 'Por favor, ingresa al menos un turno completo (entrada y salida).',
+            });
+            return;
+        }
+
+        if (shiftsToSave.some(s => !s.startTime || !s.endTime)) {
+            toast({
+                variant: 'destructive',
+                title: 'Campos incompletos',
+                description: 'Por favor, completa la hora de entrada y salida para todos los turnos.',
             });
             return;
         }
@@ -74,7 +105,6 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
         try {
             const batch = writeBatch(firestore);
             
-            // Delete existing shifts for the day
             if (shiftsForDay.length > 0) {
                 for (const shift of shiftsForDay) {
                     const shiftDocRef = doc(firestore, 'companies', companyId, 'shifts', shift.id);
@@ -82,36 +112,43 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                 }
             }
 
-            // Add new shift
-            const newShift: Omit<Shift, 'id'> = {
-                userId,
-                companyId,
-                date: selectedDate.toISOString(),
-                startTime,
-                endTime,
-                notes: notes,
-                itemDetails: companyItems.map(item => ({
-                    itemId: item.id,
-                    itemName: item.name,
-                    detail: itemDetails[item.id] || ''
-                })).filter(detail => detail.detail) // Only save details that have a value
-            };
-
-            const newShiftRef = doc(collection(firestore, 'companies', companyId, 'shifts'));
-            batch.set(newShiftRef, newShift);
+            for (const shiftData of shiftsToSave) {
+                 const newShift: Omit<Shift, 'id'> = {
+                    userId,
+                    companyId,
+                    date: selectedDate.toISOString(),
+                    startTime: shiftData.startTime,
+                    endTime: shiftData.endTime,
+                    notes: notes,
+                    itemDetails: companyItems.map(item => ({
+                        itemId: item.id,
+                        itemName: item.name,
+                        detail: itemDetails[item.id] || ''
+                    })).filter(detail => detail.detail)
+                };
+                const newShiftRef = doc(collection(firestore, 'companies', companyId, 'shifts'));
+                batch.set(newShiftRef, newShift);
+            }
 
             await batch.commit();
             
-            toast({
-                title: hasShift ? 'Turno Actualizado' : 'Turno Guardado',
-                description: `Tu turno ha sido ${hasShift ? 'actualizado' : 'registrado'} correctamente.`,
-            });
+            if (shiftsToSave.length > 0) {
+                toast({
+                    title: hasShifts ? 'Turnos Actualizados' : 'Turnos Guardados',
+                    description: `Tus turnos han sido ${hasShifts ? 'actualizados' : 'registrados'} correctamente.`,
+                });
+            } else {
+                 toast({
+                    title: 'Turnos Eliminados',
+                    description: 'Todos los turnos para este día han sido eliminados.',
+                });
+            }
         } catch (error) {
-            console.error("Error saving shift: ", error);
+            console.error("Error saving shifts: ", error);
             toast({
                 variant: 'destructive',
                 title: 'Error',
-                description: 'No se pudo guardar el turno.',
+                description: 'No se pudieron guardar los turnos.',
             });
         } finally {
             setIsSaving(false);
@@ -131,11 +168,10 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
             await batch.commit();
             
             toast({
-                title: 'Turno Eliminado',
-                description: 'El turno para este día ha sido eliminado.',
+                title: 'Turnos Eliminados',
+                description: 'Todos los turnos para este día han sido eliminados.',
             });
-            setStartTime(''); // Clear form
-            setEndTime('');
+            setDailyShifts([{ startTime: '', endTime: '' }]);
             setItemDetails({});
             setNotes('');
         } catch (error) {
@@ -150,26 +186,53 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
         }
     }
 
-    const hasShift = shiftsForDay.length > 0;
-
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Registro de Actividades</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                    <TimeInput
-                        label="Hora de Entrada"
-                        value={startTime}
-                        onChange={setStartTime}
-                    />
-                    <TimeInput
-                        label="Hora de Salida"
-                        value={endTime}
-                        onChange={setEndTime}
-                    />
+            <CardContent className="space-y-4">
+                <div className="space-y-4">
+                    {dailyShifts.map((shift, index) => (
+                        <div key={index} className="grid grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-muted/50">
+                            <div className="col-span-12 sm:col-span-5">
+                                <TimeInput
+                                    label={`Entrada Turno ${index + 1}`}
+                                    value={shift.startTime}
+                                    onChange={(value) => handleShiftTimeChange(index, 'startTime', value)}
+                                />
+                            </div>
+                            <div className="col-span-12 sm:col-span-5">
+                                <TimeInput
+                                    label={`Salida Turno ${index + 1}`}
+                                    value={shift.endTime}
+                                    onChange={(value) => handleShiftTimeChange(index, 'endTime', value)}
+                                />
+                            </div>
+                            <div className="col-span-12 sm:col-span-2 flex justify-end">
+                                {dailyShifts.length > 1 && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => removeShift(index)}
+                                        className="text-destructive hover:text-destructive"
+                                        aria-label={`Eliminar Turno ${index + 1}`}
+                                    >
+                                        <Trash2 className="h-5 w-5" />
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    ))}
                 </div>
+
+                <div className="flex justify-start">
+                    <Button variant="outline" onClick={addShift} disabled={isSaving || isDeleting}>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Añadir otro turno
+                    </Button>
+                </div>
+
                  <Accordion type="single" collapsible className="w-full">
                     <AccordionItem value="item-1">
                         <AccordionTrigger>Detalles Adicionales (Opcional)</AccordionTrigger>
@@ -203,17 +266,17 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                 </Accordion>
             </CardContent>
             <CardFooter className="flex justify-end gap-2">
-                {hasShift && (
+                {hasShifts && (
                     <DeleteShiftDialog onConfirm={handleDelete}>
                         <Button variant="destructive" disabled={isDeleting || isSaving}>
                             {isDeleting ? <LogoSpinner className="mr-2" /> : null}
-                            Eliminar Turno
+                            Eliminar Turnos
                         </Button>
                     </DeleteShiftDialog>
                 )}
                 <Button onClick={handleSave} disabled={isSaving || isDeleting}>
                     {isSaving ? <LogoSpinner className="mr-2" /> : null}
-                    {hasShift ? 'Actualizar Turno' : 'Guardar Turno'}
+                    {hasShifts ? 'Actualizar Turnos' : 'Guardar Turnos'}
                 </Button>
             </CardFooter>
         </Card>
