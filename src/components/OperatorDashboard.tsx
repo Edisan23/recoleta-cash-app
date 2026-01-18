@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Repeat, History, ShieldAlert, X, Zap, Palette, Check } from 'lucide-react';
+import { LogOut, Repeat, History, ShieldAlert, X, Zap } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -23,14 +23,6 @@ import { ShiftForm } from './operator/ShiftForm';
 import { addDays, isAfter, differenceInDays, startOfDay } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { toDate, getInitials } from '@/lib/utils';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -38,15 +30,6 @@ const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 function formatCurrency(value: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
-
-// --- THEME ---
-const themes = [
-    { name: 'Azul (Defecto)', value: 'default', color: 'hsl(210 90% 50%)' },
-    { name: 'Verde', value: 'theme-green', color: 'hsl(142.1 76.2% 36.3%)' },
-    { name: 'Violeta', value: 'theme-violet', color: 'hsl(262.1 83.3% 57.8%)' },
-    { name: 'Naranja', value: 'theme-orange', color: 'hsl(24.6 95% 53.1%)' },
-    { name: 'Rosa', value: 'theme-rose', color: 'hsl(346.8 77.2% 49.8%)' },
-];
 
 // --- SUB-COMPONENTS ---
 function UpgradeToPremium({ price }: { price: number }) {
@@ -90,25 +73,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
 
   const [showTrialBanner, setShowTrialBanner] = useState(true);
   const [showPremiumBanner, setShowPremiumBanner] = useState(true);
-
-  const [currentTheme, setCurrentTheme] = useState('default');
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('app-theme') || 'default';
-    setCurrentTheme(savedTheme);
-  }, []);
-
-  useEffect(() => {
-    const themeClasses = themes.map(t => t.value).filter(t => t !== 'default');
-    document.body.classList.remove(...themeClasses);
-    
-    if (currentTheme !== 'default') {
-        document.body.classList.add(currentTheme);
-    }
-    
-    localStorage.setItem('app-theme', currentTheme);
-  }, [currentTheme]);
-
 
   // --- Firestore Data ---
   const companyRef = useMemoFirebase(() => {
@@ -316,26 +280,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </h1>
             </div>
             <div className="flex items-center gap-2">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="icon" title="Cambiar Apariencia">
-                            <Palette />
-                            <span className="sr-only">Cambiar Apariencia</span>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Selecciona un color</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {themes.map(theme => (
-                            <DropdownMenuItem key={theme.value} onSelect={() => setCurrentTheme(theme.value)} className="flex items-center gap-2 cursor-pointer">
-                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: theme.color }} />
-                                <span>{theme.name}</span>
-                                {currentTheme === theme.value && <Check className="ml-auto h-4 w-4" />}
-                            </DropdownMenuItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
                 <ThemeToggle />
                 <Button variant="outline" size="icon" onClick={() => router.push('/operator/history')} title="Ver Historial">
                     <History />
