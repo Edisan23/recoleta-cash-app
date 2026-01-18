@@ -22,7 +22,7 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { ShiftForm } from './operator/ShiftForm';
 import { addDays, isAfter, differenceInDays, startOfDay } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
-import { toDate } from '@/lib/utils';
+import { toDate, getInitials } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,15 +35,6 @@ import {
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
 // --- HELPER FUNCTIONS ---
-function getInitials(name: string) {
-    if (!name) return 'U';
-    const names = name.split(' ');
-    if (names.length > 1) {
-        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-    }
-    return name.substring(0, 2).toUpperCase();
-}
-
 function formatCurrency(value: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
