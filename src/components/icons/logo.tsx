@@ -14,7 +14,7 @@ export function LogoIcon({
     <img
       src="/favicon.svg"
       alt="Logo"
-      className={cn("h-8 w-8 object-contain", className)}
+      className={cn("h-8 w-8 object-contain dark:invert", className)}
       {...props}
     />
   );
