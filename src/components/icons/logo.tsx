@@ -1,14 +1,15 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Truck } from 'lucide-react';
 
 export function LogoIcon({
   className,
   ...props
-}: React.ComponentProps<'svg'>) {
+}: React.ComponentProps<'img'>) {
   return (
-    <Truck
-      className={cn('', className)}
+    <img
+      src="/favicon.ico"
+      alt="Logo"
+      className={cn("h-8 w-8", className)}
       {...props}
     />
   );

@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   title: "Turno Pro",
   description: "Gestiona y visualiza tus cobros de forma sencilla.",
   manifest: "/manifest.json",
+  icons: {
+    icon: '/favicon.ico',
+  },
 };
 
 export default function RootLayout({

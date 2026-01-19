@@ -16,7 +16,7 @@ export function LandingPage() {
 
       <main className="flex-1 flex flex-col items-center justify-center text-center p-4">
         <div className="flex flex-col items-center mb-12">
-          <LogoIcon className="h-16 w-16 text-primary mx-auto mb-6" strokeWidth={1.5}/>
+          <LogoIcon className="h-16 w-16 mx-auto mb-6" />
           <h1 className="text-5xl font-bold mb-4 font-display">Turno Pro</h1>
           <p className="text-xl text-muted-foreground max-w-md mx-auto">
             Plataforma de Gestión de Turnos y Nómina.
@@ -44,7 +44,7 @@ export function LandingPage() {
         <div className="flex items-center justify-center gap-2">
             <p>Edward Santiago Riascos Cwl. 3213118124</p>
             <Link href="/admin/login" title="Acceso de Administrador">
-                <LogoIcon className="h-5 w-5 text-primary hover:opacity-75 transition-colors" />
+                <LogoIcon className="h-5 w-5 hover:opacity-75 transition-colors" />
             </Link>
         </div>
       </footer>
