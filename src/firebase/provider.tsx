@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo, DependencyList } from 'react';
 import { FirebaseApp, initializeApp, getApps, getApp } from 'firebase/app';
-import { Firestore, getFirestore, doc, onSnapshot } from 'firebase/firestore';
+import { Firestore, getFirestore, doc, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, getAuth } from 'firebase/auth';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
 import { firebaseConfig } from '@/firebase/config';
@@ -40,86 +40,105 @@ const FirebaseContext = createContext<FirebaseContextState | undefined>(undefine
 
 // Provider Component
 export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Services
-  const [firebaseApp, setFirebaseApp] = useState<FirebaseApp | null>(null);
-  const [auth, setAuth] = useState<Auth | null>(null);
-  const [firestore, setFirestore] = useState<Firestore | null>(null);
-  const [storage, setStorage] = useState<FirebaseStorage | null>(null);
-  
-  // User State
-  const [user, setUser] = useState<User | null>(null);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [isUserLoading, setIsUserLoading] = useState(true);
-  const [userError, setUserError] = useState<Error | null>(null);
+  const [firebaseState, setFirebaseState] = useState<FirebaseContextState>({
+    firebaseApp: null,
+    firestore: null,
+    auth: null,
+    storage: null,
+    user: null,
+    userProfile: null,
+    isUserLoading: true,
+    userError: null,
+  });
 
-  // Effect 1: Initialize Firebase services once.
   useEffect(() => {
     const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-    setFirebaseApp(app);
-    setAuth(getAuth(app));
-    setFirestore(getFirestore(app));
-    setStorage(getStorage(app));
-  }, []);
+    const auth = getAuth(app);
+    const firestore = getFirestore(app);
+    const storage = getStorage(app);
 
-  // Effect 2: Listen to authentication state changes.
-  useEffect(() => {
-    if (!auth) return; // Only run when auth service is ready.
+    // Set services once
+    setFirebaseState(prevState => ({
+      ...prevState,
+      firebaseApp: app,
+      auth: auth,
+      firestore: firestore,
+      storage: storage,
+    }));
 
-    const unsubscribe = onAuthStateChanged(auth, user => {
-        setUser(user); // Set user to the new user object or null.
-        setIsUserLoading(true); // Start loading profile whenever auth state changes.
-    }, error => {
-        console.error("Firebase Auth State Error:", error);
-        setUserError(error);
-        setUser(null);
-        setUserProfile(null);
-        setIsUserLoading(false);
-    });
+    let profileUnsubscribe: Unsubscribe | null = null;
 
-    return () => unsubscribe();
-  }, [auth]);
-
-  // Effect 3: Listen to user profile changes based on user's auth state.
-  useEffect(() => {
-    if (!firestore) return; // Need firestore to listen.
-    
-    if (user) {
-      // User is signed in, listen for their profile document.
-      const profileDocRef = doc(firestore, 'users', user.uid);
-      const unsubscribe = onSnapshot(profileDocRef, 
-        (docSnap) => {
-            const profile = docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as UserProfile : null;
-            setUserProfile(profile);
-            setIsUserLoading(false); // Done loading.
-        },
-        (error) => {
-            console.error("Firebase Profile Snapshot Error:", error);
-            setUserProfile(null);
-            setUserError(error);
-            setIsUserLoading(false); // Done loading, but with an error.
+    const authUnsubscribe = onAuthStateChanged(auth, 
+      (user) => {
+        // When auth state changes, cancel any previous profile subscription
+        if (profileUnsubscribe) {
+          profileUnsubscribe();
+          profileUnsubscribe = null;
         }
-      );
-      return () => unsubscribe();
-    } else {
-      // User is signed out, or auth state is not yet determined.
-      setUserProfile(null);
-      setIsUserLoading(false); // No user, so we are done loading.
-    }
-  }, [user, firestore]);
 
-  const value = {
-    firebaseApp,
-    firestore,
-    auth,
-    storage,
-    user,
-    userProfile,
-    isUserLoading,
-    userError,
-  };
+        if (user) {
+          // User is signed in.
+          const profileDocRef = doc(firestore, 'users', user.uid);
+          
+          profileUnsubscribe = onSnapshot(profileDocRef, 
+            (docSnap) => {
+              const profile = docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as UserProfile : null;
+              setFirebaseState({
+                firebaseApp: app,
+                auth: auth,
+                firestore: firestore,
+                storage: storage,
+                user: user,
+                userProfile: profile,
+                isUserLoading: false,
+                userError: null,
+              });
+            },
+            (error) => {
+              console.error("Firebase Profile Snapshot Error:", error);
+              setFirebaseState(prevState => ({
+                ...prevState,
+                user: user,
+                userProfile: null,
+                isUserLoading: false,
+                userError: error,
+              }));
+            }
+          );
+        } else {
+          // User is signed out.
+          setFirebaseState(prevState => ({
+            ...prevState,
+            user: null,
+            userProfile: null,
+            isUserLoading: false,
+            userError: null,
+          }));
+        }
+      },
+      (error) => {
+        console.error("Firebase Auth State Error:", error);
+        setFirebaseState(prevState => ({
+          ...prevState,
+          user: null,
+          userProfile: null,
+          isUserLoading: false,
+          userError: error,
+        }));
+      }
+    );
 
-  // The global loading spinner is now controlled by `isUserLoading` which reflects both auth and profile state.
-  if (isUserLoading) {
+    // Cleanup both subscriptions on component unmount
+    return () => {
+      authUnsubscribe();
+      if (profileUnsubscribe) {
+        profileUnsubscribe();
+      }
+    };
+  }, []); // Empty dependency array means this runs once on mount.
+
+
+  if (firebaseState.isUserLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
           <LogoSpinner />
@@ -128,7 +147,7 @@ export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({ children }
   }
 
   return (
-    <FirebaseContext.Provider value={value}>
+    <FirebaseContext.Provider value={firebaseState}>
       <FirebaseErrorListener />
       {children}
     </FirebaseContext.Provider>
