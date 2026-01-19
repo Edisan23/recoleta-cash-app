@@ -78,6 +78,12 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     isUserLoading: true, // Start loading until first auth event
     userError: null,
   });
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
 
   // Effect to subscribe to Firebase auth state changes and fetch profile
   useEffect(() => {
@@ -146,8 +152,9 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     };
   }, [firebaseApp, firestore, auth, storage, userState]);
   
-  // If services are not yet available (e.g., during initial client-side init), show a loader.
-  if (!contextValue.areServicesAvailable) {
+  // If services are not yet available OR the component has not mounted on the client, show a loader.
+  // This ensures the server-rendered UI and the initial client-rendered UI are identical, fixing hydration errors.
+  if (!isMounted || !contextValue.areServicesAvailable) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
