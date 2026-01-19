@@ -12,7 +12,7 @@ export function LogoIcon({
 }: LogoIconProps) {
   return (
     <img
-      src="/favicon.ico"
+      src="/favicon.svg"
       alt="Logo"
       className={cn("h-8 w-8 object-contain", className)}
       {...props}
