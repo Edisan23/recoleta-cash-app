@@ -87,14 +87,26 @@ export default function OperatorLoginPage() {
         });
 
     } catch (error: any) {
-        if (error.code !== 'auth/popup-closed-by-user') {
-            console.error('Error during Google sign-in:', error);
-            toast({
-                variant: 'destructive',
-                title: 'Error de Autenticación',
-                description: 'Ocurrió un error al intentar iniciar sesión con Google.',
-            });
+        if (error.code === 'auth/popup-closed-by-user') {
+            return; // User closed the popup, do nothing.
         }
+    
+        console.error('Error during Google sign-in:', error);
+
+        let description = 'Ocurrió un error al intentar iniciar sesión con Google.';
+        if (error.code === 'auth/operation-not-allowed') {
+            description = 'El inicio de sesión con Google no está habilitado. Por favor, contacta al administrador.';
+        } else if (error.code === 'auth/unauthorized-domain') {
+            description = 'Este dominio no está autorizado para iniciar sesión. Por favor, contacta al administrador.';
+        } else if (error.code === 'auth/popup-blocked-by-browser') {
+            description = 'La ventana de inicio de sesión fue bloqueada. Por favor, deshabilita tu bloqueador de pop-ups.';
+        }
+
+        toast({
+            variant: 'destructive',
+            title: 'Error de Autenticación',
+            description: description,
+        });
     } finally {
         setIsSubmitting(false);
     }

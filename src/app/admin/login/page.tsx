@@ -75,7 +75,6 @@ export default function AdminLoginPage() {
           title: 'Acceso Denegado',
           description: 'Esta cuenta no tiene permisos de administrador.',
         });
-        setIsSubmitting(false);
         return;
       }
 
@@ -105,13 +104,24 @@ export default function AdminLoginPage() {
 
     } catch (error: any) {
       console.error('Admin Google sign-in error:', error);
-       if (error.code !== 'auth/popup-closed-by-user') {
-            toast({
-              variant: 'destructive',
-              title: 'Error de Autenticación',
-              description: 'Ocurrió un error al intentar iniciar sesión con Google.',
-            });
+       if (error.code === 'auth/popup-closed-by-user') {
+            return;
        }
+
+      let description = 'Ocurrió un error al intentar iniciar sesión con Google.';
+      if (error.code === 'auth/operation-not-allowed') {
+          description = 'El inicio de sesión con Google no está habilitado. Revisa la configuración de Firebase.';
+      } else if (error.code === 'auth/unauthorized-domain') {
+          description = 'Este dominio no está autorizado para iniciar sesión. Añádelo en la consola de Firebase.';
+      } else if (error.code === 'auth/popup-blocked-by-browser') {
+          description = 'La ventana de inicio de sesión fue bloqueada. Deshabilita tu bloqueador de pop-ups.';
+      }
+
+      toast({
+          variant: 'destructive',
+          title: 'Error de Autenticación',
+          description: description,
+      });
     } finally {
       setIsSubmitting(false);
     }
