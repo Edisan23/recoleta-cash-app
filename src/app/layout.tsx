@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
-import { FirebaseProviderWrapper } from "@/firebase/client-provider";
+import { FirebaseProvider } from "@/firebase/provider";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Gestiona y visualiza tus cobros de forma sencilla.",
   manifest: "/manifest.json",
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon.svg',
   },
 };
 
@@ -32,10 +32,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <FirebaseProviderWrapper>
+          <FirebaseProvider>
             {children}
             <Toaster />
-          </FirebaseProviderWrapper>
+          </FirebaseProvider>
         </ThemeProvider>
       </body>
     </html>
