@@ -61,7 +61,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const { toast } = useToast();
   
   // Form state
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [date, setDate] = useState<Date | undefined>();
   
   // Calculated Summaries
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
@@ -121,6 +121,11 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
     return allShifts?.map(s => new Date(s.date)) || [];
   }, [allShifts]);
   
+  // Set date on client mount to avoid hydration mismatch
+  useEffect(() => {
+    setDate(new Date());
+  }, []);
+
   // Effect to calculate subscription status (Trial / Premium)
   useEffect(() => {
     if (!userProfile || !settings) return;
@@ -215,7 +220,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
         router.replace('/select-company');
     };
 
-    if (isLoading || !user) {
+    if (isLoading || !user || !date) {
       return (
           <div className="flex h-screen w-full items-center justify-center">
               <LogoSpinner />
