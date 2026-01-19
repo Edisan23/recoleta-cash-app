@@ -11,15 +11,11 @@ export function LogoIcon({
   ...props
 }: LogoIconProps) {
   return (
-    <div className={cn("relative h-8 w-8", className)}>
-      <Image
-        src="/favicon.ico"
-        alt="Logo"
-        fill
-        sizes="4rem"
-        style={{ objectFit: 'contain' }}
-        {...props}
-      />
-    </div>
+    <img
+      src="/favicon.ico"
+      alt="Logo"
+      className={cn("h-8 w-8 object-contain", className)}
+      {...props}
+    />
   );
 }
