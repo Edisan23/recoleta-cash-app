@@ -8,17 +8,24 @@ import { getStorage } from 'firebase/storage';
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
-  if (!getApps().length) {
-    // Always initialize with the config object for predictability in all environments.
-    const firebaseApp = initializeApp(firebaseConfig);
-    return getSdks(firebaseApp);
+  // This check ensures that Firebase is only initialized on the client-side.
+  if (typeof window === 'undefined') {
+    return getSdks(null);
   }
-
-  // If already initialized, return the SDKs with the already initialized App
-  return getSdks(getApp());
+  
+  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+  return getSdks(app);
 }
 
-export function getSdks(firebaseApp: FirebaseApp) {
+export function getSdks(firebaseApp: FirebaseApp | null) {
+  if (!firebaseApp) {
+    return {
+      firebaseApp: null,
+      auth: null,
+      firestore: null,
+      storage: null
+    };
+  }
   return {
     firebaseApp,
     auth: getAuth(firebaseApp),
