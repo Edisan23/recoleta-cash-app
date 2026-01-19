@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import Image from 'next/image';
 
-type LogoIconProps = Omit<React.ComponentProps<typeof Image>, 'src' | 'alt' | 'fill'> & {
+type LogoIconProps = React.HTMLAttributes<HTMLDivElement> & {
     className?: string;
 };
 
@@ -11,10 +10,22 @@ export function LogoIcon({
   ...props
 }: LogoIconProps) {
   return (
-    <img
-      src="/favicon.svg"
-      alt="Logo"
-      className={cn("h-8 w-8 object-contain dark:invert", className)}
+    <div
+      style={{
+        maskImage: 'url(/favicon.svg)',
+        WebkitMaskImage: 'url(/favicon.svg)',
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain',
+        maskRepeat: 'no-repeat',
+        WebkitMaskRepeat: 'no-repeat',
+        maskPosition: 'center',
+        WebkitMaskPosition: 'center',
+        backgroundColor: 'currentColor'
+      }}
+      className={cn(
+        "h-8 w-8 text-foreground", // Use text color to control the icon color
+        className
+      )}
       {...props}
     />
   );
