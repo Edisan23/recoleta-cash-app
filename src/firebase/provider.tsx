@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo, DependencyList } from 'react';
 import { FirebaseApp, initializeApp, getApps, getApp } from 'firebase/app';
-import { Firestore, doc, onSnapshot, getFirestore } from 'firebase/firestore';
+import { Firestore, getFirestore } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, getAuth } from 'firebase/auth';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
 import { firebaseConfig } from '@/firebase/config';
@@ -10,7 +10,7 @@ import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import type { UserProfile } from '@/types/db-entities';
 
-// Combined state for the Firebase context
+// Simplified state - no more userProfile
 export interface FirebaseContextState {
   areServicesAvailable: boolean;
   firebaseApp: FirebaseApp | null;
@@ -18,29 +18,29 @@ export interface FirebaseContextState {
   auth: Auth | null;
   storage: FirebaseStorage | null;
   user: User | null;
-  userProfile: UserProfile | null;
   isUserLoading: boolean;
   userError: Error | null;
 }
 
-// Return type for useFirebase()
+// Simplified return type
 export interface FirebaseServicesAndUser {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
   auth: Auth;
   storage: FirebaseStorage;
   user: User | null;
-  userProfile: UserProfile | null;
   isUserLoading: boolean;
   userError: Error | null;
 }
 
-// Return type for useUser() - specific to user auth and profile state
+// Simplified user hook result - no more userProfile
 export interface UserHookResult {
   user: User | null;
-  userProfile: UserProfile | null;
   isUserLoading: boolean;
   userError: Error | null;
+  // We keep userProfile here but as undefined to avoid breaking destructuring in other components.
+  // Those components should handle the undefined case gracefully.
+  userProfile?: UserProfile | null;
 }
 
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
@@ -53,7 +53,6 @@ export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({ children }
         auth: null,
         storage: null,
         user: null,
-        userProfile: null,
         isUserLoading: true,
         userError: null,
     });
@@ -73,58 +72,21 @@ export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({ children }
             storage: storage,
         }));
         
-        let unsubscribeProfile: (() => void) | null = null;
-
         const unsubscribeAuth = onAuthStateChanged(auth, 
             (user) => {
-                if (unsubscribeProfile) {
-                    unsubscribeProfile();
-                }
-
-                if (user) {
-                    setFirebaseState(prevState => ({
-                        ...prevState,
-                        user: user,
-                        isUserLoading: true,
-                        userError: null,
-                    }));
-                    
-                    const profileDocRef = doc(firestore, 'users', user.uid);
-                    unsubscribeProfile = onSnapshot(profileDocRef, 
-                        (docSnapshot) => {
-                            const userProfile = docSnapshot.exists() ? { id: docSnapshot.id, ...docSnapshot.data() } as UserProfile : null;
-                            setFirebaseState(prevState => ({
-                                ...prevState,
-                                userProfile: userProfile,
-                                isUserLoading: false,
-                            }));
-                        },
-                        (error) => {
-                            console.error("FirebaseProvider: Profile snapshot error:", error);
-                            setFirebaseState(prevState => ({
-                                ...prevState,
-                                userProfile: null,
-                                isUserLoading: false,
-                                userError: error,
-                            }));
-                        }
-                    );
-                } else {
-                    setFirebaseState(prevState => ({
-                        ...prevState,
-                        user: null,
-                        userProfile: null,
-                        isUserLoading: false,
-                        userError: null,
-                    }));
-                }
+                // Simplified logic: Just set the user and stop loading.
+                setFirebaseState(prevState => ({
+                    ...prevState,
+                    user: user,
+                    isUserLoading: false,
+                    userError: null,
+                }));
             }, 
             (error) => {
                 console.error("FirebaseProvider: Auth state error:", error);
                 setFirebaseState(prevState => ({
                     ...prevState,
                     user: null,
-                    userProfile: null,
                     isUserLoading: false,
                     userError: error,
                 }));
@@ -133,12 +95,10 @@ export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({ children }
 
         return () => {
             unsubscribeAuth();
-            if (unsubscribeProfile) {
-                unsubscribeProfile();
-            }
         };
     }, []);
 
+    // The loading guard remains critical.
     if (!firebaseState.areServicesAvailable || firebaseState.isUserLoading) {
          return (
             <div className="flex h-screen w-full items-center justify-center">
@@ -172,7 +132,6 @@ export const useFirebase = (): FirebaseServicesAndUser => {
     auth: context.auth,
     storage: context.storage,
     user: context.user,
-    userProfile: context.userProfile,
     isUserLoading: context.isUserLoading,
     userError: context.userError,
   };
@@ -202,6 +161,7 @@ export const useUser = (): UserHookResult => {
   if (context === undefined) {
     return { user: null, userProfile: null, isUserLoading: true, userError: new Error('useUser must be used within a FirebaseProvider.') };
   }
-  const { user, userProfile, isUserLoading, userError } = context;
-  return { user, userProfile, isUserLoading, userError };
+  // The context no longer provides userProfile directly. We return undefined.
+  const { user, isUserLoading, userError } = context;
+  return { user, isUserLoading, userError, userProfile: undefined };
 };
