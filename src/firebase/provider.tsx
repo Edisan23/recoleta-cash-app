@@ -17,14 +17,6 @@ interface FirebaseProviderProps {
   storage?: FirebaseStorage;
 }
 
-// Internal state for user authentication and profile
-interface UserState {
-  user: User | null;
-  userProfile: UserProfile | null;
-  isUserLoading: boolean;
-  userError: Error | null;
-}
-
 // Combined state for the Firebase context
 export interface FirebaseContextState {
   areServicesAvailable: boolean; // True if core services (app, firestore, auth instance) are provided
@@ -72,69 +64,70 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
   auth,
   storage,
 }) => {
-  const [userState, setUserState] = useState<UserState>({
-    user: null,
-    userProfile: null,
-    isUserLoading: true, // Start loading until first auth event
-    userError: null,
-  });
+    const [authState, setAuthState] = useState<{
+        user: User | null;
+        isAuthLoading: boolean;
+        authError: Error | null;
+    }>({
+        user: null,
+        isAuthLoading: true,
+        authError: null,
+    });
+
+    const [profileState, setProfileState] = useState<{
+        userProfile: UserProfile | null;
+        isProfileLoading: boolean;
+        profileError: Error | null;
+    }>({
+        userProfile: null,
+        isProfileLoading: false,
+        profileError: null,
+    });
+
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-
-  // Effect to subscribe to Firebase auth state changes and fetch profile
+  // Effect for AUTHENTICATION state ONLY
   useEffect(() => {
-    if (!auth || !firestore) {
-      setUserState({ user: null, userProfile: null, isUserLoading: false, userError: new Error("Auth or Firestore service not provided.") });
+    if (!auth) {
+      setAuthState({ user: null, isAuthLoading: false, authError: new Error("Auth service not available.") });
+      return;
+    }
+    const unsubscribe = onAuthStateChanged(auth,
+      (user) => {
+        setAuthState({ user, isAuthLoading: false, authError: null });
+      },
+      (error) => {
+        setAuthState({ user: null, isAuthLoading: false, authError: error });
+      }
+    );
+    return () => unsubscribe();
+  }, [auth]);
+
+  // Effect for PROFILE data, depends on user UID
+  useEffect(() => {
+    if (!firestore || !authState.user) {
+      setProfileState({ userProfile: null, isProfileLoading: false, profileError: null });
       return;
     }
 
-    let profileUnsubscribe: (() => void) | undefined;
-
-    const authUnsubscribe = onAuthStateChanged(
-      auth,
-      (firebaseUser) => {
-        if (profileUnsubscribe) {
-          profileUnsubscribe(); // Unsubscribe from previous user's profile listener
-        }
-        
-        if (firebaseUser) {
-          // User is signed in, set auth state and listen for profile changes
-          setUserState(prevState => ({ ...prevState, user: firebaseUser, isUserLoading: true, userError: null }));
-          
-          const profileDocRef = doc(firestore, 'users', firebaseUser.uid);
-          profileUnsubscribe = onSnapshot(profileDocRef, 
-            (doc) => {
-              const profileData = doc.exists() ? { id: doc.id, ...doc.data() } as UserProfile : null;
-              setUserState({ user: firebaseUser, userProfile: profileData, isUserLoading: false, userError: null });
-            },
-            (error) => {
-              console.error("FirebaseProvider: Profile onSnapshot error:", error);
-              setUserState({ user: firebaseUser, userProfile: null, isUserLoading: false, userError: error });
-            }
-          );
-        } else {
-          // User is signed out, reset theme to default
-          setUserState({ user: null, userProfile: null, isUserLoading: false, userError: null });
-        }
+    setProfileState({ userProfile: null, isProfileLoading: true, profileError: null });
+    const profileDocRef = doc(firestore, 'users', authState.user.uid);
+    const unsubscribe = onSnapshot(profileDocRef,
+      (doc) => {
+        const profileData = doc.exists() ? { id: doc.id, ...doc.data() } as UserProfile : null;
+        setProfileState({ userProfile: profileData, isProfileLoading: false, profileError: null });
       },
-      (error) => { // Auth listener error
-        console.error("FirebaseProvider: onAuthStateChanged error:", error);
-        if (profileUnsubscribe) profileUnsubscribe();
-        setUserState({ user: null, userProfile: null, isUserLoading: false, userError: error });
+      (error) => {
+        console.error("FirebaseProvider: Profile onSnapshot error:", error);
+        setProfileState({ userProfile: null, isProfileLoading: false, profileError: error });
       }
     );
-
-    return () => {
-      authUnsubscribe();
-      if (profileUnsubscribe) {
-        profileUnsubscribe();
-      }
-    };
-  }, [auth, firestore]);
+    return () => unsubscribe();
+  }, [firestore, authState.user]);
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {
@@ -145,15 +138,13 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       firestore: servicesAvailable ? firestore : null,
       auth: servicesAvailable ? auth : null,
       storage: servicesAvailable ? storage : null,
-      user: userState.user,
-      userProfile: userState.userProfile,
-      isUserLoading: userState.isUserLoading,
-      userError: userState.userError,
+      user: authState.user,
+      userProfile: profileState.userProfile,
+      isUserLoading: authState.isAuthLoading || profileState.isProfileLoading,
+      userError: authState.authError || profileState.profileError,
     };
-  }, [firebaseApp, firestore, auth, storage, userState]);
+  }, [firebaseApp, firestore, auth, storage, authState, profileState]);
   
-  // If services are not yet available OR the component has not mounted on the client, show a loader.
-  // This ensures the server-rendered UI and the initial client-rendered UI are identical, fixing hydration errors.
   if (!isMounted || !contextValue.areServicesAvailable) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
