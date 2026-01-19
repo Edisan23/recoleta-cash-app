@@ -10,7 +10,7 @@ import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import type { UserProfile } from '@/types/db-entities';
 
-// State for the context
+// Interfaces for context and hooks
 export interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
   firestore: Firestore | null;
@@ -18,11 +18,16 @@ export interface FirebaseContextState {
   storage: FirebaseStorage | null;
   user: User | null;
   userProfile: UserProfile | null;
-  isLoading: boolean; // A single loading flag for auth + profile
-  error: Error | null;
+  isUserLoading: boolean;
+  userError: Error | null;
 }
 
-// Simplified return type for core services hook
+export interface UserHookResult {
+  user: User | null;
+  userProfile: UserProfile | null;
+  isUserLoading: boolean;
+  userError: Error | null;
+}
 export interface FirebaseServices {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
@@ -30,109 +35,104 @@ export interface FirebaseServices {
   storage: FirebaseStorage;
 }
 
-// Return type for the useUser hook
-export interface UserHookResult {
-  user: User | null;
-  userProfile: UserProfile | null;
-  isUserLoading: boolean; // Aliased for consistency with existing components
-  userError: Error | null;
-}
+// Context
+const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
-
+// Provider Component
 export const FirebaseProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [state, setState] = useState<FirebaseContextState>({
-        firebaseApp: null,
-        firestore: null,
-        auth: null,
-        storage: null,
-        user: null,
-        userProfile: null,
-        isLoading: true, // Start in loading state
-        error: null,
+  // Services
+  const [firebaseApp, setFirebaseApp] = useState<FirebaseApp | null>(null);
+  const [auth, setAuth] = useState<Auth | null>(null);
+  const [firestore, setFirestore] = useState<Firestore | null>(null);
+  const [storage, setStorage] = useState<FirebaseStorage | null>(null);
+  
+  // User State
+  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [isUserLoading, setIsUserLoading] = useState(true);
+  const [userError, setUserError] = useState<Error | null>(null);
+
+  // Effect 1: Initialize Firebase services once.
+  useEffect(() => {
+    const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+    setFirebaseApp(app);
+    setAuth(getAuth(app));
+    setFirestore(getFirestore(app));
+    setStorage(getStorage(app));
+  }, []);
+
+  // Effect 2: Listen to authentication state changes.
+  useEffect(() => {
+    if (!auth) return; // Only run when auth service is ready.
+
+    const unsubscribe = onAuthStateChanged(auth, user => {
+        setUser(user); // Set user to the new user object or null.
+        setIsUserLoading(true); // Start loading profile whenever auth state changes.
+    }, error => {
+        console.error("Firebase Auth State Error:", error);
+        setUserError(error);
+        setUser(null);
+        setUserProfile(null);
+        setIsUserLoading(false);
     });
 
-    useEffect(() => {
-        // Initialize Firebase services
-        const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        const auth = getAuth(app);
-        const firestore = getFirestore(app);
-        const storage = getStorage(app);
-        
-        setState(prevState => ({ ...prevState, firebaseApp: app, auth, firestore, storage }));
+    return () => unsubscribe();
+  }, [auth]);
 
-        // Listen for auth state changes
-        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-            if (user) {
-                // User is signed in, now create a profile listener.
-                const userDocRef = doc(firestore, 'users', user.uid);
-                
-                // This onSnapshot listener will be cleaned up by the returned function.
-                const unsubscribeProfile = onSnapshot(userDocRef, 
-                    (docSnap) => {
-                        const profile = docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as UserProfile : null;
-                        setState(prevState => ({
-                            ...prevState,
-                            user,
-                            userProfile: profile,
-                            isLoading: false, // Loading is complete
-                            error: null,
-                        }));
-                    },
-                    (error) => {
-                        console.error("FirebaseProvider: Profile snapshot error:", error);
-                        setState(prevState => ({
-                            ...prevState,
-                            user,
-                            userProfile: null,
-                            isLoading: false, // Still complete, but with an error
-                            error,
-                        }));
-                    }
-                );
-                // When the auth state changes (e.g. user signs out),
-                // onAuthStateChanged cleans up by calling this returned function.
-                return unsubscribeProfile;
-            } else {
-                // User is signed out, clear user data and finish loading.
-                setState(prevState => ({
-                    ...prevState,
-                    user: null,
-                    userProfile: null,
-                    isLoading: false,
-                    error: null,
-                }));
-            }
-        }, (error) => {
-            console.error("FirebaseProvider: Auth state error:", error);
-            setState(prevState => ({
-                ...prevState,
-                user: null,
-                userProfile: null,
-                isLoading: false,
-                error,
-            }));
-        });
-
-        // Cleanup the auth listener on component unmount
-        return () => unsubscribeAuth();
-    }, []); // This effect runs only once
-
-    // Show a global spinner while auth and profile are loading
-    if (state.isLoading) {
-         return (
-            <div className="flex h-screen w-full items-center justify-center">
-                <LogoSpinner />
-            </div>
-        );
+  // Effect 3: Listen to user profile changes based on user's auth state.
+  useEffect(() => {
+    if (!firestore) return; // Need firestore to listen.
+    
+    if (user) {
+      // User is signed in, listen for their profile document.
+      const profileDocRef = doc(firestore, 'users', user.uid);
+      const unsubscribe = onSnapshot(profileDocRef, 
+        (docSnap) => {
+            const profile = docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } as UserProfile : null;
+            setUserProfile(profile);
+            setIsUserLoading(false); // Done loading.
+        },
+        (error) => {
+            console.error("Firebase Profile Snapshot Error:", error);
+            setUserProfile(null);
+            setUserError(error);
+            setIsUserLoading(false); // Done loading, but with an error.
+        }
+      );
+      return () => unsubscribe();
+    } else {
+      // User is signed out, or auth state is not yet determined.
+      setUserProfile(null);
+      setIsUserLoading(false); // No user, so we are done loading.
     }
+  }, [user, firestore]);
 
+  const value = {
+    firebaseApp,
+    firestore,
+    auth,
+    storage,
+    user,
+    userProfile,
+    isUserLoading,
+    userError,
+  };
+
+  // The global loading spinner is now controlled by `isUserLoading` which reflects both auth and profile state.
+  if (isUserLoading) {
     return (
-      <FirebaseContext.Provider value={state}>
-        <FirebaseErrorListener />
-        {children}
-      </FirebaseContext.Provider>
+      <div className="flex h-screen w-full items-center justify-center">
+          <LogoSpinner />
+      </div>
     );
+  }
+
+  return (
+    <FirebaseContext.Provider value={value}>
+      <FirebaseErrorListener />
+      {children}
+    </FirebaseContext.Provider>
+  );
 };
 
 // --- HOOKS ---
@@ -159,9 +159,8 @@ export const useUser = (): UserHookResult => {
   if (context === undefined) {
     throw new Error('useUser must be used within a FirebaseProvider.');
   }
-  const { user, userProfile, isLoading, error } = context;
-  // Rename isLoading to isUserLoading for consistency with the rest of the app
-  return { user, userProfile, isUserLoading: isLoading, userError: error };
+  const { user, userProfile, isUserLoading, userError } = context;
+  return { user, userProfile, isUserLoading, userError };
 };
 
 
