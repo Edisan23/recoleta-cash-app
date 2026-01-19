@@ -1,16 +1,25 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
+
+type LogoIconProps = Omit<React.ComponentProps<typeof Image>, 'src' | 'alt' | 'fill'> & {
+    className?: string;
+};
 
 export function LogoIcon({
   className,
   ...props
-}: React.ComponentProps<'img'>) {
+}: LogoIconProps) {
   return (
-    <img
-      src="/favicon.ico"
-      alt="Logo"
-      className={cn("h-8 w-8", className)}
-      {...props}
-    />
+    <div className={cn("relative h-8 w-8", className)}>
+      <Image
+        src="/favicon.ico"
+        alt="Logo"
+        fill
+        sizes="4rem"
+        style={{ objectFit: 'contain' }}
+        {...props}
+      />
+    </div>
   );
 }
