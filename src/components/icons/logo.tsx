@@ -19,7 +19,7 @@ export function LogoIcon({
         src="/favicon.png"
         alt="Turno Pro Logo"
         fill
-        sizes="64px"
+        sizes="128px"
         className="object-contain"
         priority
       />
