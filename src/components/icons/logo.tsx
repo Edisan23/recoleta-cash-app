@@ -20,7 +20,7 @@ export function LogoIcon({
         alt="Turno Pro Logo - Camión"
         fill
         sizes="128px"
-        className="object-contain z-0"
+        className="object-contain"
         priority
       />
        {/* Left Headlight */}
@@ -29,7 +29,7 @@ export function LogoIcon({
             src="/farola_blanca_on.png"
             alt="Faro izquierdo"
             fill
-            className="object-contain z-10"
+            className="object-contain"
         />
       </div>
       {/* Right Headlight */}
@@ -38,7 +38,7 @@ export function LogoIcon({
             src="/farola_blanca_on.png"
             alt="Faro derecho"
             fill
-            className="object-contain z-10"
+            className="object-contain"
         />
       </div>
     </div>
