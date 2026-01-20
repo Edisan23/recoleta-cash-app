@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Gestiona y visualiza tus cobros de forma sencilla.",
   manifest: "/manifest.json",
   icons: {
-    icon: '/favicon.svg',
+    icon: '/logo.png',
   },
 };
 
