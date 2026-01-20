@@ -34,6 +34,7 @@ import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { DeleteUserDialog } from './DeleteUserDialog';
+import { cn } from '@/lib/utils';
 
 interface OperatorTableProps {
     user: User | null;
@@ -167,7 +168,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                     const isPremiumActive = op.premiumUntil === null || (premiumUntilDate && isAfter(premiumUntilDate, new Date()));
 
                                     return (
-                                        <TableRow key={op.id}>
+                                        <TableRow key={op.id} className={cn(isPremiumActive && "bg-primary/5 hover:bg-primary/10 dark:bg-primary/10 dark:hover:bg-primary/20")}>
                                             <TableCell className="font-medium">
                                                 <div className="flex items-center gap-3">
                                                     <Avatar>
