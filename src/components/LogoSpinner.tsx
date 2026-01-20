@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 export function LogoSpinner({ className }: { className?: string }) {
   return (
     <LogoIcon
-      className={cn('h-24 w-24 animate-spin', className)}
+      className={cn('h-32 w-32', className)}
     />
   );
 }
