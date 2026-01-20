@@ -16,8 +16,6 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import type { UserProfile } from '@/types/db-entities';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
 
 const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
@@ -29,11 +27,9 @@ export default function AdminLoginPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [origin, setOrigin] = useState('');
 
   useEffect(() => {
     setIsMounted(true);
-    setOrigin(window.location.origin);
   }, []);
 
   useEffect(() => {
@@ -152,16 +148,6 @@ export default function AdminLoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {origin && (
-              <Alert className="mb-4 text-left">
-                <Info className="h-4 w-4" />
-                <AlertTitle>Dominio de la App</AlertTitle>
-                <AlertDescription>
-                  Para iniciar sesión, asegúrate de que este dominio esté en la lista de "Dominios autorizados" en la configuración de Authentication de Firebase:{" "}
-                  <code className="font-semibold bg-muted px-1 py-0.5 rounded">{origin}</code>
-                </AlertDescription>
-              </Alert>
-            )}
             <Button
               className="w-full"
               onClick={handleGoogleSignIn}

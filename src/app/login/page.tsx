@@ -15,10 +15,9 @@ import { useAuth, useUser, useFirestore } from '@/firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Info } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import type { UserProfile } from '@/types/db-entities';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -30,11 +29,9 @@ export default function OperatorLoginPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [origin, setOrigin] = useState('');
 
   useEffect(() => {
     setIsMounted(true);
-    setOrigin(window.location.origin);
   }, []);
 
   useEffect(() => {
@@ -136,16 +133,6 @@ export default function OperatorLoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-center justify-center gap-4">
-          {origin && (
-              <Alert className="mb-2 text-left w-full">
-                <Info className="h-4 w-4" />
-                <AlertTitle>Dominio de la App</AlertTitle>
-                <AlertDescription>
-                  Para iniciar sesión, asegúrate de que este dominio esté en la lista de "Dominios autorizados" en la configuración de Authentication de Firebase:{" "}
-                  <code className="font-semibold bg-muted px-1 py-0.5 rounded">{origin}</code>
-                </AlertDescription>
-              </Alert>
-            )}
           <Button
             className="w-full max-w-xs"
             variant="outline"
