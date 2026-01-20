@@ -195,21 +195,21 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                 <div className="space-y-4">
                     {dailyShifts.map((shift, index) => (
                         <div key={index} className="grid grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-muted">
-                            <div className="col-span-12 sm:col-span-5">
+                            <div className="col-span-5">
                                 <TimeInput
                                     label={`Entrada Turno ${index + 1}`}
                                     value={shift.startTime}
                                     onChange={(value) => handleShiftTimeChange(index, 'startTime', value)}
                                 />
                             </div>
-                            <div className="col-span-12 sm:col-span-5">
+                            <div className="col-span-5">
                                 <TimeInput
                                     label={`Salida Turno ${index + 1}`}
                                     value={shift.endTime}
                                     onChange={(value) => handleShiftTimeChange(index, 'endTime', value)}
                                 />
                             </div>
-                            <div className="col-span-12 sm:col-span-2 flex justify-end">
+                            <div className="col-span-2 flex justify-end">
                                 {dailyShifts.length > 1 && (
                                     <Button
                                         variant="ghost"
