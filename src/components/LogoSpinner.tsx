@@ -11,7 +11,7 @@ export function LogoSpinner({ className }: { className?: string }) {
         alt="Camión base"
         fill
         sizes="128px"
-        className="object-contain"
+        className="object-contain z-0"
         priority
       />
       {/* Left Headlight */}
@@ -20,15 +20,13 @@ export function LogoSpinner({ className }: { className?: string }) {
             src="/farola_blanca_off.png"
             alt="Faro izquierdo apagado"
             fill
-            className="object-contain"
-            priority
+            className="object-contain z-10"
         />
         <Image
             src="/farola_blanca_on.png"
             alt="Faro izquierdo parpadeando"
             fill
-            className="object-contain animate-light-blink"
-            priority
+            className="object-contain animate-light-blink z-20"
         />
       </div>
       {/* Right Headlight */}
@@ -37,15 +35,13 @@ export function LogoSpinner({ className }: { className?: string }) {
             src="/farola_blanca_off.png"
             alt="Faro derecho apagado"
             fill
-            className="object-contain"
-            priority
+            className="object-contain z-10"
         />
         <Image
             src="/farola_blanca_on.png"
             alt="Faro derecho parpadeando"
             fill
-            className="object-contain animate-light-blink"
-            priority
+            className="object-contain animate-light-blink z-20"
         />
       </div>
     </div>
