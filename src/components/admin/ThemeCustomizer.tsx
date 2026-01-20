@@ -13,18 +13,20 @@ type ColorTheme = {
   primary: string;
   primaryForeground: string;
   accent: string;
+  muted: string;
+  border: string;
   color: string; // The raw color for the button background
 };
 
 // A list of predefined themes
 const themes: ColorTheme[] = [
-  { name: 'blue', primary: '210 90% 50%', primaryForeground: '210 40% 98%', accent: '210 40% 94%', color: 'hsl(210, 90%, 50%)' },
-  { name: 'emerald', primary: '142.1 76.2% 36.3%', primaryForeground: '142.1 76.2% 96.3%', accent: '142.1 40% 94%', color: 'hsl(142.1, 76.2%, 36.3%)' },
-  { name: 'violet', primary: '262.1 83.3% 57.8%', primaryForeground: '262.1 83.3% 97.8%', accent: '262.1 40% 94%', color: 'hsl(262.1, 83.3%, 57.8%)' },
-  { name: 'red', primary: '0 72.2% 50.6%', primaryForeground: '0 84.2% 95.9%', accent: '0 40% 94%', color: 'hsl(0, 72.2%, 50.6%)' },
-  { name: 'orange', primary: '24.6 95% 53.1%', primaryForeground: '60 9.1% 97.8%', accent: '24.6 40% 94%', color: 'hsl(24.6, 95%, 53.1%)' },
-  { name: 'rose', primary: '346.8 77.2% 49.8%', primaryForeground: '355.7 100% 97.3%', accent: '346.8 40% 94%', color: 'hsl(346.8, 77.2%, 49.8%)' },
-  { name: 'slate', primary: '215.2 28.2% 26.5%', primaryForeground: '210 40% 98%', accent: '215.2 20% 94%', color: 'hsl(215.2, 28.2%, 26.5%)' },
+  { name: 'blue', primary: '210 90% 50%', primaryForeground: '210 40% 98%', accent: '210 40% 94%', muted: '210 40% 92%', border: '210 32% 91%', color: 'hsl(210, 90%, 50%)' },
+  { name: 'emerald', primary: '142.1 76.2% 36.3%', primaryForeground: '142.1 76.2% 96.3%', accent: '142.1 40% 94%', muted: '142.1 40% 92%', border: '142.1 32% 91%', color: 'hsl(142.1, 76.2%, 36.3%)' },
+  { name: 'violet', primary: '262.1 83.3% 57.8%', primaryForeground: '262.1 83.3% 97.8%', accent: '262.1 40% 94%', muted: '262.1 40% 92%', border: '262.1 32% 91%', color: 'hsl(262.1, 83.3%, 57.8%)' },
+  { name: 'red', primary: '0 72.2% 50.6%', primaryForeground: '0 84.2% 95.9%', accent: '0 40% 94%', muted: '0 40% 92%', border: '0 32% 91%', color: 'hsl(0, 72.2%, 50.6%)' },
+  { name: 'orange', primary: '24.6 95% 53.1%', primaryForeground: '60 9.1% 97.8%', accent: '24.6 40% 94%', muted: '24.6 40% 92%', border: '24.6 32% 91%', color: 'hsl(24.6, 95%, 53.1%)' },
+  { name: 'rose', primary: '346.8 77.2% 49.8%', primaryForeground: '355.7 100% 97.3%', accent: '346.8 40% 94%', muted: '346.8 40% 92%', border: '346.8 32% 91%', color: 'hsl(346.8, 77.2%, 49.8%)' },
+  { name: 'slate', primary: '215.2 28.2% 26.5%', primaryForeground: '210 40% 98%', accent: '215.2 20% 94%', muted: '215.2 20% 92%', border: '215.2 20% 91%', color: 'hsl(215.2, 28.2%, 26.5%)' },
 ];
 
 export function ThemeCustomizer() {
@@ -37,6 +39,8 @@ export function ThemeCustomizer() {
     root.style.setProperty('--primary', theme.primary);
     root.style.setProperty('--primary-foreground', theme.primaryForeground);
     root.style.setProperty('--accent', theme.accent);
+    root.style.setProperty('--muted', theme.muted);
+    root.style.setProperty('--border', theme.border);
     // Also update the ring color to match the new primary color
     root.style.setProperty('--ring', theme.primary);
 
