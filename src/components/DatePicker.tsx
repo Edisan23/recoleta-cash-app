@@ -45,7 +45,7 @@ export function DatePicker({ date, setDate, highlightedDays = [] }: DatePickerPr
           {date ? format(date, 'PPP', { locale: es }) : <span>Selecciona una fecha</span>}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 bg-card">
+      <PopoverContent className="w-auto p-0">
         <Calendar
           mode="single"
           selected={date}
