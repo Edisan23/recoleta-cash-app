@@ -377,7 +377,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     <CardTitle>Resumen del Día</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="flex justify-around items-center text-center">
+                    <div className="flex justify-around items-center text-center p-4 rounded-lg bg-muted">
                         <div>
                             <p className="text-sm text-muted-foreground">Total de Horas</p>
                             <p className="text-2xl font-bold">
@@ -411,7 +411,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center p-4 rounded-lg bg-muted">
                         <div>
                             <p className="text-sm text-muted-foreground">Total Horas</p>
                             <p className="text-2xl font-bold">

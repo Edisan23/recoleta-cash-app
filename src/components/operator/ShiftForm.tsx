@@ -194,7 +194,7 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
             <CardContent className="space-y-4">
                 <div className="space-y-4">
                     {dailyShifts.map((shift, index) => (
-                        <div key={index} className="grid grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-muted/50">
+                        <div key={index} className="grid grid-cols-12 gap-4 items-end p-4 border rounded-lg bg-muted">
                             <div className="col-span-12 sm:col-span-5">
                                 <TimeInput
                                     label={`Entrada Turno ${index + 1}`}
