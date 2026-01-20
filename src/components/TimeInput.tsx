@@ -13,16 +13,34 @@ interface TimeInputProps {
 export function TimeInput({ label, value, onChange }: TimeInputProps) {
 
     const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let inputValue = e.target.value.replace(/[^0-9]/g, ''); // Remove non-numeric characters
-        
-        if (inputValue.length > 2) {
-            inputValue = inputValue.substring(0, 2);
-        }
+        // This allows the user to type freely.
+        // We will format the time on blur.
+        onChange(e.target.value);
+    };
 
-        if (inputValue.length === 2) {
-             onChange(inputValue + ':00');
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        const rawValue = e.target.value;
+        
+        // Remove all non-numeric characters to get just the numbers
+        const digits = rawValue.replace(/[^0-9]/g, '');
+
+        if (digits.length > 0) {
+            // Take the first one or two digits for the hour
+            const hourString = digits.slice(0, 2);
+            const hour = parseInt(hourString, 10);
+
+            // Validate hour
+            if (!isNaN(hour) && hour >= 0 && hour < 24) {
+                // Format to HH:00
+                const formattedTime = hourString.padStart(2, '0') + ':00';
+                onChange(formattedTime);
+            } else {
+                // If invalid hour entered, clear the field
+                onChange('');
+            }
         } else {
-            onChange(inputValue);
+            // If the field is empty after cleaning, ensure state is an empty string
+            onChange('');
         }
     };
 
@@ -32,13 +50,13 @@ export function TimeInput({ label, value, onChange }: TimeInputProps) {
             <Input
                 type="text"
                 inputMode="numeric"
-                pattern="[0-9]{2}"
-                maxLength={5} 
                 id={label.toLowerCase().replace(' ', '_')}
                 value={value} 
                 onChange={handleTimeChange}
+                onBlur={handleBlur} // Format the time when the user leaves the input
                 className="w-full text-base py-6 font-semibold border-2 border-primary/50"
-                placeholder="HH"
+                placeholder="HH:00"
+                maxLength={5}
             />
         </div>
     )
