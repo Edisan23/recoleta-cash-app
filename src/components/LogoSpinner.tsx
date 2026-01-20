@@ -15,21 +15,21 @@ export function LogoSpinner({ className }: { className?: string }) {
         priority
       />
       {/* Left Headlight */}
-      <div className="absolute top-[66%] left-[38%] w-5 h-5">
+      <div className="absolute top-[68%] left-[30%] w-5 h-5">
         <Image
             src="/farola_blanca_on.png"
             alt="Faro izquierdo parpadeando"
             fill
-            className="object-contain animate-light-blink"
+            className="object-contain animate-light-blink drop-shadow-[0_0_2px_rgba(0,0,0,0.7)]"
         />
       </div>
       {/* Right Headlight */}
-      <div className="absolute top-[66%] right-[23%] w-5 h-5">
+      <div className="absolute top-[68%] right-[30%] w-5 h-5">
         <Image
             src="/farola_blanca_on.png"
             alt="Faro derecho parpadeando"
             fill
-            className="object-contain animate-light-blink"
+            className="object-contain animate-light-blink drop-shadow-[0_0_2px_rgba(0,0,0,0.7)]"
         />
       </div>
     </div>

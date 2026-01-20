@@ -24,21 +24,21 @@ export function LogoIcon({
         priority
       />
        {/* Left Headlight */}
-      <div className="absolute top-[66%] left-[38%] w-[6px] h-[6px]">
+      <div className="absolute top-[68%] left-[30%] w-[6px] h-[6px]">
         <Image
             src="/farola_blanca_on.png"
             alt="Faro izquierdo"
             fill
-            className="object-contain"
+            className="object-contain drop-shadow-[0_0_1px_rgba(0,0,0,0.9)]"
         />
       </div>
       {/* Right Headlight */}
-      <div className="absolute top-[66%] right-[23%] w-[6px] h-[6px]">
+      <div className="absolute top-[68%] right-[30%] w-[6px] h-[6px]">
         <Image
             src="/farola_blanca_on.png"
             alt="Faro derecho"
             fill
-            className="object-contain"
+            className="object-contain drop-shadow-[0_0_1px_rgba(0,0,0,0.9)]"
         />
       </div>
     </div>
