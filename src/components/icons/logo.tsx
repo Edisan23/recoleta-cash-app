@@ -16,8 +16,16 @@ export function LogoIcon({
       {...props}
     >
       <Image
+        src="/favicon.png"
+        alt="Turno Pro Logo - Camión"
+        fill
+        sizes="128px"
+        className="object-contain"
+        priority
+      />
+       <Image
         src="/farola_blanca_on.png"
-        alt="Turno Pro Logo"
+        alt="Turno Pro Logo - Faros"
         fill
         sizes="128px"
         className="object-contain"
