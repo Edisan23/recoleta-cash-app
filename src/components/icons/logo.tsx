@@ -23,14 +23,26 @@ export function LogoIcon({
         className="object-contain"
         priority
       />
-       <Image
-        src="/farola_blanca_on.png"
-        alt="Turno Pro Logo - Faros"
-        fill
-        sizes="128px"
-        className="object-contain"
-        priority
-      />
+       {/* Left Headlight */}
+      <div className="absolute top-[66%] left-[38%] w-[6px] h-[6px]">
+        <Image
+            src="/farola_blanca_on.png"
+            alt="Faro izquierdo"
+            fill
+            className="object-contain"
+            priority
+        />
+      </div>
+      {/* Right Headlight */}
+      <div className="absolute top-[66%] right-[23%] w-[6px] h-[6px]">
+        <Image
+            src="/farola_blanca_on.png"
+            alt="Faro derecho"
+            fill
+            className="object-contain"
+            priority
+        />
+      </div>
     </div>
   );
 }
