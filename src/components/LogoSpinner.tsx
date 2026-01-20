@@ -15,7 +15,7 @@ export function LogoSpinner({ className }: { className?: string }) {
         priority
       />
       {/* Left Headlight */}
-      <div className="absolute top-[68%] left-[30%] w-5 h-5">
+      <div className="absolute top-[58%] left-[25%] w-5 h-5">
         <Image
             src="/farola_blanca_on.png"
             alt="Faro izquierdo parpadeando"
@@ -24,7 +24,7 @@ export function LogoSpinner({ className }: { className?: string }) {
         />
       </div>
       {/* Right Headlight */}
-      <div className="absolute top-[68%] right-[30%] w-5 h-5">
+      <div className="absolute top-[58%] right-[25%] w-5 h-5">
         <Image
             src="/farola_blanca_on.png"
             alt="Faro derecho parpadeando"

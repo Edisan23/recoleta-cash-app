@@ -24,7 +24,7 @@ export function LogoIcon({
         priority
       />
        {/* Left Headlight */}
-      <div className="absolute top-[68%] left-[30%] w-[6px] h-[6px]">
+      <div className="absolute top-[58%] left-[25%] w-[6px] h-[6px]">
         <Image
             src="/farola_blanca_on.png"
             alt="Faro izquierdo"
@@ -33,7 +33,7 @@ export function LogoIcon({
         />
       </div>
       {/* Right Headlight */}
-      <div className="absolute top-[68%] right-[30%] w-[6px] h-[6px]">
+      <div className="absolute top-[58%] right-[25%] w-[6px] h-[6px]">
         <Image
             src="/farola_blanca_on.png"
             alt="Faro derecho"
