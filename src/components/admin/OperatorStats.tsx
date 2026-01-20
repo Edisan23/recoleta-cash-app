@@ -84,7 +84,7 @@ export function OperatorStats({ user }: OperatorStatsProps) {
                     <CardTitle>Estadísticas de Operadores</CardTitle>
                 </CardHeader>
                 <CardContent className="flex justify-center items-center h-24">
-                    <LogoSpinner />
+                    <LogoSpinner className="h-12 w-12" />
                 </CardContent>
             </Card>
         );

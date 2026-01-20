@@ -155,7 +155,7 @@ export function CreateCompanyDialog({ onCompanyCreated }: CreateCompanyDialogPro
                 Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? <LogoSpinner className="mr-2" /> : null}
+              {isSubmitting ? <LogoSpinner className="mr-2 h-5 w-5" /> : null}
               Guardar
             </Button>
           </DialogFooter>

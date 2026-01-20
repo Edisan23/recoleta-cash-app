@@ -269,13 +269,13 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                 {hasShifts && (
                     <DeleteShiftDialog onConfirm={handleDelete}>
                         <Button variant="destructive" disabled={isDeleting || isSaving}>
-                            {isDeleting ? <LogoSpinner className="mr-2" /> : null}
+                            {isDeleting ? <LogoSpinner className="mr-2 h-5 w-5" /> : null}
                             Eliminar Turnos
                         </Button>
                     </DeleteShiftDialog>
                 )}
                 <Button onClick={handleSave} disabled={isSaving || isDeleting}>
-                    {isSaving ? <LogoSpinner className="mr-2" /> : null}
+                    {isSaving ? <LogoSpinner className="mr-2 h-5 w-5" /> : null}
                     {hasShifts ? 'Actualizar Turnos' : 'Guardar Turnos'}
                 </Button>
             </CardFooter>

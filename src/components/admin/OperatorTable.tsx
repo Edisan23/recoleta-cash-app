@@ -151,7 +151,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                             {profilesLoading ? (
                                 <TableRow>
                                     <TableCell colSpan={5} className="h-24 text-center">
-                                        <LogoSpinner />
+                                        <LogoSpinner className="h-12 w-12" />
                                     </TableCell>
                                 </TableRow>
                             ) : profilesError ? (

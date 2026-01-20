@@ -37,7 +37,7 @@ export const PrintVoucherButton = dynamic(() => Promise.resolve(PrintVoucherButt
     ssr: false,
     loading: () => (
         <Button disabled>
-            <LogoSpinner className="mr-2" />
+            <LogoSpinner className="mr-2 h-5 w-5" />
             Cargando...
         </Button>
     ),

@@ -152,7 +152,7 @@ export default function OperatorLoginPage() {
             onClick={handleGoogleSignIn}
             disabled={isSubmitting || !auth}
           >
-            {isSubmitting ? <LogoSpinner className="mr-2" /> : 
+            {isSubmitting ? <LogoSpinner className="mr-2 h-4 w-4" /> : 
             <svg
               className="mr-2 h-4 w-4"
               aria-hidden="true"
