@@ -22,6 +22,9 @@ const themes: ColorTheme[] = [
   { name: 'emerald', primary: '142.1 76.2% 36.3%', primaryForeground: '142.1 76.2% 96.3%', accent: '142.1 40% 94%', color: 'hsl(142.1, 76.2%, 36.3%)' },
   { name: 'violet', primary: '262.1 83.3% 57.8%', primaryForeground: '262.1 83.3% 97.8%', accent: '262.1 40% 94%', color: 'hsl(262.1, 83.3%, 57.8%)' },
   { name: 'red', primary: '0 72.2% 50.6%', primaryForeground: '0 84.2% 95.9%', accent: '0 40% 94%', color: 'hsl(0, 72.2%, 50.6%)' },
+  { name: 'orange', primary: '24.6 95% 53.1%', primaryForeground: '60 9.1% 97.8%', accent: '24.6 40% 94%', color: 'hsl(24.6, 95%, 53.1%)' },
+  { name: 'rose', primary: '346.8 77.2% 49.8%', primaryForeground: '355.7 100% 97.3%', accent: '346.8 40% 94%', color: 'hsl(346.8, 77.2%, 49.8%)' },
+  { name: 'slate', primary: '215.2 28.2% 26.5%', primaryForeground: '210 40% 98%', accent: '215.2 20% 94%', color: 'hsl(215.2, 28.2%, 26.5%)' },
 ];
 
 export function ThemeCustomizer() {
@@ -67,7 +70,7 @@ export function ThemeCustomizer() {
         <PopoverContent className="w-auto">
             <div className="space-y-4">
                 <Label>Paleta de Colores</Label>
-                <div className="flex gap-4">
+                <div className="flex flex-wrap gap-4">
                     {themes.map((theme) => {
                         const isActive = activeTheme.name === theme.name;
                         return (
