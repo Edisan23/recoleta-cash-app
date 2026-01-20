@@ -35,6 +35,11 @@ import { collection, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { DeleteUserDialog } from './DeleteUserDialog';
 import { cn } from '@/lib/utils';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+  } from "@/components/ui/tooltip";
 
 interface OperatorTableProps {
     user: User | null;
@@ -168,7 +173,7 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                     const isPremiumActive = op.premiumUntil === null || (premiumUntilDate && isAfter(premiumUntilDate, new Date()));
 
                                     return (
-                                        <TableRow key={op.id} className={cn(isPremiumActive && "bg-primary/5 hover:bg-primary/10 dark:bg-primary/10 dark:hover:bg-primary/20")}>
+                                        <TableRow key={op.id}>
                                             <TableCell className="font-medium">
                                                 <div className="flex items-center gap-3">
                                                     <Avatar>
@@ -176,7 +181,19 @@ export function OperatorTable({ user }: OperatorTableProps) {
                                                         <AvatarFallback>{getInitials(op.displayName)}</AvatarFallback>
                                                     </Avatar>
                                                     <div>
-                                                        <p className="font-semibold truncate max-w-xs">{op.displayName || 'Usuario sin nombre'}</p>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <p className="font-semibold truncate">{op.displayName || 'Usuario sin nombre'}</p>
+                                                            {isPremiumActive && (
+                                                                <Tooltip>
+                                                                    <TooltipTrigger>
+                                                                        <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent>
+                                                                        <p>Usuario Premium</p>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
+                                                            )}
+                                                        </div>
                                                         <p className="text-sm text-muted-foreground truncate max-w-xs">{op.email || 'No proporcionado'}</p>
                                                     </div>
                                                 </div>
