@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import { Paintbrush, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 // Defines the structure for a color theme, using HSL string values
 type ColorTheme = {
@@ -55,37 +57,37 @@ export function ThemeCustomizer() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Paintbrush className="h-5 w-5" />
-          Paleta de Colores
-        </CardTitle>
-        <CardDescription>
-          Personaliza el color principal de la aplicación.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex gap-4">
-          {themes.map((theme) => {
-            const isActive = activeTheme.name === theme.name;
-            return (
-              <button
-                key={theme.name}
-                onClick={() => applyTheme(theme)}
-                className={cn(
-                  'h-10 w-10 rounded-full flex items-center justify-center ring-2 ring-transparent ring-offset-2 ring-offset-background transition-all',
-                  isActive && 'ring-primary'
-                )}
-                style={{ backgroundColor: theme.color }}
-                aria-label={`Seleccionar tema ${theme.name}`}
-              >
-                {isActive && <Check className="h-6 w-6 text-primary-foreground" />}
-              </button>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+    <Popover>
+        <PopoverTrigger asChild>
+            <Button variant="outline" size="icon" title="Cambiar Paleta de Colores">
+                <Paintbrush className="h-[1.2rem] w-[1.2rem]" />
+                <span className="sr-only">Cambiar Paleta de Colores</span>
+            </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto">
+            <div className="space-y-4">
+                <Label>Paleta de Colores</Label>
+                <div className="flex gap-4">
+                    {themes.map((theme) => {
+                        const isActive = activeTheme.name === theme.name;
+                        return (
+                        <button
+                            key={theme.name}
+                            onClick={() => applyTheme(theme)}
+                            className={cn(
+                            'h-10 w-10 rounded-full flex items-center justify-center ring-2 ring-transparent ring-offset-2 ring-offset-background transition-all',
+                            isActive && 'ring-primary'
+                            )}
+                            style={{ backgroundColor: theme.color }}
+                            aria-label={`Seleccionar tema ${theme.name}`}
+                        >
+                            {isActive && <Check className="h-6 w-6 text-primary-foreground" />}
+                        </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </PopoverContent>
+    </Popover>
   );
 }

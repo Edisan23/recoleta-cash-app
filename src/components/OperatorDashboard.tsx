@@ -287,6 +287,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             </div>
             <div className="flex items-center gap-2">
                 <ThemeToggle />
+                <ThemeCustomizer />
                 <Button variant="outline" size="icon" onClick={() => router.push('/operator/history')} title="Ver Historial">
                     <History />
                     <span className="sr-only">Ver Historial</span>
@@ -432,7 +433,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </div>
                 </CardContent>
             </Card>
-            <ThemeCustomizer />
         </main>
       </div>
       <InstallPwaPrompt />
