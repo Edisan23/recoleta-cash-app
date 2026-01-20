@@ -16,7 +16,7 @@ export function LogoIcon({
       {...props}
     >
       <Image
-        src="/favicon.png"
+        src="/farola_blanca_on.png"
         alt="Turno Pro Logo"
         fill
         sizes="128px"
