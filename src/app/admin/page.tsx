@@ -14,7 +14,6 @@ import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
-import { ThemeCustomizer } from '@/components/admin/ThemeCustomizer';
 
 const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
@@ -117,8 +116,6 @@ export default function AdminDashboardPage() {
         <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} />
         <Separator />
         <OperatorStats user={user} />
-        <Separator />
-        <ThemeCustomizer />
         <Separator />
         <OperatorTable user={user} />
       </main>

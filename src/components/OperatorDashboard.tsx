@@ -23,6 +23,7 @@ import { ShiftForm } from './operator/ShiftForm';
 import { addDays, isAfter, differenceInDays, startOfDay } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from './ui/alert';
 import { toDate, getInitials } from '@/lib/utils';
+import { ThemeCustomizer } from '@/components/admin/ThemeCustomizer';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -431,6 +432,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </div>
                 </CardContent>
             </Card>
+            <ThemeCustomizer />
         </main>
       </div>
       <InstallPwaPrompt />
