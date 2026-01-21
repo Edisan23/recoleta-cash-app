@@ -301,7 +301,7 @@ export default function HistoryDetailPage() {
                     </div>
                 </main>
             </div>
-            <div className="absolute top-0 -left-full print:relative print:left-0 print:top-auto">
+            <div className="absolute -left-[9999px] top-0 print:static">
                  {periodSummary && company && userProfile && (
                     <PayrollVoucher 
                         ref={voucherRef}
