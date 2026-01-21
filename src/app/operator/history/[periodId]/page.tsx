@@ -224,7 +224,7 @@ export default function HistoryDetailPage() {
     }
     
     return (
-        <div className="relative overflow-x-hidden">
+        <div>
             <div className="container mx-auto p-4 sm:p-6 lg:p-8">
                 <header className="flex items-start justify-between mb-8">
                     <div>
@@ -301,7 +301,7 @@ export default function HistoryDetailPage() {
                     </div>
                 </main>
             </div>
-            <div className="absolute -left-[9999px] top-0 print:static">
+            <div className="absolute -left-[9999px] top-0">
                  {periodSummary && company && userProfile && (
                     <PayrollVoucher 
                         ref={voucherRef}
