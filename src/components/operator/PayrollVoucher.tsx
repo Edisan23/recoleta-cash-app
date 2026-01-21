@@ -4,7 +4,6 @@ import React from 'react';
 import type { PayrollSummary, Company, UserProfile } from '@/types/db-entities';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import Image from 'next/image';
 import { LogoIcon } from '../icons/logo';
 
 interface PayrollVoucherProps {
@@ -33,7 +32,8 @@ export const PayrollVoucher = React.forwardRef<HTMLDivElement, PayrollVoucherPro
             <header className="flex justify-between items-center pb-6 border-b-2 border-gray-200">
                 <div className="flex items-center gap-4">
                     {company.logoUrl && !company.logoUrl.includes('placehold.co') ? (
-                        <Image src={company.logoUrl} alt={company.name} width={80} height={80} className="object-contain" />
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={company.logoUrl} alt={company.name} width={80} height={80} className="object-contain" crossOrigin="anonymous" />
                     ) : (
                         <LogoIcon className="h-20 w-20 text-primary" />
                     )}
