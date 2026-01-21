@@ -14,11 +14,25 @@ import { ArrowLeft } from 'lucide-react';
 import { PayrollBreakdown } from '@/components/operator/PayrollBreakdown';
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
-import { PrintVoucherButton } from '@/components/operator/PrintVoucherButton';
 import { PayrollVoucher } from '@/components/operator/PayrollVoucher';
 import { Button } from '@/components/ui/button';
+import dynamic from 'next/dynamic';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
+
+const PrintVoucherButton = dynamic(
+    () => import('@/components/operator/PrintVoucherButton').then(mod => mod.PrintVoucherButton),
+    {
+        ssr: false,
+        loading: () => (
+            <Button disabled>
+                <LogoSpinner className="mr-2 h-5 w-5" />
+                Cargando...
+            </Button>
+        ),
+    }
+);
+
 
 const isWithinPeriod = (date: Date, period: { start: Date; end: Date }) => {
     const time = date.getTime();

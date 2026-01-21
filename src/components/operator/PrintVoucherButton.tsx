@@ -1,12 +1,10 @@
 'use client';
 
 import React from 'react';
-import dynamic from 'next/dynamic';
 import { useReactToPrint } from 'react-to-print';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Download } from 'lucide-react';
-import { LogoSpinner } from '../LogoSpinner';
 
 interface PrintVoucherButtonProps {
     voucherRef: React.RefObject<HTMLDivElement>;
@@ -14,7 +12,7 @@ interface PrintVoucherButtonProps {
     operatorName: string;
 }
 
-const PrintVoucherButtonComponent: React.FC<PrintVoucherButtonProps> = ({ voucherRef, isDisabled, operatorName }) => {
+export const PrintVoucherButton: React.FC<PrintVoucherButtonProps> = ({ voucherRef, isDisabled, operatorName }) => {
     const { toast } = useToast();
 
     const handlePrint = useReactToPrint({
@@ -31,14 +29,3 @@ const PrintVoucherButtonComponent: React.FC<PrintVoucherButtonProps> = ({ vouche
         </Button>
     );
 };
-
-// Dynamically import the component with SSR turned off
-export const PrintVoucherButton = dynamic(() => Promise.resolve(PrintVoucherButtonComponent), {
-    ssr: false,
-    loading: () => (
-        <Button disabled>
-            <LogoSpinner className="mr-2 h-5 w-5" />
-            Cargando...
-        </Button>
-    ),
-});
