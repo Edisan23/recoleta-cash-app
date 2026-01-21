@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
-import type { Shift, Company, CompanySettings, PayrollSummary } from '@/types/db-entities';
+import type { Shift, Company, CompanySettings, PayrollSummary, UserProfile } from '@/types/db-entities';
 import { collection, query, where, doc } from 'firebase/firestore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, isWithinInterval as isWithinIntervalFns } from 'date-fns';
@@ -14,6 +14,9 @@ import { ArrowLeft } from 'lucide-react';
 import { PayrollBreakdown } from '@/components/operator/PayrollBreakdown';
 import { Calendar } from '@/components/ui/calendar';
 import { Separator } from '@/components/ui/separator';
+import { PrintVoucherButton } from '@/components/operator/PrintVoucherButton';
+import { PayrollVoucher } from '@/components/operator/PayrollVoucher';
+import { Button } from '@/components/ui/button';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -111,7 +114,8 @@ export default function HistoryDetailPage() {
     const router = useRouter();
     const params = useParams();
     const firestore = useFirestore();
-    const { user, isUserLoading: isUserAuthLoading } = useUser();
+    const { user, userProfile, isUserLoading: isUserAuthLoading } = useUser();
+    const voucherRef = useRef<HTMLDivElement>(null);
 
     const [companyId, setCompanyId] = useState<string | null>(null);
     const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
@@ -197,7 +201,7 @@ export default function HistoryDetailPage() {
     
     }, [selectedDay, allShifts, settings, holidays]);
 
-    if (isLoading || !periodSummary) {
+    if (isLoading || !periodSummary || !company || !userProfile) {
         return (
             <div className="flex h-screen w-full items-center justify-center">
                 <LogoSpinner />
@@ -206,76 +210,94 @@ export default function HistoryDetailPage() {
     }
     
     return (
-        <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-            <header className="flex items-center justify-between mb-8">
-                <div>
-                    <button onClick={() => router.push('/operator/history')} className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 p-1 -ml-1">
-                        <ArrowLeft className="mr-2 h-4 w-4" />
-                        Volver a Períodos
-                    </button>
-                    <h1 className="text-3xl font-bold">Detalle del Período</h1>
-                    <p className="text-muted-foreground capitalize text-lg">
-                        {format(period.start, "d 'de' MMMM", { locale: es })} - {format(period.end, "d 'de' MMMM, yyyy", { locale: es })}
-                    </p>
-                </div>
-            </header>
-            <main className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className='space-y-6'>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Resumen del Período</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center mb-6">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Total Horas</p>
-                                    <p className="text-2xl font-bold">
-                                        {periodSummary ? `${periodSummary.totalHours}h` : '0h'}
-                                    </p>
+        <>
+            <div className="container mx-auto p-4 sm:p-6 lg:p-8">
+                <header className="flex items-start justify-between mb-8">
+                    <div>
+                        <Button variant="ghost" onClick={() => router.push('/operator/history')} className="flex items-center text-sm text-muted-foreground hover:text-foreground mb-4 p-1 -ml-1">
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Volver a Períodos
+                        </Button>
+                        <h1 className="text-3xl font-bold">Detalle del Período</h1>
+                        <p className="text-muted-foreground capitalize text-lg">
+                            {format(period.start, "d 'de' MMMM", { locale: es })} - {format(period.end, "d 'de' MMMM, yyyy", { locale: es })}
+                        </p>
+                    </div>
+                     <PrintVoucherButton
+                        voucherRef={voucherRef}
+                        isDisabled={!periodSummary || periodSummary.grossPay === 0}
+                        operatorName={userProfile.displayName}
+                    />
+                </header>
+                <main className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className='space-y-6'>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Resumen del Período</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center mb-6">
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Total Horas</p>
+                                        <p className="text-2xl font-bold">
+                                            {periodSummary ? `${periodSummary.totalHours}h` : '0h'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Pago Bruto</p>
+                                        <p className="text-2xl font-bold">
+                                            {periodSummary ? formatCurrency(periodSummary.grossPay) : '$0'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Pago Neto</p>
+                                        <p className="text-2xl font-bold text-green-600">
+                                            {periodSummary ? formatCurrency(periodSummary.netPay) : '$0'}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Pago Bruto</p>
-                                    <p className="text-2xl font-bold">
-                                        {periodSummary ? formatCurrency(periodSummary.grossPay) : '$0'}
-                                    </p>
-                                </div>
-                                 <div>
-                                    <p className="text-sm text-muted-foreground">Pago Neto</p>
-                                    <p className="text-2xl font-bold text-green-600">
-                                        {periodSummary ? formatCurrency(periodSummary.netPay) : '$0'}
-                                    </p>
-                                </div>
-                            </div>
-                             <PayrollBreakdown summary={periodSummary} />
-                        </CardContent>
-                    </Card>
-                </div>
+                                <PayrollBreakdown summary={periodSummary} />
+                            </CardContent>
+                        </Card>
+                    </div>
 
-                <div className='space-y-6'>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Detalle por Día</CardTitle>
-                            <CardDescription>Selecciona un día en el calendario para ver su detalle.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex justify-center">
-                            <Calendar 
-                                mode="single"
-                                selected={selectedDay}
-                                onSelect={setSelectedDay}
-                                fromDate={period.start}
-                                toDate={period.end}
-                                defaultMonth={period.start}
-                                modifiers={{ highlighted: shiftDaysInPeriod }}
-                                modifiersClassNames={{ highlighted: 'bg-primary/20 rounded-full' }}
-                                locale={es}
-                            />
-                        </CardContent>
-                    </Card>
-                     {selectedDay && (
-                        <HistoryDayDetail summary={dailyDetail?.summary || null} shiftsForDay={dailyDetail?.shiftsForDay || []} />
-                    )}
-                </div>
-            </main>
-        </div>
+                    <div className='space-y-6'>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Detalle por Día</CardTitle>
+                                <CardDescription>Selecciona un día en el calendario para ver su detalle.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex justify-center">
+                                <Calendar 
+                                    mode="single"
+                                    selected={selectedDay}
+                                    onSelect={setSelectedDay}
+                                    fromDate={period.start}
+                                    toDate={period.end}
+                                    defaultMonth={period.start}
+                                    modifiers={{ highlighted: shiftDaysInPeriod }}
+                                    modifiersClassNames={{ highlighted: 'bg-primary/20 rounded-full' }}
+                                    locale={es}
+                                />
+                            </CardContent>
+                        </Card>
+                        {selectedDay && (
+                            <HistoryDayDetail summary={dailyDetail?.summary || null} shiftsForDay={dailyDetail?.shiftsForDay || []} />
+                        )}
+                    </div>
+                </main>
+            </div>
+            <div className="hidden print:block">
+                 {periodSummary && company && userProfile && (
+                    <PayrollVoucher 
+                        ref={voucherRef}
+                        summary={periodSummary}
+                        company={company}
+                        user={userProfile}
+                        period={period}
+                    />
+                )}
+            </div>
+        </>
     )
 }
