@@ -224,7 +224,7 @@ export default function HistoryDetailPage() {
     }
     
     return (
-        <>
+        <div className="relative overflow-x-hidden">
             <div className="container mx-auto p-4 sm:p-6 lg:p-8">
                 <header className="flex items-start justify-between mb-8">
                     <div>
@@ -313,6 +313,6 @@ export default function HistoryDetailPage() {
                     />
                 )}
             </div>
-        </>
+        </div>
     )
 }
