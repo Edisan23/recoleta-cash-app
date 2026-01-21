@@ -16,10 +16,10 @@ interface PayrollVoucherProps {
 const formatCurrency = (value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 
 const BreakdownRow = ({ label, hours, pay }: { label: string; hours?: number; pay: number }) => {
-    if (pay === 0 && (hours === undefined || hours === 0)) return null;
+    if (pay === 0 && (typeof hours !== 'number' || hours === 0)) return null;
     return (
         <tr className="border-b border-gray-200 last:border-b-0">
-            <td className="py-2 px-4 text-gray-600">{label} {hours !== undefined ? `(${hours || 0}h)` : ''}</td>
+            <td className="py-2 px-4 text-gray-600">{label} {typeof hours === 'number' ? `(${hours}h)` : ''}</td>
             <td className="py-2 px-4 text-right font-medium">{formatCurrency(pay)}</td>
         </tr>
     );
