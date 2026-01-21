@@ -157,7 +157,7 @@ export const PayrollVoucher = React.forwardRef<HTMLDivElement, PayrollVoucherPro
                         </tr>
                     </thead>
                     <tbody>
-                        {shifts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(shift => (
+                        {[...shifts].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(shift => (
                             <tr key={shift.id} className="border-b border-gray-200 last:border-b-0 align-top">
                                 <td className="py-3 px-4">
                                     {format(new Date(shift.date), 'EEE, dd MMM', { locale: es })}
