@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { PayrollSummary, Company, UserProfile } from '@/types/db-entities';
+import type { PayrollSummary, Company, UserProfile, Shift } from '@/types/db-entities';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { LogoIcon } from '../icons/logo';
@@ -11,6 +11,7 @@ interface PayrollVoucherProps {
     company: Company;
     user: UserProfile;
     period: { start: Date; end: Date };
+    shifts: Shift[];
 }
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
@@ -25,7 +26,7 @@ const BreakdownRow = ({ label, hours, pay }: { label: string; hours?: number; pa
     );
 };
 
-export const PayrollVoucher = React.forwardRef<HTMLDivElement, PayrollVoucherProps>(({ summary, company, user, period }, ref) => {
+export const PayrollVoucher = React.forwardRef<HTMLDivElement, PayrollVoucherProps>(({ summary, company, user, period, shifts }, ref) => {
     return (
         <div ref={ref} className="p-8 bg-white text-gray-800 font-sans">
             {/* Header */}
@@ -142,6 +143,60 @@ export const PayrollVoucher = React.forwardRef<HTMLDivElement, PayrollVoucherPro
                         )}
                     </div>
                 </div>
+            </section>
+
+             {/* Shift by shift details */}
+            <section className="my-8" style={{pageBreakInside: 'avoid'}}>
+                <h3 className="text-lg font-semibold mb-2 border-b pb-2">Detalle de Turnos Registrados</h3>
+                <table className="w-full text-sm" style={{ tableLayout: 'fixed', width: '100%' }}>
+                    <thead className="bg-gray-50">
+                        <tr className="border-b border-gray-300">
+                            <th className="py-2 px-4 text-left font-semibold w-[25%]">Fecha</th>
+                            <th className="py-2 px-4 text-left font-semibold w-[20%]">Horario</th>
+                            <th className="py-2 px-4 text-left font-semibold w-[55%]">Detalles y Notas</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {shifts.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(shift => (
+                            <tr key={shift.id} className="border-b border-gray-200 last:border-b-0 align-top">
+                                <td className="py-3 px-4">
+                                    {format(new Date(shift.date), 'EEE, dd MMM', { locale: es })}
+                                </td>
+                                <td className="py-3 px-4 font-mono">
+                                    {shift.startTime} - {shift.endTime}
+                                </td>
+                                <td className="py-3 px-4 break-words">
+                                    {shift.itemDetails && shift.itemDetails.length > 0 && (
+                                        <div className="mb-2">
+                                            {shift.itemDetails.map(detail => (
+                                                <div key={detail.itemId} className="text-xs">
+                                                    <span className="text-gray-500">{detail.itemName}: </span>
+                                                    <span className="font-medium">{detail.detail}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {shift.notes && (
+                                        <div className="whitespace-pre-wrap text-gray-600 text-xs">
+                                            <span className="font-semibold not-italic text-gray-500">Notas: </span>
+                                            <span className="italic">{shift.notes}</span>
+                                        </div>
+                                    )}
+                                    {(!shift.itemDetails || shift.itemDetails.length === 0) && !shift.notes && (
+                                        <span className="text-gray-400">--</span>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                        {shifts.length === 0 && (
+                             <tr>
+                                <td colSpan={3} className="py-3 px-4 text-center text-gray-500">
+                                    No hay turnos registrados en este período.
+                                </td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
             </section>
 
              {/* Footer */}

@@ -309,6 +309,7 @@ export default function HistoryDetailPage() {
                         company={company}
                         user={userProfile}
                         period={period}
+                        shifts={shiftsInPeriod}
                     />
                 )}
             </div>
