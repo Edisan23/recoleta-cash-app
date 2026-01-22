@@ -21,8 +21,11 @@ export default function AdminDashboardPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
-  const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
-  const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
+  // const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
+  // const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
+  const companies: Company[] = [];
+  const areCompaniesLoading = false;
+
 
   const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {
     if (!firestore) return;
@@ -80,7 +83,7 @@ export default function AdminDashboardPage() {
   }
 
   // Show a spinner while the user state is loading, but only if we haven't already decided to redirect
-  if (isUserLoading) {
+  if (isUserLoading || areCompaniesLoading) {
      return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
