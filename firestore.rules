@@ -62,6 +62,7 @@ service cloud.firestore {
     // This is a collection group query, it applies to all collections named "shifts"
     match /{path=**}/shifts/{shiftId} {
         allow read: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
+        allow list: if isAdmin() || (isCompanyMember(path.split('/')[1]) && request.query.filters[0].value == request.auth.uid);
         allow create: if isCompanyMember(path.split('/')[1]) && request.resource.data.userId == request.auth.uid;
         allow update, delete: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
     }
