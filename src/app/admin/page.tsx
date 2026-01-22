@@ -7,8 +7,6 @@ import { Button } from '@/components/ui/button';
 import { CalendarDays, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
-import { OperatorTable } from '@/components/admin/OperatorTable';
-import { Separator } from '@/components/ui/separator';
 import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
@@ -113,8 +111,6 @@ export default function AdminDashboardPage() {
 
       <main className="space-y-8">
         <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} />
-        <Separator />
-        <OperatorTable user={user} />
       </main>
     </div>
   );
