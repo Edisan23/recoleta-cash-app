@@ -69,21 +69,20 @@ service cloud.firestore {
       match /payrolls/{payrollId=**} {
         allow list: if isAdmin() || (isCompanyMember(companyId) && request.query.filters[0].value == request.auth.uid);
       }
+
+      // Rules specific to the shifts subcollection under a company
+      match /shifts/{shiftId} {
+        // This covers operator queries on a specific company's shifts collection
+        allow read, write: if isCompanyMember(companyId) && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
+        allow list: if isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].value == request.auth.uid;
+      }
     }
     
     // Collection Group Query for 'shifts'
-    // This rule applies to any subcollection named 'shifts' (e.g., /companies/{companyId}/shifts/{shiftId})
+    // This rule allows Admins to perform collection group queries across all 'shifts' collections.
+    // Operator access is handled by the more specific rule under /companies/{companyId}/shifts/{shiftId}.
     match /{path=**}/shifts/{shiftId} {
-        // An admin can read any shift.
-        // A user can read their own shifts if they are part of the company.
-        allow read: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
-        allow list: if isAdmin() || (isCompanyMember(path.split('/')[1]) && request.query.filters[0].value == request.auth.uid);
-        
-        // A user can create their own shifts.
-        allow create: if isCompanyMember(path.split('/')[1]) && request.resource.data.userId == request.auth.uid;
-        
-        // A user can update/delete their own shifts, or an admin can.
-        allow update, delete: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
+        allow read, write, list: if isAdmin();
     }
 
      match /holidays/{holidayId} {

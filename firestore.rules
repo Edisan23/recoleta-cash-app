@@ -57,14 +57,18 @@ service cloud.firestore {
         allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
         allow write: if isAdmin();
       }
+       // Rules specific to the shifts subcollection under a company
+      match /shifts/{shiftId} {
+        // This covers operator queries on a specific company's shifts collection
+        allow read, write: if isCompanyMember(companyId) && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
+        allow list: if isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].value == request.auth.uid;
+      }
     }
     
     // This is a collection group query, it applies to all collections named "shifts"
+    // This rule allows Admins to perform collection group queries across all 'shifts' collections.
     match /{path=**}/shifts/{shiftId} {
-        allow read: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
-        allow list: if isAdmin() || (isCompanyMember(path.split('/')[1]) && request.query.filters[0].value == request.auth.uid);
-        allow create: if isCompanyMember(path.split('/')[1]) && request.resource.data.userId == request.auth.uid;
-        allow update, delete: if isAdmin() || (isCompanyMember(path.split('/')[1]) && resource.data.userId == request.auth.uid);
+        allow read, write, list: if isAdmin();
     }
 
     match /holidays/{holidayId} {
