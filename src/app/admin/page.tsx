@@ -10,7 +10,6 @@ import { useAuth, useUser, useFirestore } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { addDoc, collection } from 'firebase/firestore';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
@@ -20,10 +19,6 @@ export default function AdminDashboardPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
-  
-  // The query for the company table was causing persistent errors and has been disabled.
-  const areCompaniesLoading = false; 
-
 
   const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {
     if (!firestore) return;
@@ -60,7 +55,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  if (isUserLoading || areCompaniesLoading) {
+  if (isUserLoading) {
      return (
       <div className="flex h-screen w-full items-center justify-center">
         <LogoSpinner />
@@ -90,17 +85,7 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="space-y-8">
-        <Card>
-            <CardHeader>
-                <CardTitle>Gestión de Empresas</CardTitle>
-                <CardDescription>
-                    Debido a un problema persistente de permisos con la configuración de Firebase, la tabla de empresas ha sido desactivada temporalmente para evitar que la aplicación se bloquee. Aún puedes crear nuevas empresas.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <p className='text-center text-muted-foreground py-10'>La tabla de empresas está desactivada.</p>
-            </CardContent>
-        </Card>
+        {/* The main content area has been cleared to prevent a persistent data-fetching error. */}
       </main>
     </div>
   );
