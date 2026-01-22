@@ -34,7 +34,7 @@ service cloud.firestore {
       // Any signed-in user can get or list companies (for the selection screen).
       allow get, list: if isSignedIn();
 
-      // Sub-collection reads are allowed for any signed-in user (as per isCompanyMember logic).
+      // Sub-collection reads are allowed for any signed-in user.
       match /settings/{settingsId} {
           allow read: if isSignedIn();
       }
@@ -51,13 +51,14 @@ service cloud.firestore {
       // Operators can only get their own payrolls, or list them with a query on their user ID.
       match /payrolls/{payrollId} {
         allow get: if resource.data.userId == request.auth.uid;
-        allow list: if request.query.where.size() > 0 && request.query.where[0].field == 'userId' && request.query.where[0].value == request.auth.uid;
+        allow list: if request.query.where[0].field == 'userId' && request.query.where[0].value == request.auth.uid;
       }
 
       // Operators can read/write their own shifts, and list them with a query on their user ID.
       match /shifts/{shiftId} {
-        allow read, write: if request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid;
-        allow list: if request.query.where.size() > 0 && request.query.where[0].value == request.auth.uid;
+        allow read, delete: if resource.data.userId == request.auth.uid;
+        allow create, update: if request.resource.data.userId == request.auth.uid;
+        allow list: if request.query.where[0].value == request.auth.uid;
       }
     }
 

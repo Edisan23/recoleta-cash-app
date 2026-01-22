@@ -21,10 +21,8 @@ export default function AdminDashboardPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
-  // const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
-  // const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
-  const companies: Company[] = [];
-  const areCompaniesLoading = false;
+  const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
+  const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
 
 
   const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {
