@@ -10,69 +10,60 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-
-    function isCompanyMember(companyId) {
-      // This rule is a placeholder. For this fake data app, we'll
-      // assume any signed-in user is a member of any company.
-      return isSignedIn();
-    }
-
+    
     function isAdmin() {
       // Admin access is restricted to a specific Google account email.
       return isSignedIn() && request.auth.token.email == 'tjedisan@gmail.com';
     }
 
+    // Admins have universal access. This rule is checked first.
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+    
+    // --- Rules for non-admin users below ---
+    
     match /users/{userId} {
-      allow get, update, delete: if isOwner(userId) || isAdmin();
+      // Non-admins can only get or update their own profile.
+      allow get, update: if isOwner(userId);
+      // Any signed-in user can create their own user document.
       allow create: if isSignedIn();
-      allow list: if isAdmin();
     }
 
     match /companies/{companyId} {
-      allow get: if isCompanyMember(companyId);
-      allow list: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      // Any signed-in user can get or list companies (for the selection screen).
+      allow get, list: if isSignedIn();
 
+      // Sub-collection reads are allowed for any signed-in user (as per isCompanyMember logic).
       match /settings/{settingsId} {
-          allow read: if isCompanyMember(companyId);
-          allow write: if isAdmin();
+          allow read: if isSignedIn();
       }
       match /items/{itemId} {
-          allow read: if isCompanyMember(companyId);
-          allow write: if isAdmin();
+          allow read: if isSignedIn();
       }
        match /benefits/{benefitId} {
-          allow read: if isCompanyMember(companyId);
-          allow write: if isAdmin();
+          allow read: if isSignedIn();
       }
        match /deductions/{deductionId} {
-          allow read: if isCompanyMember(companyId);
-          allow write: if isAdmin();
+          allow read: if isSignedIn();
       }
-
-       // Payrolls can be read by the user they belong to, or by an admin.
+      
+      // Operators can only get their own payrolls, or list them with a query on their user ID.
       match /payrolls/{payrollId} {
-        allow get: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
-        allow list: if isAdmin() || (isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].field == 'userId' && request.query.filters[0].value == request.auth.uid);
-        allow create, update, delete: if isAdmin();
+        allow get: if resource.data.userId == request.auth.uid;
+        allow list: if request.query.where.size() > 0 && request.query.where[0].field == 'userId' && request.query.where[0].value == request.auth.uid;
       }
-       // Rules specific to the shifts subcollection under a company
+
+      // Operators can read/write their own shifts, and list them with a query on their user ID.
       match /shifts/{shiftId} {
-        // This covers operator queries on a specific company's shifts collection
-        allow read, write: if isCompanyMember(companyId) && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
-        allow list: if (isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].value == request.auth.uid) || isAdmin();
+        allow read, write: if request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid;
+        allow list: if request.query.where.size() > 0 && request.query.where[0].value == request.auth.uid;
       }
-    }
-    
-    // This is a collection group query, it applies to all collections named "shifts"
-    // This rule allows Admins to perform collection group queries across all 'shifts' collections.
-    match /{path=**}/shifts/{shiftId} {
-        allow list: if isAdmin();
     }
 
+    // Any signed-in user can read the holidays list.
     match /holidays/{holidayId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
     }
   }
 }

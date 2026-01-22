@@ -10,71 +10,60 @@ service cloud.firestore {
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-
-    function isCompanyMember(companyId) {
-      // For this app, we assume any signed-in user can be a member.
-      // A real app would have a more robust check (e.g., checking a user's companyId field).
-      return isSignedIn();
-    }
-
+    
     function isAdmin() {
       // Admin access is restricted to a specific Google account email.
       return isSignedIn() && request.auth.token.email == 'tjedisan@gmail.com';
     }
 
-    // Rules for the 'users' collection
-    match /users/{userId} {
-      allow get, update, delete: if isAdmin() || isOwner(userId);
-      allow create: if isSignedIn();
-      allow list: if isAdmin();
-    }
-
-    // Rules for the 'companies' collection and its subcollections
-    match /companies/{companyId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create, update, delete: if isAdmin();
-
-      match /settings/{settingsId} {
-          allow read: if isCompanyMember(companyId);
-          allow write: if isAdmin();
-      }
-      match /items/{itemId} {
-          allow read: if isCompanyMember(companyId);
-          allow write: if isAdmin();
-      }
-       match /benefits/{benefitId} {
-          allow read: if isCompanyMember(companyId);
-          allow write: if isAdmin();
-      }
-       match /deductions/{deductionId} {
-          allow read: if isCompanyMember(companyId);
-          allow write: if isAdmin();
-      }
-      
-      // Rules for the 'payrolls' subcollection
-      match /payrolls/{payrollId} {
-        allow get: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
-        allow list: if isAdmin() || (isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].field == 'userId' && request.query.filters[0].value == request.auth.uid);
-        allow create, update, delete: if isAdmin();
-      }
-
-      // Rules specific to the shifts subcollection under a company
-      match /shifts/{shiftId} {
-        allow read, write: if isCompanyMember(companyId) && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
-        allow list: if (isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].value == request.auth.uid) || isAdmin();
-      }
+    // Admins have universal access. This rule is checked first.
+    match /{document=**} {
+      allow read, write: if isAdmin();
     }
     
-    // Collection Group Query for 'shifts'
-    // This rule allows Admins to perform collection group queries across all 'shifts' collections.
-    match /{path=**}/shifts/{shiftId} {
-        allow list: if isAdmin();
+    // --- Rules for non-admin users below ---
+    
+    match /users/{userId} {
+      // Non-admins can only get or update their own profile.
+      allow get, update: if isOwner(userId);
+      // Any signed-in user can create their own user document.
+      allow create: if isSignedIn();
     }
 
-     match /holidays/{holidayId} {
+    match /companies/{companyId} {
+      // Any signed-in user can get or list companies (for the selection screen).
+      allow get, list: if isSignedIn();
+
+      // Sub-collection reads are allowed for any signed-in user (as per isCompanyMember logic).
+      match /settings/{settingsId} {
+          allow read: if isSignedIn();
+      }
+      match /items/{itemId} {
+          allow read: if isSignedIn();
+      }
+       match /benefits/{benefitId} {
+          allow read: if isSignedIn();
+      }
+       match /deductions/{deductionId} {
+          allow read: if isSignedIn();
+      }
+      
+      // Operators can only get their own payrolls, or list them with a query on their user ID.
+      match /payrolls/{payrollId} {
+        allow get: if resource.data.userId == request.auth.uid;
+        allow list: if request.query.where.size() > 0 && request.query.where[0].field == 'userId' && request.query.where[0].value == request.auth.uid;
+      }
+
+      // Operators can read/write their own shifts, and list them with a query on their user ID.
+      match /shifts/{shiftId} {
+        allow read, write: if request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid;
+        allow list: if request.query.where.size() > 0 && request.query.where[0].value == request.auth.uid;
+      }
+    }
+
+    // Any signed-in user can read the holidays list.
+    match /holidays/{holidayId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
     }
   }
 }
