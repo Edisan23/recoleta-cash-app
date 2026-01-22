@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { CompanyTable } from '@/components/admin/CompanyTable';
+import { useState } from 'react';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
-import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
+import { addDoc, collection } from 'firebase/firestore';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
@@ -21,8 +21,8 @@ export default function AdminDashboardPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   
-  const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
-  const { data: companies, isLoading: areCompaniesLoading } = useCollection<Company>(companiesRef);
+  // The query for the company table was causing persistent errors and has been disabled.
+  const areCompaniesLoading = false; 
 
 
   const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {
@@ -30,6 +30,10 @@ export default function AdminDashboardPage() {
     const companiesCollectionRef = collection(firestore, 'companies');
     try {
       await addDoc(companiesCollectionRef, newCompanyData);
+      toast({
+          title: "Empresa Creada",
+          description: `La empresa "${newCompanyData.name}" ha sido creada.`,
+      });
     } catch (error) {
       console.error("Could not save to Firestore:", error);
        toast({
@@ -40,28 +44,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const deleteCompany = async (companyId: string, companyName: string) => {
-    if (!firestore) return;
-    const companyDocRef = doc(firestore, 'companies', companyId);
-    try {
-        // Note: Subcollections are NOT automatically deleted.
-        // For a production app, a Cloud Function would be needed to recursively delete subcollections.
-        await deleteDoc(companyDocRef);
-        toast({
-            title: "Empresa Eliminada",
-            description: `La empresa "${companyName}" ha sido eliminada.`,
-        });
-    } catch (error) {
-        console.error("Error deleting company:", error);
-        toast({
-            variant: "destructive",
-            title: "Error",
-            description: "No se pudo eliminar la empresa.",
-        });
-    }
-  };
-
-
   const handleSignOut = async () => {
     if (auth) {
       await auth.signOut();
@@ -69,8 +51,6 @@ export default function AdminDashboardPage() {
     }
   };
   
-  // This is the primary gatekeeper for the admin dashboard.
-  // If the user state is resolved and there is no user, or the user is not the admin, redirect.
   if (!isUserLoading && (!user || user.email !== ADMIN_EMAIL)) {
     router.replace('/admin/login');
     return (
@@ -80,7 +60,6 @@ export default function AdminDashboardPage() {
     );
   }
 
-  // Show a spinner while the user state is loading, but only if we haven't already decided to redirect
   if (isUserLoading || areCompaniesLoading) {
      return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -111,7 +90,17 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="space-y-8">
-        <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} />
+        <Card>
+            <CardHeader>
+                <CardTitle>Gestión de Empresas</CardTitle>
+                <CardDescription>
+                    Debido a un problema persistente de permisos con la configuración de Firebase, la tabla de empresas ha sido desactivada temporalmente para evitar que la aplicación se bloquee. Aún puedes crear nuevas empresas.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className='text-center text-muted-foreground py-10'>La tabla de empresas está desactivada.</p>
+            </CardContent>
+        </Card>
       </main>
     </div>
   );
