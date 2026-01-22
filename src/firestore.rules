@@ -62,7 +62,7 @@ service cloud.firestore {
       // Rules specific to the shifts subcollection under a company
       match /shifts/{shiftId} {
         allow read, write: if isCompanyMember(companyId) && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
-        allow list: if isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].value == request.auth.uid;
+        allow list: if (isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].value == request.auth.uid) || isAdmin();
       }
     }
     

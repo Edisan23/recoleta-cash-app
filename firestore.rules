@@ -60,7 +60,7 @@ service cloud.firestore {
       match /shifts/{shiftId} {
         // This covers operator queries on a specific company's shifts collection
         allow read, write: if isCompanyMember(companyId) && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
-        allow list: if isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].value == request.auth.uid;
+        allow list: if (isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].value == request.auth.uid) || isAdmin();
       }
     }
     
