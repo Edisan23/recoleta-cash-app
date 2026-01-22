@@ -30,7 +30,8 @@ service cloud.firestore {
 
     match /companies/{companyId} {
       allow get: if isCompanyMember(companyId);
-      allow list, create, update, delete: if isAdmin(); // Admins can list all companies
+      allow list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
 
       match /settings/{settingsId} {
           allow read: if isCompanyMember(companyId);
