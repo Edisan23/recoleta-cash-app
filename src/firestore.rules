@@ -24,21 +24,15 @@ service cloud.firestore {
 
     // Rules for the 'users' collection
     match /users/{userId} {
-      // Admins can read/write any user profile.
-      // Users can only read/write their own profile.
-      allow read, update, delete: if isAdmin() || isOwner(userId);
-      // Any signed-in user can create their own profile.
+      allow get, update, delete: if isAdmin() || isOwner(userId);
       allow create: if isSignedIn();
-      // Allow admins to list all users for the admin dashboard.
       allow list: if isAdmin();
     }
 
     // Rules for the 'companies' collection and its subcollections
     match /companies/{companyId} {
-      // Any signed-in user can read company data (e.g., for the selection screen).
-      allow read: if isSignedIn();
-      // Only admins can manage companies.
-      allow create, update, delete: if isAdmin();
+      allow get: if isSignedIn();
+      allow list, create, update, delete: if isAdmin();
 
       match /settings/{settingsId} {
           allow read: if isCompanyMember(companyId);
@@ -59,20 +53,13 @@ service cloud.firestore {
       
       // Rules for the 'payrolls' subcollection
       match /payrolls/{payrollId} {
-        // An admin can read any payroll. A user can only read their own specific payroll doc.
         allow get: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
-        // Only admins can create/update/delete payrolls through the 'close payroll' action.
-        allow write, delete: if isAdmin();
-      }
-      // Allow admins and relevant users to list payrolls.
-      // This must be separate from the `get` rule on the document itself.
-      match /payrolls/{payrollId=**} {
-        allow list: if isAdmin() || (isCompanyMember(companyId) && request.query.filters[0].value == request.auth.uid);
+        allow list: if isAdmin() || (isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].field == 'userId' && request.query.filters[0].value == request.auth.uid);
+        allow create, update, delete: if isAdmin();
       }
 
       // Rules specific to the shifts subcollection under a company
       match /shifts/{shiftId} {
-        // This covers operator queries on a specific company's shifts collection
         allow read, write: if isCompanyMember(companyId) && (request.resource.data.userId == request.auth.uid || resource.data.userId == request.auth.uid);
         allow list: if isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].value == request.auth.uid;
       }
@@ -80,9 +67,8 @@ service cloud.firestore {
     
     // Collection Group Query for 'shifts'
     // This rule allows Admins to perform collection group queries across all 'shifts' collections.
-    // Operator access is handled by the more specific rule under /companies/{companyId}/shifts/{shiftId}.
     match /{path=**}/shifts/{shiftId} {
-        allow read, write, list: if isAdmin();
+        allow list: if isAdmin();
     }
 
      match /holidays/{holidayId} {

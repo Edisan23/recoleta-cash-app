@@ -23,17 +23,14 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Admins can read any user profile, users can only read/write their own.
-      allow read, update, delete: if isOwner(userId) || isAdmin();
-      // Any signed-in user can create their own profile.
+      allow get, update, delete: if isOwner(userId) || isAdmin();
       allow create: if isSignedIn();
-      // Allow admins to list all users for the admin dashboard.
       allow list: if isAdmin();
     }
 
     match /companies/{companyId} {
-      allow read: if isCompanyMember(companyId);
-      allow create, update, delete: if isAdmin();
+      allow get: if isCompanyMember(companyId);
+      allow list, create, update, delete: if isAdmin(); // Admins can list all companies
 
       match /settings/{settingsId} {
           allow read: if isCompanyMember(companyId);
@@ -54,8 +51,9 @@ service cloud.firestore {
 
        // Payrolls can be read by the user they belong to, or by an admin.
       match /payrolls/{payrollId} {
-        allow read: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
-        allow write: if isAdmin();
+        allow get: if isAdmin() || (isCompanyMember(companyId) && resource.data.userId == request.auth.uid);
+        allow list: if isAdmin() || (isCompanyMember(companyId) && request.query.filters.size() > 0 && request.query.filters[0].field == 'userId' && request.query.filters[0].value == request.auth.uid);
+        allow create, update, delete: if isAdmin();
       }
        // Rules specific to the shifts subcollection under a company
       match /shifts/{shiftId} {
@@ -68,7 +66,7 @@ service cloud.firestore {
     // This is a collection group query, it applies to all collections named "shifts"
     // This rule allows Admins to perform collection group queries across all 'shifts' collections.
     match /{path=**}/shifts/{shiftId} {
-        allow read, write, list: if isAdmin();
+        allow list: if isAdmin();
     }
 
     match /holidays/{holidayId} {
