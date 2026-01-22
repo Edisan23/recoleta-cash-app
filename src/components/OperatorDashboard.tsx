@@ -24,6 +24,7 @@ import { addDays, isAfter, differenceInDays, startOfDay } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toDate, getInitials } from '@/lib/utils';
 import { ThemeCustomizer } from '@/components/admin/ThemeCustomizer';
+import { PayrollHistoryCard } from './operator/PayrollHistoryCard';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -429,6 +430,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </div>
                 </CardContent>
             </Card>
+
+            <PayrollHistoryCard companyId={companyId} />
         </main>
       </div>
       <InstallPwaPrompt />
