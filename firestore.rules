@@ -15,26 +15,22 @@ service cloud.firestore {
       // Admin access is restricted to a specific Google account email.
       return isSignedIn() && request.auth.token.email == 'tjedisan@gmail.com';
     }
-
-    // Admins have universal access. This rule is checked first.
-    match /{document=**} {
-      allow read, write: if isAdmin();
-    }
-    
-    // --- Rules for non-admin users below ---
     
     match /users/{userId} {
-      // Non-admins can only get or update their own profile.
-      allow get, update: if isOwner(userId);
-      // Any signed-in user can create their own user document.
+      // Admin can do anything to users
+      allow read, write: if isAdmin();
+      // Operators can create their own profile, and get/update it.
       allow create: if isSignedIn();
+      allow get, update: if isOwner(userId);
     }
 
     match /companies/{companyId} {
-      // Any signed-in user can get or list companies (for the selection screen).
+      // Admin can do anything to companies
+      allow read, write: if isAdmin();
+      // Operators can only read companies
       allow get, list: if isSignedIn();
 
-      // Sub-collection reads are allowed for any signed-in user.
+      // Sub-collection rules for non-admins (admin access is covered above)
       match /settings/{settingsId} {
           allow read: if isSignedIn();
       }
@@ -48,22 +44,24 @@ service cloud.firestore {
           allow read: if isSignedIn();
       }
       
-      // Operators can only get their own payrolls, or list them with a query on their user ID.
       match /payrolls/{payrollId} {
+        // Operators can only get their own payrolls, or list them with a query on their user ID.
         allow get: if resource.data.userId == request.auth.uid;
-        allow list: if request.query.where[0].field == 'userId' && request.query.where[0].value == request.auth.uid;
+        allow list: if request.query.where.size() > 0 && request.query.where[0].field == 'userId' && request.query.where[0].value == request.auth.uid;
       }
 
-      // Operators can read/write their own shifts, and list them with a query on their user ID.
       match /shifts/{shiftId} {
+        // Operators can CRUD their own shifts, and list them with a query on their user ID.
         allow read, delete: if resource.data.userId == request.auth.uid;
         allow create, update: if request.resource.data.userId == request.auth.uid;
-        allow list: if request.query.where[0].value == request.auth.uid;
+        allow list: if request.query.where.size() > 0 && request.query.where[0].value == request.auth.uid;
       }
     }
 
-    // Any signed-in user can read the holidays list.
     match /holidays/{holidayId} {
+      // Admin can write holidays
+      allow write: if isAdmin();
+      // Any signed-in user can read holidays
       allow read: if isSignedIn();
     }
   }
