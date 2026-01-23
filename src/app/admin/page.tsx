@@ -10,6 +10,7 @@ import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { collection, doc, deleteDoc, addDoc } from 'firebase/firestore';
+import { OperatorTable } from '@/components/admin/OperatorTable';
 
 const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
@@ -107,6 +108,7 @@ export default function AdminDashboardPage() {
 
       <main className="space-y-8">
         { areCompaniesLoading ? <div className="flex justify-center"><LogoSpinner /></div> : <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} /> }
+        <OperatorTable user={user} />
       </main>
     </div>
   );
