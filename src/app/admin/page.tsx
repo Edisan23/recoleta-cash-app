@@ -3,15 +3,13 @@
 import { CompanyTable } from '@/components/admin/CompanyTable';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, LogOut, Trash2 } from 'lucide-react';
+import { CalendarDays, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
 import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
 import { collection, doc, deleteDoc, addDoc } from 'firebase/firestore';
-import { Separator } from '@/components/ui/separator';
-import { OperatorTable } from '@/components/admin/OperatorTable';
 
 const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
@@ -109,8 +107,6 @@ export default function AdminDashboardPage() {
 
       <main className="space-y-8">
         { areCompaniesLoading ? <div className="flex justify-center"><LogoSpinner /></div> : <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} /> }
-        <Separator />
-        <OperatorTable user={user} />
       </main>
     </div>
   );
