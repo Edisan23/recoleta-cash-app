@@ -4,8 +4,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     function isAdmin() {
-      // Ensures the user is authenticated and their email matches the admin email.
-      return request.auth != null && request.auth.token.email == 'tjedisan@gmail.com';
+      // Ensures the user is authenticated and their UID matches the admin UID.
+      return request.auth != null && request.auth.uid == 'o7bT7yEdWOdxIHgX6lszz19dl7j2';
     }
 
     // This rule is critical for collectionGroup queries.
