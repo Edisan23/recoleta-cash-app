@@ -1,15 +1,18 @@
 'use client';
 
+import { CompanyTable } from '@/components/admin/CompanyTable';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, LogOut, AlertCircle } from 'lucide-react';
+import { CalendarDays, LogOut, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
-import { useAuth, useUser, useFirestore } from '@/firebase';
+import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { addDoc, collection } from 'firebase/firestore';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { collection, doc, deleteDoc, addDoc } from 'firebase/firestore';
+import { OperatorStats } from '@/components/admin/OperatorStats';
+import { Separator } from '@/components/ui/separator';
+import { OperatorTable } from '@/components/admin/OperatorTable';
 
 const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
@@ -20,7 +23,27 @@ export default function AdminDashboardPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
-  // The collection hook that was causing the permission error has been removed to prevent app crashes.
+  const companiesRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'companies') : null, [firestore, user]);
+  const { data: companies, isLoading: areCompaniesLoading, error } = useCollection<Company>(companiesRef);
+
+  const deleteCompany = async (companyId: string, companyName: string) => {
+    if (!firestore) return;
+    try {
+        const docRef = doc(firestore, 'companies', companyId);
+        await deleteDoc(docRef);
+        toast({
+            title: "Empresa Eliminada",
+            description: `La empresa "${companyName}" ha sido eliminada.`,
+        });
+    } catch (error) {
+        console.error("Could not delete from Firestore:", error);
+         toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No se pudo eliminar la empresa.",
+        });
+    }
+  };
   
   const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {
     if (!firestore) return;
@@ -86,24 +109,11 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="space-y-8">
-        <Card className="border-amber-500 dark:border-amber-400">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                    <AlertCircle />
-                    Atención: Listado de Empresas Deshabilitado
-                </CardTitle>
-                <CardDescription>
-                    Se ha detectado un problema persistente con los permisos de la base de datos que impide mostrar la lista de empresas.
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <p className="text-sm text-muted-foreground">
-                    Para evitar que la aplicación se bloquee, esta sección ha sido deshabilitada temporalmente.
-                    <br/>
-                    Aún puedes <strong>crear nuevas empresas</strong> usando el botón correspondiente. Para gestionarlas, necesitarás acceder a ellas directamente a través de la URL de configuración (p. ej. `/admin/company/ID_DE_LA_EMPRESA`).
-                </p>
-            </CardContent>
-        </Card>
+        { areCompaniesLoading ? <div className="flex justify-center"><LogoSpinner /></div> : <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} /> }
+        <Separator />
+        <OperatorStats user={user} />
+        <Separator />
+        <OperatorTable user={user} />
       </main>
     </div>
   );

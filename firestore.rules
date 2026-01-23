@@ -24,6 +24,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // Rule for collection group queries. This is critical for OperatorStats.
+    match /{path=**}/shifts/{shiftId} {
+        allow list: if isAdmin();
+    }
+    
     // Companies and their subcollections
     match /companies/{companyId} {
       allow list, get: if request.auth != null || isAdmin();
@@ -48,12 +53,17 @@ service cloud.firestore {
       
       match /shifts/{shiftId} {
         allow list: if isAdmin();
-        allow read, write: if (request.auth != null && request.resource.data.userId == request.auth.uid) || isAdmin();
+        // Operators can read/update/delete their own shifts
+        allow read, update, delete: if (request.auth.uid == resource.data.userId) || isAdmin();
+        // Operators can create their own shifts
+        allow create: if (request.auth.uid == request.resource.data.userId) || isAdmin();
       }
       
       match /payrolls/{payrollId} {
         allow list: if isAdmin();
-        allow read: if (request.auth != null && resource.data.userId == request.auth.uid) || isAdmin();
+        // Operators can read their own payrolls
+        allow read: if (request.auth.uid == resource.data.userId) || isAdmin();
+        // Only admins can create/update/delete payrolls
         allow write: if isAdmin();
       }
     }
