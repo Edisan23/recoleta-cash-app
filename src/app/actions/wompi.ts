@@ -19,6 +19,7 @@ const WOMPI_API_URL = 'https://production.wompi.co/v1';
 // Las llaves están directamente en el código para resolver un problema de configuración del entorno.
 // En una aplicación de producción real, estas llaves NUNCA deben estar aquí.
 // Deben cargarse de forma segura desde variables de entorno.
+const WOMPI_PUBLIC_KEY = "pub_prod_v2jBwbX8JiGCykpyiGFS37VrqKB8PBCL";
 const WOMPI_PRIVATE_KEY = "prv_prod_y8d6EwoXkdAgvleQacu9I4ap3xlYDnhQ";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
@@ -29,17 +30,29 @@ export async function createWompiPayment(
     { userId: string; companyId: string; userEmail: string; premiumPrice: number }
 ) {
 
-    if (!WOMPI_PRIVATE_KEY || !APP_URL) {
+    if (!WOMPI_PRIVATE_KEY || !WOMPI_PUBLIC_KEY || !APP_URL) {
         console.error("Wompi keys are not set. Check your .env.local file or the hardcoded values.");
         return { success: false, message: 'El servidor no está configurado para procesar pagos.' };
     }
 
     try {
+        // Paso 1: Obtener el token de aceptación
+        const merchantResponse = await fetch(`${WOMPI_API_URL}/merchants/${WOMPI_PUBLIC_KEY}`);
+        const merchantData = await merchantResponse.json();
+        
+        if (!merchantData.data?.presigned_acceptance?.acceptance_token) {
+            console.error('Wompi Merchant Error:', merchantData);
+            return { success: false, message: 'No se pudo obtener el token de aceptación de Wompi.' };
+        }
+        const acceptanceToken = merchantData.data.presigned_acceptance.acceptance_token;
+
+        // Paso 2: Crear la carga útil (payload) para la transacción
         const amountInCents = premiumPrice * 100;
         const reference = `recoleta-cash-${userId}-${companyId}-${Date.now()}`;
         const redirectUrl = `${APP_URL}/payment/confirmation`;
 
         const payload = {
+            acceptance_token: acceptanceToken,
             amount_in_cents: amountInCents,
             currency: 'COP',
             customer_email: userEmail,
