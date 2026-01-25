@@ -58,7 +58,6 @@ export async function createWompiPayment(
             customer_email: userEmail,
             reference: reference,
             redirect_url: redirectUrl,
-            payment_methods: ["CARD", "NEQUI", "PSE", "BANCOLOMBIA_TRANSFER"],
         };
 
         const response = await fetch(`${WOMPI_API_URL}/transactions`, {
