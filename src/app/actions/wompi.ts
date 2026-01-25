@@ -1,13 +1,16 @@
 // src/app/actions/wompi.ts
 'use server';
 
-import { WOMPI_PRIVATE_KEY, APP_URL } from '@/lib/wompi-config';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
 import type { CompanySettings } from '@/types/db-entities';
 import { addDays } from 'date-fns';
 import { revalidatePath } from 'next/cache';
+
+// Leer las variables de entorno directamente en el archivo del servidor
+const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY;
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
 // Asegurar que Firebase esté inicializado
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -22,6 +25,7 @@ export async function createWompiPayment(
     { userId: string; companyId: string; userEmail: string; premiumPrice: number }
 ) {
     if (!WOMPI_PRIVATE_KEY || !APP_URL) {
+        console.error("Wompi environment variables are not set. Check your .env.local file.");
         return { success: false, message: 'El servidor no está configurado para procesar pagos.' };
     }
 
@@ -70,6 +74,7 @@ export async function createWompiPayment(
 // Acción para verificar el pago y otorgar acceso premium
 export async function verifyWompiPayment(transactionId: string): Promise<{ status: string; message: string }> {
      if (!WOMPI_PRIVATE_KEY) {
+        console.error("Wompi private key is not set. Check your .env.local file.");
         return { status: 'ERROR', message: 'El servidor no está configurado para verificar pagos.' };
     }
     try {
