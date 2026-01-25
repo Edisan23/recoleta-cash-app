@@ -15,6 +15,9 @@ service cloud.firestore {
     // Operators can create their own user document.
     // Operators can only read and update their own user document.
     match /users/{userId} {
+      // Admin can do anything to a user document
+      allow read, write: if request.auth.uid == 'o7bT7yEdWOdxIHgX6lszz19dl7j2';
+
       allow create: if request.auth.uid == userId;
       allow read, update: if request.auth.uid == userId;
     }
