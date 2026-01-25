@@ -21,7 +21,8 @@ const WOMPI_API_URL = 'https://production.wompi.co/v1';
 // Deben cargarse de forma segura desde variables de entorno.
 const WOMPI_PUBLIC_KEY = "pub_prod_v2jBwbX8JiGCykpyiGFS37VrqKB8PBCL";
 const WOMPI_PRIVATE_KEY = "prv_prod_y8d6EwoXkdAgvleQacu9I4ap3xlYDnhQ";
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+// Se construye la URL de la app a partir del ID del proyecto de Firebase para garantizar que sea HTTPS.
+const APP_URL = `https://${firebaseConfig.projectId}.web.app`;
 
 
 // Acción para crear una transacción en Wompi y obtener la URL de pago
@@ -31,7 +32,6 @@ export async function createWompiPayment(
 ) {
 
     if (!WOMPI_PRIVATE_KEY || !WOMPI_PUBLIC_KEY || !APP_URL) {
-        console.error("Wompi keys are not set. Check your .env.local file or the hardcoded values.");
         return { success: false, message: 'El servidor no está configurado para procesar pagos.' };
     }
 
@@ -73,7 +73,6 @@ export async function createWompiPayment(
 
         if (data.error) {
             console.error('Wompi Error:', data.error);
-            console.error('Request Payload:', payload); // For debugging
 
             let errorMessage = 'Error al crear la transacción.';
             if (data.error.messages && typeof data.error.messages === 'object') {
