@@ -39,26 +39,44 @@ export async function createWompiPayment(
         const reference = `recoleta-cash-${userId}-${companyId}-${Date.now()}`;
         const redirectUrl = `${APP_URL}/payment/confirmation`;
 
+        const payload = {
+            amount_in_cents: amountInCents,
+            currency: 'COP',
+            customer_email: userEmail,
+            reference: reference,
+            redirect_url: redirectUrl,
+        };
+
         const response = await fetch(`${WOMPI_API_URL}/transactions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
             },
-            body: JSON.stringify({
-                amount_in_cents: amountInCents,
-                currency: 'COP',
-                customer_email: userEmail,
-                reference: reference,
-                redirect_url: redirectUrl,
-            }),
+            body: JSON.stringify(payload),
         });
 
         const data = await response.json();
 
         if (data.error) {
             console.error('Wompi Error:', data.error);
-            return { success: false, message: data.error.messages?.join(', ') || 'Error al crear la transacción.' };
+            console.error('Request Payload:', payload); // For debugging
+
+            let errorMessage = 'Error al crear la transacción.';
+            if (data.error.messages && typeof data.error.messages === 'object') {
+                const detailedMessages = Object.entries(data.error.messages)
+                    .map(([field, messages]) => `${field}: ${(messages as string[]).join(', ')}`)
+                    .join('; ');
+                if (detailedMessages) {
+                    errorMessage = detailedMessages;
+                }
+            } else if (data.error.reason) {
+                errorMessage = data.error.reason;
+            } else if (typeof data.error === 'string') {
+                 errorMessage = data.error;
+            }
+
+            return { success: false, message: errorMessage };
         }
         
         const transactionId = data.data.id;
