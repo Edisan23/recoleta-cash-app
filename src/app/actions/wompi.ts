@@ -8,10 +8,6 @@ import type { CompanySettings } from '@/types/db-entities';
 import { addDays } from 'date-fns';
 import { revalidatePath } from 'next/cache';
 
-// Leer las variables de entorno directamente en el archivo del servidor
-const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
-
 // Asegurar que Firebase esté inicializado
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const firestore = getFirestore(app);
@@ -24,7 +20,11 @@ export async function createWompiPayment(
     { userId, companyId, userEmail, premiumPrice }: 
     { userId: string; companyId: string; userEmail: string; premiumPrice: number }
 ) {
-    if (!WOMPI_PRIVATE_KEY || !APP_URL) {
+    // Leer las variables de entorno dentro de la función para asegurar el acceso en tiempo de ejecución
+    const wompiPrivateKey = process.env.WOMPI_PRIVATE_KEY;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+    if (!wompiPrivateKey || !appUrl) {
         console.error("Wompi environment variables are not set. Check your .env.local file.");
         return { success: false, message: 'El servidor no está configurado para procesar pagos.' };
     }
@@ -32,13 +32,13 @@ export async function createWompiPayment(
     try {
         const amountInCents = premiumPrice * 100;
         const reference = `recoleta-cash-${userId}-${companyId}-${Date.now()}`;
-        const redirectUrl = `${APP_URL}/payment/confirmation`;
+        const redirectUrl = `${appUrl}/payment/confirmation`;
 
         const response = await fetch(`${WOMPI_API_URL}/transactions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
+                Authorization: `Bearer ${wompiPrivateKey}`,
             },
             body: JSON.stringify({
                 amount_in_cents: amountInCents,
@@ -73,14 +73,16 @@ export async function createWompiPayment(
 
 // Acción para verificar el pago y otorgar acceso premium
 export async function verifyWompiPayment(transactionId: string): Promise<{ status: string; message: string }> {
-     if (!WOMPI_PRIVATE_KEY) {
+     // Leer la variable de entorno dentro de la función
+     const wompiPrivateKey = process.env.WOMPI_PRIVATE_KEY;
+     if (!wompiPrivateKey) {
         console.error("Wompi private key is not set. Check your .env.local file.");
         return { status: 'ERROR', message: 'El servidor no está configurado para verificar pagos.' };
     }
     try {
         const response = await fetch(`${WOMPI_API_URL}/transactions/${transactionId}`, {
             headers: {
-                Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
+                Authorization: `Bearer ${wompiPrivateKey}`,
             },
         });
 
