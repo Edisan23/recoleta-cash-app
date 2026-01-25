@@ -93,8 +93,8 @@ export function useCollection<T = any>(
         setData(null);
         setIsLoading(false);
 
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        // trigger global error propagation - DISABLED TO PREVENT APP CRASH
+        // errorEmitter.emit('permission-error', contextualError);
       }
     );
 
