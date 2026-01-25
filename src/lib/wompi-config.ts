@@ -1,5 +1,4 @@
 // src/lib/wompi-config.ts
-'use server';
 
 // IMPORTANTE: Estos valores deben ser configurados en tu archivo .env.local.
 // Crea un archivo llamado .env.local en la raíz de tu proyecto y añade las siguientes líneas:
