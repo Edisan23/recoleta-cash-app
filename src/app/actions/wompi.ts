@@ -1,4 +1,3 @@
-// src/app/actions/wompi.ts
 'use server';
 
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -7,6 +6,7 @@ import { firebaseConfig } from '@/firebase/config';
 import type { CompanySettings } from '@/types/db-entities';
 import { addDays } from 'date-fns';
 import { revalidatePath } from 'next/cache';
+import { createHash } from 'crypto';
 
 // Asegurar que Firebase esté inicializado
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -20,6 +20,50 @@ const WOMPI_API_URL = 'https://production.wompi.co/v1';
 // En una aplicación de producción real, estas llaves NUNCA deben estar aquí.
 // Deben cargarse de forma segura desde variables de entorno.
 const WOMPI_PRIVATE_KEY = "prv_prod_GZ8ET19zZqWBx4qq8CZ0Y59PtR70o4sm";
+const WOMPI_INTEGRITY_KEY = "prod_integrity_bYqS7YxN03nn7OmN0dxPIfuhQEs2QrrQ";
+const WOMPI_PUBLIC_KEY = "pub_prod_v2jBwbX8JiGCykpyiGFS37VrqKB8PBCL";
+
+
+export async function createWompiCheckoutUrl(
+    price: number, 
+    userId: string, 
+    companyId: string, 
+    userEmail: string | null, 
+    userName: string | null
+): Promise<string> {
+    if (!WOMPI_INTEGRITY_KEY || !WOMPI_PUBLIC_KEY) {
+        throw new Error('El servidor no está configurado para procesar pagos (faltan llaves).');
+    }
+
+    const amountInCents = price * 100;
+    const reference = `recoleta-cash-${userId}-${companyId}-${Date.now()}`;
+    const redirectUrl = `https://recoleta-cash-app.web.app/payment/confirmation`;
+    const currency = 'COP';
+
+    // 1. Crear la firma de integridad para asegurar la transacción.
+    const concatenation = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_KEY}`;
+    const signature = createHash('sha256').update(concatenation).digest('hex');
+
+    // 2. Construir la URL del checkout de Wompi.
+    // Se usa /p/ que es la ruta para pagos con firma.
+    const checkoutUrl = new URL('https://checkout.wompi.co/p/');
+    checkoutUrl.searchParams.append('public-key', WOMPI_PUBLIC_KEY);
+    checkoutUrl.searchParams.append('currency', currency);
+    checkoutUrl.searchParams.append('amount-in-cents', String(amountInCents));
+    checkoutUrl.searchParams.append('reference', reference);
+    checkoutUrl.searchParams.append('redirect-url', redirectUrl);
+    checkoutUrl.searchParams.append('signature:integrity', signature);
+    
+    if (userEmail) {
+        checkoutUrl.searchParams.append('customer-data:email', userEmail);
+    }
+    if (userName) {
+        checkoutUrl.searchParams.append('customer-data:full-name', userName);
+    }
+
+    return checkoutUrl.toString();
+}
+
 
 // Acción para verificar el pago y otorgar acceso premium
 export async function verifyWompiPayment(transactionId: string): Promise<{ status: string; message: string }> {

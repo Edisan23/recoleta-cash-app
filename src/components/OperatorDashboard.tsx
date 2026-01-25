@@ -26,6 +26,7 @@ import { toDate, getInitials } from '@/lib/utils';
 import { ThemeCustomizer } from '@/components/admin/ThemeCustomizer';
 import { PayrollHistoryCard } from './operator/PayrollHistoryCard';
 import type { User } from 'firebase/auth';
+import { createWompiCheckoutUrl } from '@/app/actions/wompi';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -39,7 +40,7 @@ function UpgradeToPremium({ price, companyId, user }: { price: number; companyId
     const [isRedirecting, setIsRedirecting] = useState(false);
     const { toast } = useToast();
 
-    const handlePayment = () => {
+    const handlePayment = async () => {
        if (!user) {
             toast({
                 variant: 'destructive',
@@ -51,27 +52,24 @@ function UpgradeToPremium({ price, companyId, user }: { price: number; companyId
 
         setIsRedirecting(true);
         
-        const WOMPI_PUBLIC_KEY = "pub_prod_v2jBwbX8JiGCykpyiGFS37VrqKB8PBCL";
-        const amountInCents = price * 100;
-        const reference = `recoleta-cash-${user.uid}-${companyId}-${Date.now()}`;
-        const redirectUrl = `https://recoleta-cash-app.web.app/payment/confirmation`;
-
-        const checkoutUrl = new URL('https://checkout.wompi.co/');
-        checkoutUrl.searchParams.append('public-key', WOMPI_PUBLIC_KEY);
-        checkoutUrl.searchParams.append('currency', 'COP');
-        checkoutUrl.searchParams.append('amount-in-cents', String(amountInCents));
-        checkoutUrl.searchParams.append('reference', reference);
-        checkoutUrl.searchParams.append('redirect-url', redirectUrl);
-
-        // Add customer data if available (good practice)
-        if (user.email) {
-            checkoutUrl.searchParams.append('customer-data:email', user.email);
+        try {
+            const checkoutUrl = await createWompiCheckoutUrl(
+                price,
+                user.uid,
+                companyId,
+                user.email,
+                user.displayName
+            );
+            window.location.href = checkoutUrl;
+        } catch (error) {
+            console.error("Error creating Wompi checkout URL:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error de Pago',
+                description: 'No se pudo iniciar el proceso de pago. Por favor, intenta de nuevo.',
+            });
+            setIsRedirecting(false);
         }
-        if (user.displayName) {
-            checkoutUrl.searchParams.append('customer-data:full-name', user.displayName);
-        }
-
-        window.location.href = checkoutUrl.toString();
     };
     
     return (
