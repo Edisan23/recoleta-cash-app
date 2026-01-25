@@ -25,7 +25,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toDate, getInitials } from '@/lib/utils';
 import { ThemeCustomizer } from '@/components/admin/ThemeCustomizer';
 import { PayrollHistoryCard } from './operator/PayrollHistoryCard';
-import { createWompiPayment } from '@/app/actions/wompi';
 import type { User } from 'firebase/auth';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
@@ -40,35 +39,39 @@ function UpgradeToPremium({ price, companyId, user }: { price: number; companyId
     const [isRedirecting, setIsRedirecting] = useState(false);
     const { toast } = useToast();
 
-    const handlePayment = async () => {
-        if (!user || !user.email) {
+    const handlePayment = () => {
+       if (!user) {
             toast({
                 variant: 'destructive',
                 title: 'Error',
-                description: 'No se pudo obtener la información del usuario para el pago.',
+                description: 'Debes iniciar sesión para realizar el pago.',
             });
             return;
         }
 
         setIsRedirecting(true);
-        const result = await createWompiPayment({
-            userId: user.uid,
-            companyId: companyId,
-            userEmail: user.email,
-            userName: user.displayName || 'Usuario Anónimo',
-            premiumPrice: price,
-        });
         
-        if (result.success && result.checkoutUrl) {
-            window.location.href = result.checkoutUrl;
-        } else {
-            toast({
-                variant: 'destructive',
-                title: 'Error de Pago',
-                description: result.message || 'No se pudo iniciar el proceso de pago. Inténtalo de nuevo.',
-            });
-            setIsRedirecting(false);
+        const WOMPI_PUBLIC_KEY = "pub_prod_v2jBwbX8JiGCykpyiGFS37VrqKB8PBCL";
+        const amountInCents = price * 100;
+        const reference = `recoleta-cash-${user.uid}-${companyId}-${Date.now()}`;
+        const redirectUrl = `${window.location.origin}/payment/confirmation`;
+
+        const checkoutUrl = new URL('https://checkout.wompi.co/');
+        checkoutUrl.searchParams.append('public-key', WOMPI_PUBLIC_KEY);
+        checkoutUrl.searchParams.append('currency', 'COP');
+        checkoutUrl.searchParams.append('amount-in-cents', String(amountInCents));
+        checkoutUrl.searchParams.append('reference', reference);
+        checkoutUrl.searchParams.append('redirect-url', redirectUrl);
+
+        // Add customer data if available (good practice)
+        if (user.email) {
+            checkoutUrl.searchParams.append('customer-data:email', user.email);
         }
+        if (user.displayName) {
+            checkoutUrl.searchParams.append('customer-data:full-name', user.displayName);
+        }
+
+        window.location.href = checkoutUrl.toString();
     };
     
     return (

@@ -19,91 +19,7 @@ const WOMPI_API_URL = 'https://production.wompi.co/v1';
 // Las llaves están directamente en el código para resolver un problema de configuración del entorno.
 // En una aplicación de producción real, estas llaves NUNCA deben estar aquí.
 // Deben cargarse de forma segura desde variables de entorno.
-const WOMPI_PUBLIC_KEY = "pub_prod_v2jBwbX8JiGCykpyiGFS37VrqKB8PBCL";
 const WOMPI_PRIVATE_KEY = "prv_prod_y8d6EwoXkdAgvleQacu9I4ap3xlYDnhQ";
-// Se construye la URL de la app a partir del ID del proyecto de Firebase para garantizar que sea HTTPS.
-const APP_URL = `https://${firebaseConfig.projectId}.web.app`;
-
-
-// Acción para crear una transacción en Wompi y obtener la URL de pago
-export async function createWompiPayment(
-    { userId, companyId, userEmail, userName, premiumPrice }: 
-    { userId: string; companyId: string; userEmail: string; userName: string; premiumPrice: number }
-) {
-
-    if (!WOMPI_PRIVATE_KEY || !WOMPI_PUBLIC_KEY || !APP_URL) {
-        return { success: false, message: 'El servidor no está configurado para procesar pagos.' };
-    }
-
-    try {
-        // Paso 1: Obtener el token de aceptación
-        const merchantResponse = await fetch(`${WOMPI_API_URL}/merchants/${WOMPI_PUBLIC_KEY}`);
-        const merchantData = await merchantResponse.json();
-        
-        if (!merchantData.data?.presigned_acceptance?.acceptance_token) {
-            console.error('Wompi Merchant Error:', merchantData);
-            return { success: false, message: 'No se pudo obtener el token de aceptación de Wompi.' };
-        }
-        const acceptanceToken = merchantData.data.presigned_acceptance.acceptance_token;
-
-        // Paso 2: Crear la carga útil (payload) para la transacción
-        const amountInCents = premiumPrice * 100;
-        const reference = `recoleta-cash-${userId}-${companyId}-${Date.now()}`;
-        const redirectUrl = `${APP_URL}/payment/confirmation`;
-
-        const payload = {
-            acceptance_token: acceptanceToken,
-            amount_in_cents: amountInCents,
-            currency: 'COP',
-            customer_data: {
-                email: userEmail,
-                full_name: userName
-            },
-            reference: reference,
-            redirect_url: redirectUrl,
-        };
-
-        const response = await fetch(`${WOMPI_API_URL}/transactions`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
-            },
-            body: JSON.stringify(payload),
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-            console.error('Wompi Error:', data.error);
-
-            let errorMessage = 'Error al crear la transacción.';
-            if (data.error.messages && typeof data.error.messages === 'object') {
-                const detailedMessages = Object.entries(data.error.messages)
-                    .map(([field, messages]) => `${field}: ${(messages as string[]).join(', ')}`)
-                    .join('; ');
-                if (detailedMessages) {
-                    errorMessage = detailedMessages;
-                }
-            } else if (data.error.reason) {
-                errorMessage = data.error.reason;
-            } else if (typeof data.error === 'string') {
-                 errorMessage = data.error;
-            }
-
-            return { success: false, message: errorMessage };
-        }
-        
-        const transactionId = data.data.id;
-        const checkoutUrl = `https://checkout.wompi.co/p/${transactionId}`;
-        
-        return { success: true, checkoutUrl };
-
-    } catch (error) {
-        console.error('Error creating Wompi payment:', error);
-        return { success: false, message: 'Ocurrió un error inesperado al iniciar el pago.' };
-    }
-}
 
 // Acción para verificar el pago y otorgar acceso premium
 export async function verifyWompiPayment(transactionId: string): Promise<{ status: string; message: string }> {
@@ -138,6 +54,14 @@ export async function verifyWompiPayment(transactionId: string): Promise<{ statu
             const settingsDocRef = doc(firestore, 'companies', companyId, 'settings', 'main');
             const settingsSnap = await getDoc(settingsDocRef);
             const settings = settingsSnap.data() as CompanySettings;
+            
+            // SECURITY CHECK: Verify the paid amount matches the expected price from settings.
+            const expectedAmountInCents = (settings?.premiumPrice ?? 0) * 100;
+            if (transaction.amount_in_cents !== expectedAmountInCents) {
+                console.error(`Tampering attempt! Reference: ${reference}. Expected ${expectedAmountInCents}, but paid ${transaction.amount_in_cents}`);
+                return { status: 'ERROR', message: 'El monto pagado no coincide con el costo de activación.' };
+            }
+
 
             const userDocRef = doc(firestore, 'users', userId);
             
