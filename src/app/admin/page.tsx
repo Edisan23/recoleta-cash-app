@@ -1,15 +1,17 @@
 'use client';
 
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
+import { CompanyTable } from '@/components/admin/CompanyTable';
+import { OperatorTable } from '@/components/admin/OperatorTable';
+import { OperatorStats } from '@/components/admin/OperatorStats';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, LogOut, AlertTriangle } from 'lucide-react';
+import { CalendarDays, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Company } from '@/types/db-entities';
-import { useAuth, useUser, useFirestore } from '@/firebase';
+import { useAuth, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import { useToast } from '@/hooks/use-toast';
-import { collection, addDoc } from 'firebase/firestore';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { collection, addDoc, doc, deleteDoc } from 'firebase/firestore';
 
 const ADMIN_EMAIL = 'tjedisan@gmail.com';
 
@@ -20,6 +22,9 @@ export default function AdminDashboardPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
+  const companiesRef = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'companies') : null, [firestore, user]);
+  const { data: companies } = useCollection<Company>(companiesRef);
+
   const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {
     if (!firestore) return;
     const companiesCollectionRef = collection(firestore, 'companies');
@@ -29,7 +34,6 @@ export default function AdminDashboardPage() {
           title: "Empresa Creada",
           description: `La empresa "${newCompanyData.name}" ha sido creada.`,
       });
-      // Redirect to the new company's settings page
       router.push(`/admin/company/${docRef.id}`);
     } catch (error) {
       console.error("Could not save to Firestore:", error);
@@ -40,6 +44,26 @@ export default function AdminDashboardPage() {
       });
     }
   };
+
+  const deleteCompany = async (companyId: string, companyName: string) => {
+    if(!firestore) return;
+    
+    const companyDocRef = doc(firestore, 'companies', companyId);
+    try {
+        await deleteDoc(companyDocRef);
+        toast({
+            title: "Empresa Eliminada",
+            description: `La empresa "${companyName}" ha sido eliminada.`,
+        });
+    } catch (error) {
+         console.error("Could not delete company from Firestore:", error);
+         toast({
+            variant: "destructive",
+            title: "Error",
+            description: "No se pudo eliminar la empresa.",
+        });
+    }
+  }
 
   const handleSignOut = async () => {
     if (auth) {
@@ -86,15 +110,9 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="space-y-8">
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Funcionalidad de Listado Deshabilitada</AlertTitle>
-          <AlertDescription>
-            Las tablas de empresas y operadores han sido deshabilitadas temporalmente para evitar un error persistente de permisos de base de datos. Este error parece estar relacionado con la configuración de tu proyecto de Firebase y no con el código de la aplicación.
-            <br /><br />
-            Puedes seguir creando nuevas empresas. Después de crear una, serás redirigido a su página de configuración. Puedes acceder a las empresas existentes si conoces su ID y lo colocas en la URL (ej: `/admin/company/ID_DE_LA_EMPRESA`).
-          </AlertDescription>
-        </Alert>
+        <OperatorStats user={user} />
+        <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} />
+        <OperatorTable user={user} />
       </main>
     </div>
   );

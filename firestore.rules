@@ -4,63 +4,73 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     function isAdmin() {
-      // This is the UID for tjedisan@gmail.com
+      // This is the UID for the admin user tjedisan@gmail.com
       return request.auth.uid == 'o7bT7yEdWOdxIHgX6lszz19dl7j2';
     }
 
-    match /users/{userId} {
-      allow read, write: if isAdmin();
-      // Users can read and update their own profile.
-      allow read, update: if request.auth.uid == userId;
-      // Any authenticated user can create their own user document.
-      allow create: if request.auth.uid == userId;
-    }
-
-    match /holidays/{holidayId} {
-      allow read, write: if isAdmin();
-      // Any authenticated user can read holidays.
-      allow read: if request.auth != null;
-    }
-    
+    // --- Admin Full Access Rules ---
+    // These rules grant the admin read/write to all main collections needed for the dashboard.
     match /companies/{companyId} {
       allow read, write: if isAdmin();
-      // Any authenticated user can get a specific company's details.
+    }
+    match /users/{userId} {
+      allow read, write: if isAdmin();
+    }
+    match /holidays/{holidayId} {
+      allow read, write: if isAdmin();
+    }
+    // This is the CRITICAL rule for the OperatorStats collectionGroup query.
+    match /{path=**}/shifts/{shiftId} {
+       allow read: if isAdmin();
+    }
+    // Admin also needs write access to subcollections
+    match /companies/{companyId}/{subcollection}/{docId} {
+      allow write: if isAdmin();
+    }
+
+    // --- Operator Permission Rules ---
+    
+    // Operators can only read and update their own user document.
+    match /users/{userId} {
+      allow read, update: if request.auth.uid == userId;
+      // Any new authenticated user can create their own user document.
+      allow create: if request.auth.uid == userId;
+    }
+    
+    // Any authenticated user can get a specific company's details and settings.
+    match /companies/{companyId} {
       allow get: if request.auth != null;
 
       match /settings/{docId} {
-        allow read, write: if isAdmin();
         allow read: if request.auth != null;
       }
       match /benefits/{docId} {
-        allow read, write: if isAdmin();
         allow read: if request.auth != null;
       }
       match /deductions/{docId} {
-        allow read, write: if isAdmin();
         allow read: if request.auth != null;
       }
       match /items/{docId} {
-        allow read, write: if isAdmin();
         allow read: if request.auth != null;
       }
       
+      // Operators can manage their own shifts within a company.
       match /shifts/{shiftId} {
-        allow read, write: if isAdmin();
-        // Operators can create their own shifts.
         allow create: if request.resource.data.userId == request.auth.uid;
-        // Operators can read, update, or delete their own shifts.
         allow read, update, delete: if resource.data.userId == request.auth.uid;
-        // Operators can list shifts within a company (client must filter).
         allow list: if request.auth != null;
       }
       
+      // Operators can read their own payrolls.
       match /payrolls/{payrollId} {
-        allow read, write: if isAdmin();
-        // Operators can read their own payrolls.
         allow read: if resource.data.userId == request.auth.uid;
-        // Operators can list payrolls within a company (client must filter).
         allow list: if request.auth != null;
       }
+    }
+
+    // Any authenticated user can read the holidays list.
+     match /holidays/{holidayId} {
+      allow read: if request.auth != null;
     }
   }
 }
