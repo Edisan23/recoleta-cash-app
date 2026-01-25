@@ -1,5 +1,3 @@
-
-
 import type { Shift, CompanySettings, PayrollSummary, Benefit, Deduction } from '@/types/db-entities';
 import { isHoliday, isWithinInterval } from './date-helpers';
 import { startOfDay, endOfDay, endOfMonth } from 'date-fns';
@@ -63,7 +61,7 @@ export function calculateShiftSummary(
     settings: CompanySettings, 
     holidays: Date[],
     hoursAlreadyWorkedOnDay: number = 0
-): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> {
+): Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown' | 'daysWorked'> {
     const summary = {
         totalHours: 0,
         grossPay: 0,
@@ -176,6 +174,7 @@ export function calculatePeriodSummary(
 
   const emptySummary: PayrollSummary = {
       totalHours: 0, grossPay: 0,
+      daysWorked: 0,
       dayHours: 0, nightHours: 0, dayOvertimeHours: 0, nightOvertimeHours: 0,
       holidayDayHours: 0, holidayNightHours: 0, holidayDayOvertimeHours: 0, holidayNightOvertimeHours: 0,
       dayPay: 0, nightPay: 0, dayOvertimePay: 0, nightOvertimePay: 0,
@@ -213,6 +212,7 @@ export function calculatePeriodSummary(
     return acc;
   }, { ...emptySummary });
 
+  periodSummary.daysWorked = Object.keys(shiftsByDay).length;
 
   // Calculate Benefits
   for (const benefit of benefits) {

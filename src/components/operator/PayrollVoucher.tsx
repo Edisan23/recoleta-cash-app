@@ -81,9 +81,21 @@ export const PayrollVoucher = React.forwardRef<HTMLDivElement, PayrollVoucherPro
             </section>
 
             {/* Totals Summary */}
-            <section style={{ backgroundColor: '#f9f9f9', borderRadius: '8px', padding: '20px', marginBottom: '30px', textAlign: 'center' }}>
-                 <p style={{ fontSize: '14px', color: '#555', margin: '0 0 5px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PAGO NETO</p>
-                 <p style={{ fontSize: '42px', fontWeight: 'bold', color: '#16a34a', margin: 0 }}>{formatCurrency(payroll.summary.netPay)}</p>
+            <section style={{ backgroundColor: '#f9f9f9', borderRadius: '8px', padding: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
+                <div>
+                    <p style={{ fontSize: '14px', color: '#555', margin: '0 0 5px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pago Neto</p>
+                    <p style={{ fontSize: '42px', fontWeight: 'bold', color: '#16a34a', margin: 0 }}>{formatCurrency(payroll.summary.netPay)}</p>
+                </div>
+                <div style={{ borderLeft: '1px solid #eee', height: '60px' }}></div>
+                <div>
+                    <p style={{ fontSize: '14px', color: '#555', margin: '0 0 5px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Días Trabajados</p>
+                    <p style={{ fontSize: '42px', fontWeight: 'bold', margin: 0 }}>{payroll.summary.daysWorked}</p>
+                </div>
+                <div style={{ borderLeft: '1px solid #eee', height: '60px' }}></div>
+                <div>
+                    <p style={{ fontSize: '14px', color: '#555', margin: '0 0 5px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Horas</p>
+                    <p style={{ fontSize: '42px', fontWeight: 'bold', margin: 0 }}>{payroll.summary.totalHours}h</p>
+                </div>
             </section>
 
             {/* Calculation Breakdown */}

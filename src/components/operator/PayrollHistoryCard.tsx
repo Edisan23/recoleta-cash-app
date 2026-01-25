@@ -85,7 +85,10 @@ export function PayrollHistoryCard({ companyId }: PayrollHistoryCardProps) {
                                             <p className="font-semibold">
                                                  {periodStart && periodEnd ? `${format(periodStart, 'd MMM', {locale: es})} - ${format(periodEnd, 'd MMM, yyyy', {locale: es})}` : 'Periodo no definido'}
                                             </p>
-                                            <p className="text-sm text-primary font-bold">{formatCurrency(payroll.summary.netPay)}</p>
+                                            <div className="flex items-baseline gap-4 mt-1">
+                                                <p className="text-base text-primary font-bold">{formatCurrency(payroll.summary.netPay)}</p>
+                                                <p className="text-xs text-muted-foreground">{`${payroll.summary.daysWorked} días • ${payroll.summary.totalHours}h`}</p>
+                                            </div>
                                         </div>
                                         <ChevronRight className="h-5 w-5 text-muted-foreground" />
                                     </Button>

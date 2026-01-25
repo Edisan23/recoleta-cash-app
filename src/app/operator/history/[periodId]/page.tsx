@@ -109,10 +109,14 @@ export default function PayrollDetailPage() {
                         </div>
                     </CardHeader>
                     <CardContent className="p-6 space-y-6">
-                        <div className="grid sm:grid-cols-2 gap-4 text-center p-4 rounded-lg bg-muted">
+                        <div className="grid sm:grid-cols-3 gap-4 text-center p-4 rounded-lg bg-muted">
                             <div>
                                 <p className="text-sm text-muted-foreground">Pago Neto</p>
                                 <p className="text-4xl font-bold text-primary">{formatCurrency(payroll.summary.netPay)}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">Días Trabajados</p>
+                                <p className="text-4xl font-bold">{payroll.summary.daysWorked}</p>
                             </div>
                             <div>
                                 <p className="text-sm text-muted-foreground">Total Horas</p>

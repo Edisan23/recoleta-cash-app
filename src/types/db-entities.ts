@@ -129,6 +129,7 @@ export type User = {
   export interface PayrollSummary extends PayrollBreakdown {
     grossPay: number;
     totalHours: number;
+    daysWorked: number;
     netPay: number;
     totalBenefits: number;
     totalDeductions: number;
