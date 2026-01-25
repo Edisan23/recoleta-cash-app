@@ -15,13 +15,15 @@ import { Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { DeleteCompanyDialog } from './DeleteCompanyDialog';
+import { LogoSpinner } from '../LogoSpinner';
 
 interface CompanyTableProps {
     companies: Company[];
     onDeleteCompany: (companyId: string, companyName: string) => void;
+    isLoading: boolean;
 }
 
-export function CompanyTable({ companies, onDeleteCompany }: CompanyTableProps) {
+export function CompanyTable({ companies, onDeleteCompany, isLoading }: CompanyTableProps) {
   
   return (
     <div className="rounded-lg border">
@@ -35,7 +37,13 @@ export function CompanyTable({ companies, onDeleteCompany }: CompanyTableProps) 
           </TableRow>
         </TableHeader>
         <TableBody>
-          {companies && companies.length > 0 ? (
+          {isLoading ? (
+            <TableRow>
+                <TableCell colSpan={4} className="h-24 text-center">
+                    <LogoSpinner className="h-12 w-12" />
+                </TableCell>
+            </TableRow>
+          ) : companies && companies.length > 0 ? (
             companies.map((company) => (
               <TableRow key={company.id}>
                 <TableCell>

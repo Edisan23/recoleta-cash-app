@@ -1,9 +1,9 @@
 'use client';
 
+import { useMemo } from 'react';
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { CompanyTable } from '@/components/admin/CompanyTable';
 import { OperatorTable } from '@/components/admin/OperatorTable';
-// import { OperatorStats } from '@/components/admin/OperatorStats';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -22,8 +22,10 @@ export default function AdminDashboardPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
-  const companiesRef = useMemoFirebase(() => (firestore && user) ? collection(firestore, 'companies') : null, [firestore, user]);
-  const { data: companies } = useCollection<Company>(companiesRef);
+  const isAdmin = useMemo(() => user?.email === ADMIN_EMAIL, [user]);
+
+  const companiesRef = useMemoFirebase(() => (firestore && isAdmin) ? collection(firestore, 'companies') : null, [firestore, isAdmin]);
+  const { data: companies, isLoading: companiesLoading } = useCollection<Company>(companiesRef);
 
   const addCompany = async (newCompanyData: Omit<Company, 'id'>) => {
     if (!firestore) return;
@@ -80,7 +82,7 @@ export default function AdminDashboardPage() {
     );
   }
 
-  if (!isUserLoading && (!user || user.email !== ADMIN_EMAIL)) {
+  if (!isUserLoading && !isAdmin) {
     router.replace('/admin/login');
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -110,9 +112,8 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="space-y-8">
-        {/* <OperatorStats user={user} /> */}
-        <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} />
-        <OperatorTable user={user} />
+        <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} isLoading={companiesLoading} />
+        <OperatorTable isAdmin={isAdmin} />
       </main>
     </div>
   );

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -32,9 +31,7 @@ import {
 import { LogoSpinner } from '../LogoSpinner';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { User } from 'firebase/auth';
 import { DeleteUserDialog } from './DeleteUserDialog';
-import { cn } from '@/lib/utils';
 import {
     Tooltip,
     TooltipContent,
@@ -43,15 +40,15 @@ import {
   } from "@/components/ui/tooltip";
 
 interface OperatorTableProps {
-    user: User | null;
+    isAdmin: boolean;
 }
 
-export function OperatorTable({ user }: OperatorTableProps) {
+export function OperatorTable({ isAdmin }: OperatorTableProps) {
     const firestore = useFirestore();
     const [searchQuery, setSearchQuery] = useState('');
     const { toast } = useToast();
 
-    const profilesRef = useMemoFirebase(() => (firestore && user ? collection(firestore, 'users') : null), [firestore, user]);
+    const profilesRef = useMemoFirebase(() => (firestore && isAdmin ? collection(firestore, 'users') : null), [firestore, isAdmin]);
     const { data: initialProfiles, isLoading: profilesLoading, error: profilesError } = useCollection<UserProfile>(profilesRef);
     
     const [operators, setOperators] = useState<UserProfile[]>([]);

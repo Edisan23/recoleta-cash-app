@@ -2,50 +2,33 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isAdmin() {
-      // This is the UID for the admin user tjedisan@gmail.com
-      return request.auth.uid == 'o7bT7yEdWOdxIHgX6lszz19dl7j2';
-    }
-
-    // --- Admin Full Access Rules ---
-    match /companies/{companyId}/{path=**} {
-      allow read, write: if isAdmin();
-    }
-    match /users/{userId} {
-      allow read, write: if isAdmin();
-    }
-    match /holidays/{holidayId} {
-      allow read, write: if isAdmin();
-    }
-
-    // --- Operator Permission Rules ---
     
+    // --- Global Admin Override ---
+    // If the user is the admin, grant full access to everything.
+    // This rule is checked first for any path.
+    match /{path=**} {
+      allow read, write: if request.auth.uid == 'o7bT7yEdWOdxIHgX6lszz19dl7j2';
+    }
+
+    // --- Operator Rules ---
+
+    // Operators can create their own user document.
     // Operators can only read and update their own user document.
     match /users/{userId} {
-      allow read, update: if request.auth.uid == userId;
-      // Any new authenticated user can create their own user document.
       allow create: if request.auth.uid == userId;
+      allow read, update: if request.auth.uid == userId;
     }
     
-    // Any authenticated user can get a specific company's details and settings.
+    // Any authenticated user can read company details and settings.
     match /companies/{companyId} {
       allow get: if request.auth != null;
 
-      match /settings/{docId} {
-        allow read: if request.auth != null;
-      }
-      match /benefits/{docId} {
-        allow read: if request.auth != null;
-      }
-      match /deductions/{docId} {
-        allow read: if request.auth != null;
-      }
-      match /items/{docId} {
+      // This covers subcollections like settings, benefits, deductions, items
+      match /{subcollection}/{docId} {
         allow read: if request.auth != null;
       }
       
-      // Operators can manage their own shifts within a company.
+      // Operators can manage their own shifts.
       match /shifts/{shiftId} {
         allow create: if request.resource.data.userId == request.auth.uid;
         allow read, update, delete: if resource.data.userId == request.auth.uid;
@@ -58,7 +41,7 @@ service cloud.firestore {
     }
 
     // Any authenticated user can read the holidays list.
-     match /holidays/{holidayId} {
+    match /holidays/{holidayId} {
       allow read: if request.auth != null;
     }
   }
