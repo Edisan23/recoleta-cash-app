@@ -74,7 +74,7 @@ function UpgradeToPremium({ price, companyId, user }: { price: number; companyId
         <Card className="border-accent">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Zap className="text-accent" /> Activar Cuenta Premium</CardTitle>
-                <CardDescription>Para desbloquear todas las funciones, realiza el pago único de activación.</CardDescription>
+                <CardDescription>Realiza el pago único de activación para acceder a todas las funciones.</CardDescription>
             </CardHeader>
             <CardContent>
                 <p className="text-muted-foreground text-center">Costo de activación</p>
@@ -374,7 +374,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </Alert>
             )}
 
-            {!isPremium && trialStatus.expired && settings && <UpgradeToPremium price={settings.premiumPrice ?? 5000} companyId={companyId} user={user} />}
+            {!isPremium && settings && <UpgradeToPremium price={settings.premiumPrice ?? 5000} companyId={companyId} user={user} />}
 
             <div className={`transition-opacity duration-500 ${!isPremium && trialStatus.expired ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                 <div className="flex justify-center mb-8">
