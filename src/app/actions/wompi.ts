@@ -27,8 +27,8 @@ const APP_URL = `https://${firebaseConfig.projectId}.web.app`;
 
 // Acción para crear una transacción en Wompi y obtener la URL de pago
 export async function createWompiPayment(
-    { userId, companyId, userEmail, premiumPrice }: 
-    { userId: string; companyId: string; userEmail: string; premiumPrice: number }
+    { userId, companyId, userEmail, userName, premiumPrice }: 
+    { userId: string; companyId: string; userEmail: string; userName: string; premiumPrice: number }
 ) {
 
     if (!WOMPI_PRIVATE_KEY || !WOMPI_PUBLIC_KEY || !APP_URL) {
@@ -55,7 +55,10 @@ export async function createWompiPayment(
             acceptance_token: acceptanceToken,
             amount_in_cents: amountInCents,
             currency: 'COP',
-            customer_email: userEmail,
+            customer_data: {
+                email: userEmail,
+                full_name: userName
+            },
             reference: reference,
             redirect_url: redirectUrl,
         };

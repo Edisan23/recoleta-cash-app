@@ -55,6 +55,7 @@ function UpgradeToPremium({ price, companyId, user }: { price: number; companyId
             userId: user.uid,
             companyId: companyId,
             userEmail: user.email,
+            userName: user.displayName || 'Usuario Anónimo',
             premiumPrice: price,
         });
         
@@ -95,7 +96,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user, isUserLoading: isUserAuthLoading, userProfile } = useUser();
+  const { user, isUserAuthLoading, userProfile } = useUser();
   const { toast } = useToast();
   
   // Form state
