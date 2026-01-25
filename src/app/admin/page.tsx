@@ -3,7 +3,7 @@
 import { CreateCompanyDialog } from '@/components/admin/CreateCompanyDialog';
 import { CompanyTable } from '@/components/admin/CompanyTable';
 import { OperatorTable } from '@/components/admin/OperatorTable';
-import { OperatorStats } from '@/components/admin/OperatorStats';
+// import { OperatorStats } from '@/components/admin/OperatorStats';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -110,7 +110,7 @@ export default function AdminDashboardPage() {
       </header>
 
       <main className="space-y-8">
-        <OperatorStats user={user} />
+        {/* <OperatorStats user={user} /> */}
         <CompanyTable companies={companies || []} onDeleteCompany={deleteCompany} />
         <OperatorTable user={user} />
       </main>

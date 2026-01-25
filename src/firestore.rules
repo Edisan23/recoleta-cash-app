@@ -9,8 +9,7 @@ service cloud.firestore {
     }
 
     // --- Admin Full Access Rules ---
-    // These rules grant the admin read/write to all main collections needed for the dashboard.
-    match /companies/{companyId} {
+    match /companies/{companyId}/{path=**} {
       allow read, write: if isAdmin();
     }
     match /users/{userId} {
@@ -18,14 +17,6 @@ service cloud.firestore {
     }
     match /holidays/{holidayId} {
       allow read, write: if isAdmin();
-    }
-    // This is the CRITICAL rule for the OperatorStats collectionGroup query.
-    match /{path=**}/shifts/{shiftId} {
-       allow read: if isAdmin();
-    }
-    // Admin also needs write access to subcollections
-    match /companies/{companyId}/{subcollection}/{docId} {
-      allow write: if isAdmin();
     }
 
     // --- Operator Permission Rules ---
@@ -58,13 +49,11 @@ service cloud.firestore {
       match /shifts/{shiftId} {
         allow create: if request.resource.data.userId == request.auth.uid;
         allow read, update, delete: if resource.data.userId == request.auth.uid;
-        allow list: if request.auth != null;
       }
       
       // Operators can read their own payrolls.
       match /payrolls/{payrollId} {
         allow read: if resource.data.userId == request.auth.uid;
-        allow list: if request.auth != null;
       }
     }
 
