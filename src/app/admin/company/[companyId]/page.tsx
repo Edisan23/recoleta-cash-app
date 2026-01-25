@@ -85,7 +85,7 @@ export default function CompanySettingsPage() {
   const itemsRef = useMemoFirebase(() => firestore && companyId && user ? collection(firestore, 'companies', companyId, 'items') : null, [firestore, companyId, user]);
   const { data: itemsData, isLoading: isItemsLoading } = useCollection<CompanyItem>(itemsRef);
   
-  const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
+  const holidaysRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'holidays') : null, [firestore, user]);
   const { data: holidaysData, isLoading: isHolidaysLoading } = useCollection<{date: string}>(holidaysRef);
   const holidays = useMemo(() => holidaysData?.map(h => new Date(h.date)) || [], [holidaysData]);
 

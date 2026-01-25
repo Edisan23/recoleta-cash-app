@@ -95,7 +95,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }, [firestore, companyId, user]);
   const { data: allShifts, isLoading: shiftsLoading, error: shiftsError } = useCollection<Shift>(shiftsQuery);
 
-  const holidaysRef = useMemoFirebase(() => firestore ? collection(firestore, 'holidays') : null, [firestore]);
+  const holidaysRef = useMemoFirebase(() => firestore && user ? collection(firestore, 'holidays') : null, [firestore, user]);
   const { data: holidaysData, isLoading: holidaysLoading } = useCollection<{ date: string }>(holidaysRef);
   const holidays = useMemo(() => holidaysData?.map(h => new Date(h.date)) || [], [holidaysData]);
 
