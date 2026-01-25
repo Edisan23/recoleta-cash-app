@@ -54,7 +54,7 @@ function UpgradeToPremium({ price, companyId, user }: { price: number; companyId
         const WOMPI_PUBLIC_KEY = "pub_prod_v2jBwbX8JiGCykpyiGFS37VrqKB8PBCL";
         const amountInCents = price * 100;
         const reference = `recoleta-cash-${user.uid}-${companyId}-${Date.now()}`;
-        const redirectUrl = `${window.location.origin}/payment/confirmation`;
+        const redirectUrl = `https://recoleta-cash-app.web.app/payment/confirmation`;
 
         const checkoutUrl = new URL('https://checkout.wompi.co/');
         checkoutUrl.searchParams.append('public-key', WOMPI_PUBLIC_KEY);
