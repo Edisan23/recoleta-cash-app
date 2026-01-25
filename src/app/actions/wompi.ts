@@ -15,39 +15,40 @@ const firestore = getFirestore(app);
 // URL de la API de Wompi
 const WOMPI_API_URL = 'https://production.wompi.co/v1';
 
+// ¡ADVERTENCIA DE SEGURIDAD!
+// Las llaves están directamente en el código para resolver un problema de configuración del entorno.
+// En una aplicación de producción real, estas llaves NUNCA deben estar aquí.
+// Deben cargarse de forma segura desde variables de entorno.
+const WOMPI_PRIVATE_KEY = "prv_prod_y8d6EwoXkdAgvleQacu9I4ap3xlYDnhQ";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+
 // Acción para crear una transacción en Wompi y obtener la URL de pago
 export async function createWompiPayment(
     { userId, companyId, userEmail, premiumPrice }: 
     { userId: string; companyId: string; userEmail: string; premiumPrice: number }
 ) {
-    // Leer las variables de entorno dentro de la función para asegurar el acceso en tiempo de ejecución
-    const wompiPrivateKey = process.env.WOMPI_PRIVATE_KEY;
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
 
-    if (!wompiPrivateKey || !appUrl) {
-        console.error("Wompi environment variables are not set. Check your .env.local file.");
+    if (!WOMPI_PRIVATE_KEY || !APP_URL) {
+        console.error("Wompi keys are not set. Check your .env.local file or the hardcoded values.");
         return { success: false, message: 'El servidor no está configurado para procesar pagos.' };
     }
 
     try {
         const amountInCents = premiumPrice * 100;
         const reference = `recoleta-cash-${userId}-${companyId}-${Date.now()}`;
-        const redirectUrl = `${appUrl}/payment/confirmation`;
+        const redirectUrl = `${APP_URL}/payment/confirmation`;
 
         const response = await fetch(`${WOMPI_API_URL}/transactions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                Authorization: `Bearer ${wompiPrivateKey}`,
+                Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
             },
             body: JSON.stringify({
                 amount_in_cents: amountInCents,
                 currency: 'COP',
                 customer_email: userEmail,
-                payment_method: {
-                    type: "CARD",
-                    installments: 1
-                },
                 reference: reference,
                 redirect_url: redirectUrl,
             }),
@@ -73,16 +74,14 @@ export async function createWompiPayment(
 
 // Acción para verificar el pago y otorgar acceso premium
 export async function verifyWompiPayment(transactionId: string): Promise<{ status: string; message: string }> {
-     // Leer la variable de entorno dentro de la función
-     const wompiPrivateKey = process.env.WOMPI_PRIVATE_KEY;
-     if (!wompiPrivateKey) {
-        console.error("Wompi private key is not set. Check your .env.local file.");
+     if (!WOMPI_PRIVATE_KEY) {
+        console.error("Wompi private key is not set. Check your .env.local file or the hardcoded value.");
         return { status: 'ERROR', message: 'El servidor no está configurado para verificar pagos.' };
     }
     try {
         const response = await fetch(`${WOMPI_API_URL}/transactions/${transactionId}`, {
             headers: {
-                Authorization: `Bearer ${wompiPrivateKey}`,
+                Authorization: `Bearer ${WOMPI_PRIVATE_KEY}`,
             },
         });
 
