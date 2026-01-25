@@ -25,6 +25,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toDate, getInitials } from '@/lib/utils';
 import { ThemeCustomizer } from '@/components/admin/ThemeCustomizer';
 import { PayrollHistoryCard } from './operator/PayrollHistoryCard';
+import { createWompiPayment } from '@/app/actions/wompi';
+import type { User } from 'firebase/auth';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -34,20 +36,54 @@ function formatCurrency(value: number) {
 }
 
 // --- SUB-COMPONENTS ---
-function UpgradeToPremium({ price }: { price: number }) {
+function UpgradeToPremium({ price, companyId, user }: { price: number; companyId: string; user: User | null }) {
+    const [isRedirecting, setIsRedirecting] = useState(false);
+    const { toast } = useToast();
+
+    const handlePayment = async () => {
+        if (!user || !user.email) {
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'No se pudo obtener la información del usuario para el pago.',
+            });
+            return;
+        }
+
+        setIsRedirecting(true);
+        const result = await createWompiPayment({
+            userId: user.uid,
+            companyId: companyId,
+            userEmail: user.email,
+            premiumPrice: price,
+        });
+        
+        if (result.success && result.checkoutUrl) {
+            window.location.href = result.checkoutUrl;
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Error de Pago',
+                description: result.message || 'No se pudo iniciar el proceso de pago. Inténtalo de nuevo.',
+            });
+            setIsRedirecting(false);
+        }
+    };
     
     return (
         <Card className="border-accent">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Zap className="text-accent" /> Activar Cuenta Premium</CardTitle>
-                <CardDescription>Para desbloquear todas las funciones y eliminar las restricciones, contacta a tu administrador.</CardDescription>
+                <CardDescription>Para desbloquear todas las funciones, realiza el pago único de activación.</CardDescription>
             </CardHeader>
             <CardContent>
-                <p className="text-muted-foreground text-center">El acceso premium tiene un costo de activación de</p>
+                <p className="text-muted-foreground text-center">Costo de activación</p>
                 <p className="text-3xl font-bold text-center mb-4">{formatCurrency(price)}</p>
-                <Button disabled={true} className="w-full btn-accent">
-                    Activación Manual
+                <Button onClick={handlePayment} disabled={isRedirecting} className="w-full">
+                    {isRedirecting ? <LogoSpinner className="mr-2 h-5 w-5" /> : null}
+                    {isRedirecting ? 'Redirigiendo a Wompi...' : 'Activar con Wompi'}
                 </Button>
+                 <p className="text-xs text-muted-foreground text-center mt-4">Serás redirigido a la plataforma de pagos segura de Wompi.</p>
             </CardContent>
         </Card>
     );
@@ -338,7 +374,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                 </Alert>
             )}
 
-            {!isPremium && trialStatus.expired && settings && <UpgradeToPremium price={settings.premiumPrice ?? 5000} />}
+            {!isPremium && trialStatus.expired && settings && <UpgradeToPremium price={settings.premiumPrice ?? 5000} companyId={companyId} user={user} />}
 
             <div className={`transition-opacity duration-500 ${!isPremium && trialStatus.expired ? 'opacity-30 pointer-events-none' : 'opacity-100'}`}>
                 <div className="flex justify-center mb-8">
