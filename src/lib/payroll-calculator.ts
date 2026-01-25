@@ -29,31 +29,20 @@ export function getPeriodDateRange(selectedDate: Date, payrollCycle: 'monthly' |
     }
 }
 
-function getNightIntervals(date: Date, nightShiftStartHour: number) {
-  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-  
-  // Night period from 00:00 to 06:00 of the current day
-  const nightInterval1Start = new Date(dayStart);
-  const nightInterval1End = new Date(dayStart);
-  nightInterval1End.setHours(NIGHT_SHIFT_END_HOUR, 0, 0, 0);
-
-  // Night period from start hour to 23:59:59 of the current day
-  const nightInterval2Start = new Date(dayStart);
-  nightInterval2Start.setHours(nightShiftStartHour, 0, 0, 0);
-  const nightInterval2End = new Date(dayEnd);
-  nightInterval2End.setHours(24, 0, 0, 0); // Use 24:00 to include the full hour
-
-  return [
-    { start: nightInterval1Start, end: nightInterval1End },
-    { start: nightInterval2Start, end: nightInterval2End }
-  ];
-}
-
+/**
+ * Determines if a given time falls within the night shift hours.
+ * @param dateTime The date and time to check.
+ * @param nightShiftStartHour The hour (0-23) when the evening night shift begins.
+ * @returns True if the time is considered night hours, false otherwise.
+ */
 function isNightHour(dateTime: Date, nightShiftStartHour: number) {
-    const intervals = getNightIntervals(dateTime, nightShiftStartHour);
-    // Check if the time falls into the early morning night shift or the evening night shift
-    return isWithinInterval(dateTime, intervals[0]) || isWithinInterval(dateTime, intervals[1]);
+    const hour = dateTime.getHours();
+    // Night is from 00:00 up to (but not including) 06:00.
+    const isEarlyMorningNight = hour >= 0 && hour < NIGHT_SHIFT_END_HOUR;
+    // And from the configured start hour (e.g., 19:00) to the end of the day.
+    const isEveningNight = hour >= nightShiftStartHour;
+    
+    return isEarlyMorningNight || isEveningNight;
 }
 
 export function calculateShiftSummary(
