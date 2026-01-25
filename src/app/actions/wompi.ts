@@ -19,7 +19,7 @@ const WOMPI_API_URL = 'https://production.wompi.co/v1';
 // Las llaves están directamente en el código para resolver un problema de configuración del entorno.
 // En una aplicación de producción real, estas llaves NUNCA deben estar aquí.
 // Deben cargarse de forma segura desde variables de entorno.
-const WOMPI_PRIVATE_KEY = "prv_prod_y8d6EwoXkdAgvleQacu9I4ap3xlYDnhQ";
+const WOMPI_PRIVATE_KEY = "prv_prod_GZ8ET19zZqWBx4qq8CZ0Y59PtR70o4sm";
 
 // Acción para verificar el pago y otorgar acceso premium
 export async function verifyWompiPayment(transactionId: string): Promise<{ status: string; message: string }> {
