@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { LogoSpinner } from '@/components/LogoSpinner';
 
 // This page's sole purpose is to redirect to the dashboard,
-// as the history detail view has been removed.
-export default function HistoryDetailRedirectPage() {
+// as the main history list view has been removed.
+export default function HistoryRedirectPage() {
   const router = useRouter();
 
   useEffect(() => {
