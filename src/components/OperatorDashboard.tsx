@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Repeat, ShieldAlert, X, Zap } from 'lucide-react';
+import { LogOut, Repeat, ShieldAlert, X, Zap, Clock } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,6 +26,8 @@ import { toDate, getInitials } from '@/lib/utils';
 import { ThemeCustomizer } from '@/components/admin/ThemeCustomizer';
 import type { User } from 'firebase/auth';
 import { createWompiCheckoutUrl } from '@/app/actions/wompi';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { HistorySheet } from './operator/HistorySheet';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -101,6 +103,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   
   // Form state
   const [date, setDate] = useState<Date | undefined>();
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   
   // Calculated Summaries
   const [dailySummary, setDailySummary] = useState<Omit<PayrollSummary, 'netPay' | 'totalBenefits' | 'totalDeductions' | 'benefitBreakdown' | 'deductionBreakdown'> | null>(null);
@@ -326,6 +329,25 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <div className="flex items-center gap-2">
                 <ThemeToggle />
                 <ThemeCustomizer />
+                <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="icon" title="Historial de Pagos">
+                      <Clock className="h-5 w-5" />
+                      <span className="sr-only">Ver Historial</span>
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent className="w-full max-w-md sm:max-w-lg p-0">
+                    <HistorySheet
+                      allShifts={allShifts || []}
+                      settings={settings}
+                      holidays={holidays}
+                      benefits={benefits || []}
+                      deductions={deductions || []}
+                      user={user}
+                      companyId={companyId}
+                    />
+                  </SheetContent>
+                </Sheet>
                 <Button variant="outline" size="icon" onClick={handleChangeCompany} title="Cambiar Empresa">
                     <Repeat />
                     <span className="sr-only">Cambiar Empresa</span>
