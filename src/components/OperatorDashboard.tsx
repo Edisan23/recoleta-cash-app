@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Repeat, ShieldAlert, X, Zap, History } from 'lucide-react';
+import { LogOut, Repeat, ShieldAlert, X, Zap } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -26,8 +26,6 @@ import { toDate, getInitials } from '@/lib/utils';
 import { ThemeCustomizer } from '@/components/admin/ThemeCustomizer';
 import type { User } from 'firebase/auth';
 import { createWompiCheckoutUrl } from '@/app/actions/wompi';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { HistorySheet } from './operator/HistorySheet';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -328,21 +326,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <div className="flex items-center gap-2">
                 <ThemeToggle />
                 <ThemeCustomizer />
-                 <Sheet>
-                    <SheetTrigger asChild>
-                        <Button variant="outline" size="icon" title="Ver Historial y Resumen">
-                            <History className="h-5 w-5" />
-                            <span className="sr-only">Ver Historial y Resumen</span>
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent className="p-0 w-full max-w-md sm:max-w-lg" side="right">
-                       <HistorySheet 
-                            companyId={companyId} 
-                            periodSummary={periodSummary} 
-                            settings={settings}
-                        />
-                    </SheetContent>
-                </Sheet>
                 <Button variant="outline" size="icon" onClick={handleChangeCompany} title="Cambiar Empresa">
                     <Repeat />
                     <span className="sr-only">Cambiar Empresa</span>
