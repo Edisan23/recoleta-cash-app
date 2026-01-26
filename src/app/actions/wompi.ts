@@ -6,7 +6,6 @@ import { firebaseConfig } from '@/firebase/config';
 import type { CompanySettings } from '@/types/db-entities';
 import { addDays } from 'date-fns';
 import { revalidatePath } from 'next/cache';
-import { createHash } from 'crypto';
 
 // Asegurar que Firebase esté inicializado
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
@@ -42,7 +41,12 @@ export async function createWompiCheckoutUrl(
 
     // 1. Crear la firma de integridad para asegurar la transacción.
     const concatenation = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_KEY}`;
-    const signature = createHash('sha256').update(concatenation).digest('hex');
+    
+    // Se utiliza la Web Crypto API para una mejor compatibilidad en diferentes entornos.
+    const textAsBuffer = new TextEncoder().encode(concatenation);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', textAsBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
     // 2. Construir la URL del checkout de Wompi.
     // Se usa /p/ que es la ruta para pagos con firma.
