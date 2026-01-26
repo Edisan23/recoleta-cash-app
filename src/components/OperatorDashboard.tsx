@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Repeat, ShieldAlert, X, Zap } from 'lucide-react';
+import { LogOut, Repeat, ShieldAlert, X, Zap, History } from 'lucide-react';
 import type { Company, Shift, CompanySettings, PayrollSummary, Benefit, Deduction, UserProfile, CompanyItem } from '@/types/db-entities';
 import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -327,6 +327,10 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <div className="flex items-center gap-2">
                 <ThemeToggle />
                 <ThemeCustomizer />
+                <Button variant="outline" size="icon" onClick={() => router.push('/operator/history')} title="Ver Historial">
+                    <History className="h-5 w-5" />
+                    <span className="sr-only">Ver Historial</span>
+                </Button>
                 <Button variant="outline" size="icon" onClick={handleChangeCompany} title="Cambiar Empresa">
                     <Repeat />
                     <span className="sr-only">Cambiar Empresa</span>
@@ -468,8 +472,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                     </div>
                 </CardContent>
             </Card>
-
-            <PayrollHistoryCard companyId={companyId} />
         </main>
       </div>
       <InstallPwaPrompt />
