@@ -77,18 +77,19 @@ export function OperatorTable({ isAdmin }: OperatorTableProps) {
         );
     }, [operators, searchQuery]);
 
-    const togglePremiumStatus = async (userId: string, currentPremiumUntil: string | undefined) => {
+    const togglePremiumStatus = async (userId: string, currentPremiumUntil: string | null | undefined) => {
         if (!firestore) return;
         const userDocRef = doc(firestore, 'users', userId);
         
         const premiumUntilDate = toDate(currentPremiumUntil);
-        const isCurrentlyPremium = premiumUntilDate && isAfter(premiumUntilDate, new Date());
+        // A user is premium if the field is null (lifetime) OR if the date is in the future.
+        const isCurrentlyPremium = currentPremiumUntil === null || (premiumUntilDate && isAfter(premiumUntilDate, new Date()));
         
         const newPremiumUntil = isCurrentlyPremium ? new Date().toISOString() : null; // Set to now to expire, or null for lifetime
 
         try {
             await updateDoc(userDocRef, { premiumUntil: newPremiumUntil });
-            setOperators(prev => prev.map(op => op.id === userId ? { ...op, premiumUntil: newPremiumUntil || undefined } : op));
+            setOperators(prev => prev.map(op => op.id === userId ? { ...op, premiumUntil: newPremiumUntil } : op));
             toast({
                 title: "Estado Actualizado",
                 description: `El operador ahora es ${newPremiumUntil === null ? 'Premium Vitalicio' : 'de Prueba'}.`,

@@ -18,7 +18,7 @@ export type User = {
     isAnonymous: boolean;
     role: "operator" | "admin";
     createdAt: string; // Simplified to string to avoid build issues.
-    premiumUntil?: string; // ISO Date string for when premium access expires
+    premiumUntil?: string | null; // ISO Date string for when premium access expires. null for lifetime.
   }
   
   export type Company = {
