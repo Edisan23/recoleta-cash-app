@@ -1,5 +1,6 @@
 'use server';
 
+import { webcrypto } from 'node:crypto';
 import { getFirestore, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { firebaseConfig } from '@/firebase/config';
@@ -42,9 +43,9 @@ export async function createWompiCheckoutUrl(
     // 1. Crear la firma de integridad para asegurar la transacción.
     const concatenation = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_KEY}`;
     
-    // Se utiliza la Web Crypto API para una mejor compatibilidad en diferentes entornos.
+    // Se utiliza la Web Crypto API de Node.js para máxima compatibilidad en el servidor.
     const textAsBuffer = new TextEncoder().encode(concatenation);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', textAsBuffer);
+    const hashBuffer = await webcrypto.subtle.digest('SHA-256', textAsBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
