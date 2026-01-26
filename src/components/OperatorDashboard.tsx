@@ -24,9 +24,10 @@ import { addDays, isAfter, differenceInDays, startOfDay } from 'date-fns';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { toDate, getInitials } from '@/lib/utils';
 import { ThemeCustomizer } from '@/components/admin/ThemeCustomizer';
-import { PayrollHistoryCard } from './operator/PayrollHistoryCard';
 import type { User } from 'firebase/auth';
 import { createWompiCheckoutUrl } from '@/app/actions/wompi';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { HistorySheet } from './operator/HistorySheet';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -327,10 +328,21 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
             <div className="flex items-center gap-2">
                 <ThemeToggle />
                 <ThemeCustomizer />
-                <Button variant="outline" size="icon" onClick={() => router.push('/operator/history')} title="Ver Historial">
-                    <History className="h-5 w-5" />
-                    <span className="sr-only">Ver Historial</span>
-                </Button>
+                 <Sheet>
+                    <SheetTrigger asChild>
+                        <Button variant="outline" size="icon" title="Ver Historial y Resumen">
+                            <History className="h-5 w-5" />
+                            <span className="sr-only">Ver Historial y Resumen</span>
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent className="p-0 w-full max-w-md sm:max-w-lg" side="right">
+                       <HistorySheet 
+                            companyId={companyId} 
+                            periodSummary={periodSummary} 
+                            settings={settings}
+                        />
+                    </SheetContent>
+                </Sheet>
                 <Button variant="outline" size="icon" onClick={handleChangeCompany} title="Cambiar Empresa">
                     <Repeat />
                     <span className="sr-only">Cambiar Empresa</span>
@@ -440,36 +452,6 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                             </AccordionItem>
                         </Accordion>
                     )}
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>
-                        {settings?.payrollCycle === 'bi-weekly' ? 'Acumulado Quincenal' : 'Acumulado Mensual'}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center p-4 rounded-lg bg-muted">
-                        <div>
-                            <p className="text-sm text-muted-foreground">Total Horas</p>
-                            <p className="text-2xl font-bold">
-                                {periodSummary ? `${periodSummary.totalHours}h` : '0h'}
-                            </p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-muted-foreground">Pago Bruto</p>
-                            <p className="text-2xl font-bold">
-                                {periodSummary ? formatCurrency(periodSummary.grossPay) : '$0'}
-                            </p>
-                        </div>
-                         <div>
-                            <p className="text-sm text-muted-foreground">Pago Neto</p>
-                            <p className="text-2xl font-bold text-green-600">
-                                {periodSummary ? formatCurrency(periodSummary.netPay) : '$0'}
-                            </p>
-                        </div>
-                    </div>
                 </CardContent>
             </Card>
         </main>
