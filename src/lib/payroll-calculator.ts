@@ -81,42 +81,60 @@ export function calculateShiftSummary(
     if (totalMilliseconds <= 0) {
         return summary;
     }
-    const totalHours = Math.round(totalMilliseconds / (1000 * 60 * 60));
 
-
-    summary.totalHours = totalHours;
+    const minuteBuckets = {
+        day: 0, night: 0, dayOvertime: 0, nightOvertime: 0,
+        holidayDay: 0, holidayNight: 0, holidayDayOvertime: 0, holidayNightOvertime: 0,
+    };
 
     const nightShiftStartHour = settings.nightShiftStartHour ?? 21;
     const dailyHourLimit = settings.dailyHourLimit ?? 8;
+    const minuteInMillis = 60 * 1000;
+    const hourInMillis = 60 * minuteInMillis;
 
-    for (let i = 0; i < totalHours; i++) {
-        // We check the state at the beginning of each hour
-        const currentHourTime = new Date(start.getTime() + i * 60 * 60 * 1000);
+    let cursor = start.getTime();
+    const endMillis = end.getTime();
+    
+    while (cursor < endMillis) {
+        const currentMinuteTime = new Date(cursor);
         
-        const isCurrentHourHoliday = isHoliday(currentHourTime, holidays);
-        const isNight = isNightHour(currentHourTime, nightShiftStartHour);
-        const isOvertime = (hoursAlreadyWorkedOnDay + i) >= dailyHourLimit;
+        const hoursWorkedBeforeThisMinute = hoursAlreadyWorkedOnDay + ((cursor - start.getTime()) / hourInMillis);
 
-        if (isOvertime) {
-            if(isCurrentHourHoliday) {
-                if(isNight) summary.holidayNightOvertimeHours++;
-                else summary.holidayDayOvertimeHours++;
+        const isHolidayForMinute = isHoliday(currentMinuteTime, holidays);
+        const isNightForMinute = isNightHour(currentMinuteTime, nightShiftStartHour);
+        const isOvertimeForMinute = hoursWorkedBeforeThisMinute >= dailyHourLimit;
+        
+        if (isOvertimeForMinute) {
+            if (isHolidayForMinute) {
+                if (isNightForMinute) minuteBuckets.holidayNightOvertime++;
+                else minuteBuckets.holidayDayOvertime++;
             } else {
-                if(isNight) summary.nightOvertimeHours++;
-                else summary.dayOvertimeHours++;
+                if (isNightForMinute) minuteBuckets.nightOvertime++;
+                else minuteBuckets.dayOvertime++;
             }
         } else { // Regular hours
-            if(isCurrentHourHoliday) {
-                if(isNight) summary.holidayNightHours++;
-                else summary.holidayDayHours++;
+            if (isHolidayForMinute) {
+                if (isNightForMinute) minuteBuckets.holidayNight++;
+                else minuteBuckets.holidayDay++;
             } else {
-                if(isNight) summary.nightHours++;
-                else summary.dayHours++;
+                if (isNightForMinute) minuteBuckets.night++;
+                else minuteBuckets.day++;
             }
         }
+        
+        cursor += minuteInMillis;
     }
 
-    // Calculate Pay based on categorized hours
+    summary.totalHours = totalMilliseconds / hourInMillis;
+    summary.dayHours = minuteBuckets.day / 60;
+    summary.nightHours = minuteBuckets.night / 60;
+    summary.dayOvertimeHours = minuteBuckets.dayOvertime / 60;
+    summary.nightOvertimeHours = minuteBuckets.nightOvertime / 60;
+    summary.holidayDayHours = minuteBuckets.holidayDay / 60;
+    summary.holidayNightHours = minuteBuckets.holidayNight / 60;
+    summary.holidayDayOvertimeHours = minuteBuckets.holidayDayOvertime / 60;
+    summary.holidayNightOvertimeHours = minuteBuckets.holidayNightOvertime / 60;
+
     summary.dayPay = summary.dayHours * (settings.dayRate || 0);
     summary.nightPay = summary.nightHours * (settings.nightRate || 0);
     summary.dayOvertimePay = summary.dayOvertimeHours * (settings.dayOvertimeRate || 0);
