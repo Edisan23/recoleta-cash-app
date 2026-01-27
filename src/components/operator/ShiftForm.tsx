@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { TimeInput } from '@/components/TimeInput';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +14,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Textarea } from '../ui/textarea';
-import { PlusCircle, Trash2 } from 'lucide-react';
+import { Save, PlusCircle, Trash2 } from 'lucide-react';
 
 interface ShiftFormProps {
     selectedDate: Date;
@@ -187,7 +187,7 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
     }
 
     return (
-        <Card>
+        <Card className="relative pb-24">
             <CardHeader>
                 <CardTitle>Registro de Actividades</CardTitle>
             </CardHeader>
@@ -265,20 +265,31 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                     </AccordionItem>
                 </Accordion>
             </CardContent>
-            <CardFooter className="flex justify-end gap-2">
-                {hasShifts && (
+            
+            <div className="absolute bottom-6 right-6 flex items-center gap-4">
+                 {hasShifts && (
                     <DeleteShiftDialog onConfirm={handleDelete}>
-                        <Button variant="destructive" disabled={isDeleting || isSaving}>
-                            {isDeleting ? <LogoSpinner className="mr-2 h-5 w-5" /> : null}
-                            Eliminar Turnos
+                        <Button 
+                            variant="destructive" 
+                            size="icon" 
+                            className="h-12 w-12 rounded-full shadow-lg" 
+                            disabled={isDeleting || isSaving}
+                            aria-label="Eliminar Turnos"
+                        >
+                            {isDeleting ? <LogoSpinner className="h-6 w-6" /> : <Trash2 className="h-5 w-5" />}
                         </Button>
                     </DeleteShiftDialog>
                 )}
-                <Button onClick={handleSave} disabled={isSaving || isDeleting}>
-                    {isSaving ? <LogoSpinner className="mr-2 h-5 w-5" /> : null}
-                    {hasShifts ? 'Actualizar Turnos' : 'Guardar Turnos'}
+                <Button 
+                    onClick={handleSave} 
+                    disabled={isSaving || isDeleting}
+                    size="icon"
+                    className="h-16 w-16 rounded-full shadow-2xl transform hover:scale-105 transition-transform"
+                    aria-label={hasShifts ? 'Actualizar Turnos' : 'Guardar Turnos'}
+                >
+                    {isSaving ? <LogoSpinner className="h-8 w-8" /> : <Save className="h-7 w-7" />}
                 </Button>
-            </CardFooter>
+            </div>
         </Card>
     );
 }
