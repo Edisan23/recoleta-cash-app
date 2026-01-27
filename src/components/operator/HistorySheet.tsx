@@ -10,6 +10,9 @@ import { PayrollBreakdown } from './PayrollBreakdown';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { PrintVoucherButton } from './PrintVoucherButton';
+import { Button } from '../ui/button';
+import { ArrowLeft } from 'lucide-react';
+import { SheetClose } from '../ui/sheet';
 
 interface HistorySheetProps {
     allShifts: Shift[];
@@ -69,7 +72,7 @@ export function HistorySheet({ allShifts, settings, holidays, benefits, deductio
     }, [payrollPeriods, settings, holidays, benefits, deductions, user, companyId]);
 
     return (
-        <div className="h-full overflow-y-auto">
+        <div className="h-full flex flex-col">
              <Card className="rounded-none border-0 border-b shadow-none sticky top-0 bg-background z-10">
                 <CardHeader>
                     <CardTitle>Historial de Pagos</CardTitle>
@@ -77,41 +80,42 @@ export function HistorySheet({ allShifts, settings, holidays, benefits, deductio
                 </CardHeader>
              </Card>
 
-            <div className="p-4 sm:p-6">
-                <div className="py-4">
-                    {periodSummaries.length > 0 ? (
-                        <Accordion type="single" collapsible className="w-full">
-                            {periodSummaries.map(({ period, summary, shifts }) => {
-                                const shiftsByDay = shifts.reduce((acc, shift) => {
-                                    const dayKey = new Date(shift.date).toISOString().split('T')[0];
-                                    if (!acc[dayKey]) acc[dayKey] = [];
-                                    acc[dayKey].push(shift);
-                                    return acc;
-                                }, {} as { [key: string]: Shift[] });
+            <div className="flex-1 overflow-y-auto">
+                <div className="p-4 sm:p-6">
+                    <div className="py-4">
+                        {periodSummaries.length > 0 ? (
+                            <Accordion type="single" collapsible className="w-full">
+                                {periodSummaries.map(({ period, summary, shifts }) => {
+                                    const shiftsByDay = shifts.reduce((acc, shift) => {
+                                        const dayKey = new Date(shift.date).toISOString().split('T')[0];
+                                        if (!acc[dayKey]) acc[dayKey] = [];
+                                        acc[dayKey].push(shift);
+                                        return acc;
+                                    }, {} as { [key: string]: Shift[] });
 
-                                for (const dayKey in shiftsByDay) {
-                                    shiftsByDay[dayKey].sort((a, b) => a.startTime.localeCompare(b.startTime));
-                                }
+                                    for (const dayKey in shiftsByDay) {
+                                        shiftsByDay[dayKey].sort((a, b) => a.startTime.localeCompare(b.startTime));
+                                    }
 
-                                const sortedDays = Object.keys(shiftsByDay).sort((a,b) => new Date(a).getTime() - new Date(b).getTime());
+                                    const sortedDays = Object.keys(shiftsByDay).sort((a,b) => new Date(a).getTime() - new Date(b).getTime());
 
-                                return (
-                                    <AccordionItem key={period.start.toISOString()} value={period.start.toISOString()}>
-                                        <AccordionTrigger>
-                                            <div className="flex justify-between w-full pr-4">
-                                                <div className="text-left">
-                                                    <p className="font-semibold">{format(period.start, 'dd MMM', { locale: es })} - {format(period.end, 'dd MMM, yyyy', { locale: es })}</p>
-                                                    <p className="text-sm text-muted-foreground">{summary.daysWorked} días trabajados</p>
+                                    return (
+                                        <AccordionItem key={period.start.toISOString()} value={period.start.toISOString()}>
+                                            <AccordionTrigger>
+                                                <div className="flex justify-between w-full pr-4">
+                                                    <div className="text-left">
+                                                        <p className="font-semibold">{format(period.start, 'dd MMM', { locale: es })} - {format(period.end, 'dd MMM, yyyy', { locale: es })}</p>
+                                                        <p className="text-sm text-muted-foreground">{summary.daysWorked} días trabajados</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="font-semibold text-green-600">{formatCurrency(summary.netPay)}</p>
+                                                        <p className="text-sm text-muted-foreground">{summary.totalHours} horas</p>
+                                                    </div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <p className="font-semibold text-green-600">{formatCurrency(summary.netPay)}</p>
-                                                    <p className="text-sm text-muted-foreground">{summary.totalHours} horas</p>
-                                                </div>
-                                            </div>
-                                        </AccordionTrigger>
-                                        <AccordionContent>
-                                            <PayrollBreakdown summary={summary} />
-                                            <PrintVoucherButton
+                                            </AccordionTrigger>
+                                            <AccordionContent>
+                                                <PayrollBreakdown summary={summary} />
+                                                <PrintVoucherButton
                                               summary={summary}
                                               period={period}
                                               company={company}
@@ -122,70 +126,79 @@ export function HistorySheet({ allShifts, settings, holidays, benefits, deductio
                                               holidays={holidays}
                                             />
 
-                                            <h4 className="font-semibold text-center mt-4 mb-2 border-t pt-4">Desglose por Día</h4>
-                                            <div className="space-y-3">
-                                                {sortedDays.map(dayKey => {
-                                                    const dayShifts = shiftsByDay[dayKey];
-                                                    const firstShift = dayShifts[0];
-                                                    let hoursWorkedOnThisDay = 0;
+                                                <h4 className="font-semibold text-center mt-4 mb-2 border-t pt-4">Desglose por Día</h4>
+                                                <div className="space-y-3">
+                                                    {sortedDays.map(dayKey => {
+                                                        const dayShifts = shiftsByDay[dayKey];
+                                                        const firstShift = dayShifts[0];
+                                                        let hoursWorkedOnThisDay = 0;
 
-                                                    return (
-                                                        <div key={dayKey} className="p-3 rounded-lg border bg-muted/50">
-                                                            <p className="font-semibold mb-2">{format(new Date(dayKey), 'EEEE, dd MMM', { locale: es })}</p>
-                                                            
-                                                            {dayShifts.map(shift => {
-                                                                if(!settings) return null;
-                                                                const shiftSummary = calculateShiftSummary(shift, settings, holidays, hoursWorkedOnThisDay);
-                                                                hoursWorkedOnThisDay += shiftSummary.totalHours;
+                                                        return (
+                                                            <div key={dayKey} className="p-3 rounded-lg border bg-muted/50">
+                                                                <p className="font-semibold mb-2">{format(new Date(dayKey), 'EEEE, dd MMM', { locale: es })}</p>
+                                                                
+                                                                {dayShifts.map(shift => {
+                                                                    if(!settings) return null;
+                                                                    const shiftSummary = calculateShiftSummary(shift, settings, holidays, hoursWorkedOnThisDay);
+                                                                    hoursWorkedOnThisDay += shiftSummary.totalHours;
 
-                                                                return (
-                                                                    <div key={shift.id} className="mb-2 last:mb-0">
-                                                                        <Accordion type="single" collapsible className="w-full text-sm">
-                                                                            <AccordionItem value={shift.id} className="border-b-0">
-                                                                                <AccordionTrigger className="py-1 hover:no-underline">
-                                                                                    <div className="flex justify-between w-full pr-2">
-                                                                                        <span>Turno {shift.startTime} - {shift.endTime}</span>
-                                                                                        <span className="font-medium text-green-600">{formatCurrency(shiftSummary.grossPay)}</span>
-                                                                                    </div>
-                                                                                </AccordionTrigger>
-                                                                                <AccordionContent className="pb-0">
-                                                                                    <PayrollBreakdown summary={shiftSummary} />
-                                                                                </AccordionContent>
-                                                                            </AccordionItem>
-                                                                        </Accordion>
-                                                                    </div>
-                                                                )
-                                                            })}
-
-                                                            {(firstShift.itemDetails && firstShift.itemDetails.length > 0) && (
-                                                                <div className="mt-2 pt-2 border-t border-dashed">
-                                                                    <h5 className="text-xs font-bold text-muted-foreground uppercase">Detalles Adicionales</h5>
-                                                                    {firstShift.itemDetails.map(detail => (
-                                                                        <div key={detail.itemId} className="text-xs text-muted-foreground mt-1">
-                                                                            <span className="font-semibold">{detail.itemName}:</span> {detail.detail}
+                                                                    return (
+                                                                        <div key={shift.id} className="mb-2 last:mb-0">
+                                                                            <Accordion type="single" collapsible className="w-full text-sm">
+                                                                                <AccordionItem value={shift.id} className="border-b-0">
+                                                                                    <AccordionTrigger className="py-1 hover:no-underline">
+                                                                                        <div className="flex justify-between w-full pr-2">
+                                                                                            <span>Turno {shift.startTime} - {shift.endTime}</span>
+                                                                                            <span className="font-medium text-green-600">{formatCurrency(shiftSummary.grossPay)}</span>
+                                                                                        </div>
+                                                                                    </AccordionTrigger>
+                                                                                    <AccordionContent className="pb-0">
+                                                                                        <PayrollBreakdown summary={shiftSummary} />
+                                                                                    </AccordionContent>
+                                                                                </AccordionItem>
+                                                                            </Accordion>
                                                                         </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                            {firstShift.notes && (
-                                                                <div className="mt-2 pt-2 border-t border-dashed">
-                                                                    <h5 className="text-xs font-bold text-muted-foreground uppercase">Notas</h5>
-                                                                    <p className="text-xs text-muted-foreground whitespace-pre-wrap">{firstShift.notes}</p>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        </AccordionContent>
-                                    </AccordionItem>
-                                );
-                            })}
-                        </Accordion>
-                    ) : (
-                        <p className="text-center text-muted-foreground py-8">No tienes historial de pagos todavía.</p>
-                    )}
+                                                                    )
+                                                                })}
+
+                                                                {(firstShift.itemDetails && firstShift.itemDetails.length > 0) && (
+                                                                    <div className="mt-2 pt-2 border-t border-dashed">
+                                                                        <h5 className="text-xs font-bold text-muted-foreground uppercase">Detalles Adicionales</h5>
+                                                                        {firstShift.itemDetails.map(detail => (
+                                                                            <div key={detail.itemId} className="text-xs text-muted-foreground mt-1">
+                                                                                <span className="font-semibold">{detail.itemName}:</span> {detail.detail}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                                {firstShift.notes && (
+                                                                    <div className="mt-2 pt-2 border-t border-dashed">
+                                                                        <h5 className="text-xs font-bold text-muted-foreground uppercase">Notas</h5>
+                                                                        <p className="text-xs text-muted-foreground whitespace-pre-wrap">{firstShift.notes}</p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </AccordionContent>
+                                        </AccordionItem>
+                                    );
+                                })}
+                            </Accordion>
+                        ) : (
+                            <p className="text-center text-muted-foreground py-8">No tienes historial de pagos todavía.</p>
+                        )}
+                    </div>
                 </div>
+            </div>
+             <div className="p-4 border-t bg-background sticky bottom-0">
+                <SheetClose asChild>
+                    <Button variant="outline" className="w-full">
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Volver al Panel
+                    </Button>
+                </SheetClose>
             </div>
         </div>
     );
