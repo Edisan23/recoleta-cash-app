@@ -272,7 +272,7 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                         <Button 
                             variant="destructive" 
                             size="icon" 
-                            className="h-12 w-12 rounded-full shadow-lg" 
+                            className="h-12 w-12 rounded-full shadow-lg hover:shadow-destructive/40 transition-all duration-300" 
                             disabled={isDeleting || isSaving}
                             aria-label="Eliminar Turnos"
                         >
@@ -284,7 +284,7 @@ export function ShiftForm({ selectedDate, userId, companyId, shiftsForDay, compa
                     onClick={handleSave} 
                     disabled={isSaving || isDeleting}
                     size="icon"
-                    className="h-16 w-16 rounded-full shadow-2xl transform hover:scale-105 transition-transform"
+                    className="h-16 w-16 rounded-full shadow-lg hover:shadow-primary/40 transition-all duration-300 transform hover:scale-105"
                     aria-label={hasShifts ? 'Actualizar Turnos' : 'Guardar Turnos'}
                 >
                     {isSaving ? <LogoSpinner className="h-8 w-8" /> : <Save className="h-7 w-7" />}
