@@ -4,12 +4,13 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { getPeriodDateRange, calculatePeriodSummary, calculateShiftSummary } from '@/lib/payroll-calculator';
-import type { Shift, CompanySettings, Benefit, Deduction } from '@/types/db-entities';
+import type { Shift, CompanySettings, Benefit, Deduction, Company, UserProfile } from '@/types/db-entities';
 import { User } from 'firebase/auth';
 import { PayrollBreakdown } from './PayrollBreakdown';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PrintVoucherButton } from './PrintVoucherButton';
 
 interface HistorySheetProps {
     allShifts: Shift[];
@@ -18,6 +19,8 @@ interface HistorySheetProps {
     benefits: Benefit[];
     deductions: Deduction[];
     user: User | null;
+    userProfile: UserProfile | null;
+    company: Company | null;
     companyId: string;
 }
 
@@ -25,7 +28,7 @@ function formatCurrency(value: number) {
     return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value);
 }
 
-export function HistorySheet({ allShifts, settings, holidays, benefits, deductions, user, companyId }: HistorySheetProps) {
+export function HistorySheet({ allShifts, settings, holidays, benefits, deductions, user, userProfile, company, companyId }: HistorySheetProps) {
 
     const payrollPeriods = useMemo(() => {
         if (!settings || allShifts.length === 0) return [];
@@ -140,6 +143,13 @@ export function HistorySheet({ allShifts, settings, holidays, benefits, deductio
                                             </AccordionTrigger>
                                             <AccordionContent>
                                                 <PayrollBreakdown summary={summary} />
+                                                <PrintVoucherButton
+                                                  summary={summary}
+                                                  period={period}
+                                                  company={company}
+                                                  user={user}
+                                                  userProfile={userProfile}
+                                                />
 
                                                 <h4 className="font-semibold text-center mt-4 mb-2 border-t pt-4">Desglose por Día</h4>
                                                 <div className="space-y-3">

@@ -74,9 +74,9 @@ function UpgradeToPremium({ price, companyId, user }: { price: number; companyId
     };
     
     return (
-        <Card className="border-accent">
+        <Card className="border-primary/20">
             <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Zap className="text-accent" /> Activar Cuenta Premium</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Zap className="text-primary" /> Activar Cuenta Premium</CardTitle>
                 <CardDescription>Realiza el pago único de activación para acceder a todas las funciones.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -100,7 +100,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user, isUserAuthLoading, userProfile } = useUser();
+  const { user, isUserLoading, userProfile } = useUser();
   const { toast } = useToast();
   
   // Form state
@@ -159,7 +159,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
   }, [firestore, companyId, user]);
   const { data: companyItems, isLoading: itemsLoading } = useCollection<CompanyItem>(itemsRef);
 
-  const isLoading = isUserAuthLoading || companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || itemsLoading;
+  const isLoading = isUserLoading || companyLoading || settingsLoading || shiftsLoading || holidaysLoading || benefitsLoading || deductionsLoading || itemsLoading;
 
   const shiftDays = useMemo(() => {
     return allShifts?.map(s => new Date(s.date)) || [];
@@ -294,13 +294,13 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12 sm:h-16 sm:w-16">
-                <AvatarImage src={user?.photoURL || ''} alt={user?.displayName || 'User'}/>
+                <AvatarImage src={userProfile?.photoURL || ''} alt={userProfile?.displayName || 'User'}/>
                 <AvatarFallback>
-                    {user?.isAnonymous ? 'OP' : (user?.displayName ? getInitials(user.displayName) : 'U')}
+                    {user?.isAnonymous ? 'OP' : (userProfile?.displayName ? getInitials(userProfile.displayName) : 'U')}
                 </AvatarFallback>
               </Avatar>
               <div className="text-left">
-                  <p className="font-semibold">{user?.isAnonymous ? 'Operador Anónimo' : user?.displayName || 'Usuario'}</p>
+                  <p className="font-semibold">{user?.isAnonymous ? 'Operador Anónimo' : userProfile?.displayName || 'Usuario'}</p>
                   <p className="text-sm text-muted-foreground">Operador</p>
               </div>
             </div>
@@ -346,6 +346,8 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                       benefits={benefits || []}
                       deductions={deductions || []}
                       user={user}
+                      userProfile={userProfile}
+                      company={company}
                       companyId={companyId}
                     />
                   </SheetContent>
