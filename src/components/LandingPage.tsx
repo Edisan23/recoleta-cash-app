@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,7 +17,13 @@ export function LandingPage() {
 
       <main className="flex-1 flex flex-col items-center justify-center text-center p-4">
         <div className="flex flex-col items-center mb-12">
-          <LogoIcon className="h-32 w-32 mx-auto mb-6" />
+          <Image
+            src="/favicon.svg"
+            alt="Turno Pro Logo"
+            width={80}
+            height={80}
+            className="mx-auto mb-6"
+          />
           <h1 className="text-5xl font-bold mb-4 font-display">Turno Pro</h1>
           <p className="text-xl text-muted-foreground max-w-md mx-auto">
             Plataforma de Gestión de Turnos y Nómina.
