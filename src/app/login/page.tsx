@@ -18,6 +18,11 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft } from 'lucide-react';
 import { LogoSpinner } from '@/components/LogoSpinner';
 import type { UserProfile } from '@/types/db-entities';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { ThemeCustomizer } from '@/components/admin/ThemeCustomizer';
+import { cn } from '@/lib/utils';
+import { LogoIcon } from '@/components/icons/logo';
+import Link from 'next/link';
 
 const OPERATOR_COMPANY_KEY = 'fake_operator_company_id';
 
@@ -124,47 +129,63 @@ export default function OperatorLoginPage() {
 
   // This will only render if not loading, the component is mounted, and there is no user.
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Acceso de Operador</CardTitle>
-          <CardDescription>
-            Inicia sesión para registrar tus turnos.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center gap-4">
-          <Button
-            className="w-full max-w-xs"
-            variant="outline"
-            onClick={handleGoogleSignIn}
-            disabled={isSubmitting || !auth}
-          >
-            {isSubmitting ? <LogoSpinner className="mr-2 h-4 w-4" /> : 
-            <svg
-              className="mr-2 h-4 w-4"
-              aria-hidden="true"
-              focusable="false"
-              data-prefix="fab"
-              data-icon="google"
-              role="img"
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 488 512"
-            >
-              <path
-                fill="currentColor"
-                d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 61.9l-69.5 69.5c-24.3-23.6-58.3-38.3-99.8-38.3-87.3 0-157.8 70.5-157.8 157.8s70.5 157.8 157.8 157.8c105.8 0 138.8-78.4 142.8-108.3H248v-85.3h236.1c2.3 12.7 3.9 26.9 3.9 41.4z"
-              ></path>
-            </svg>}
-            Ingresar con Google
-          </Button>
-        </CardContent>
-         <CardFooter>
-            <Button variant="link" className="w-full" onClick={() => router.push('/')}>
-                <ArrowLeft className="mr-2" />
-                Volver al inicio
-            </Button>
-        </CardFooter>
-      </Card>
+    <div className={cn("flex flex-col min-h-screen w-full bg-background")}>
+        <header className="absolute top-0 right-0 p-4 sm:p-6 z-10">
+            <div className="flex items-center gap-2">
+                <ThemeCustomizer />
+                <ThemeToggle />
+            </div>
+        </header>
+        <main className="flex-1 grid place-items-center p-4">
+             <Card className="w-full max-w-md shadow-2xl border-border/50 transform hover:-translate-y-1 transition-transform duration-300">
+                <CardHeader className="text-center">
+                <CardTitle className="text-2xl">Acceso de Operador</CardTitle>
+                <CardDescription>
+                    Inicia sesión para registrar tus turnos.
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col items-center justify-center gap-4">
+                  <Button
+                      className="w-full max-w-xs h-12 text-base font-bold shadow-lg hover:shadow-primary/40 transition-all duration-300 transform hover:scale-105"
+                      variant="default"
+                      onClick={handleGoogleSignIn}
+                      disabled={isSubmitting || !auth}
+                  >
+                      {isSubmitting ? <LogoSpinner className="mr-2 h-4 w-4" /> : 
+                      <svg
+                          className="mr-2 h-4 w-4"
+                          aria-hidden="true"
+                          focusable="false"
+                          data-prefix="fab"
+                          data-icon="google"
+                          role="img"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 488 512"
+                      >
+                          <path
+                              fill="currentColor"
+                              d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 126 23.4 172.9 61.9l-69.5 69.5c-24.3-23.6-58.3-38.3-99.8-38.3-87.3 0-157.8 70.5-157.8 157.8s70.5 157.8 157.8 157.8c105.8 0 138.8-78.4 142.8-108.3H248v-85.3h236.1c2.3 12.7 3.9 26.9 3.9 41.4z"
+                          ></path>
+                      </svg>}
+                      Ingresar con Google
+                  </Button>
+                </CardContent>
+                 <CardFooter>
+                    <Button variant="link" className="w-full" onClick={() => router.push('/')}>
+                        <ArrowLeft className="mr-2 h-4 w-4" />
+                        Volver al inicio
+                    </Button>
+                </CardFooter>
+            </Card>
+        </main>
+        <footer className="w-full text-center text-xs text-muted-foreground p-4">
+            <div className="flex items-center justify-center gap-2">
+                <p>Edward Santiago Riascos Cwl. 3213118124</p>
+                <Link href="/admin/login" title="Acceso de Administrador" className="hover:opacity-75 transition-opacity">
+                    <LogoIcon className="h-5 w-5" />
+                </Link>
+            </div>
+      </footer>
     </div>
   );
 }
