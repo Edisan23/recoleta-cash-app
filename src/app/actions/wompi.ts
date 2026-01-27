@@ -14,13 +14,11 @@ const firestore = getFirestore(app);
 // URL de la API de Wompi
 const WOMPI_API_URL = 'https://production.wompi.co/v1';
 
-// ¡ADVERTENCIA DE SEGURIDAD!
-// Las llaves están directamente en el código para resolver un problema de configuración del entorno.
-// En una aplicación de producción real, estas llaves NUNCA deben estar aquí.
-// Deben cargarse de forma segura desde variables de entorno.
-const WOMPI_PRIVATE_KEY = "prv_prod_GZ8ET19zZqWBx4qq8CZ0Y59PtR70o4sm";
-const WOMPI_INTEGRITY_KEY = "prod_integrity_bYqS7YxN03nn7OmN0dxPIfuhQEs2QrrQ";
-const WOMPI_PUBLIC_KEY = "pub_prod_v2jBwbX8JiGCykpyiGFS37VrqKB8PBCL";
+// Las llaves de Wompi se cargan desde las variables de entorno,
+// que deben ser configuradas como secretos en Google Cloud Secret Manager.
+const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY;
+const WOMPI_INTEGRITY_KEY = process.env.WOMPI_INTEGRITY_KEY;
+const WOMPI_PUBLIC_KEY = process.env.WOMPI_PUBLIC_KEY;
 
 
 export async function createWompiCheckoutUrl(
@@ -72,7 +70,7 @@ export async function createWompiCheckoutUrl(
 // Acción para verificar el pago y otorgar acceso premium
 export async function verifyWompiPayment(transactionId: string): Promise<{ status: string; message: string }> {
      if (!WOMPI_PRIVATE_KEY) {
-        console.error("Wompi private key is not set. Check your .env.local file or the hardcoded value.");
+        console.error("Wompi private key is not set. Check your environment variables or secrets configuration.");
         return { status: 'ERROR', message: 'El servidor no está configurado para verificar pagos.' };
     }
     try {

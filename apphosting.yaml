@@ -5,3 +5,14 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+# The following secrets need to be created in Google Cloud Secret Manager
+# for the application to be able to process payments with Wompi.
+# https://cloud.google.com/secret-manager
+secretEnvironmentVariables:
+  - key: WOMPI_PRIVATE_KEY
+    secret: WOMPI_PRIVATE_KEY
+  - key: WOMPI_PUBLIC_KEY
+    secret: WOMPI_PUBLIC_KEY
+  - key: WOMPI_INTEGRITY_KEY
+    secret: WOMPI_INTEGRITY_KEY
