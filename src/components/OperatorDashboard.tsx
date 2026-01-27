@@ -8,7 +8,7 @@ import Image from 'next/image';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { DatePicker } from '@/components/DatePicker';
 import { calculateShiftSummary, calculatePeriodSummary } from '@/lib/payroll-calculator';
 import { PayrollBreakdown } from './operator/PayrollBreakdown';
@@ -81,13 +81,15 @@ function UpgradeToPremium({ price, companyId, user }: { price: number; companyId
             </CardHeader>
             <CardContent>
                 <p className="text-muted-foreground text-center">Costo de activación</p>
-                <p className="text-3xl font-bold text-center mb-4">{formatCurrency(price)}</p>
-                <Button onClick={handlePayment} disabled={isRedirecting} className="w-full">
+                <p className="text-3xl font-bold text-center">{formatCurrency(price)}</p>
+            </CardContent>
+            <CardFooter className="flex flex-col items-center gap-2">
+                <Button onClick={handlePayment} disabled={isRedirecting}>
                     {isRedirecting ? <LogoSpinner className="mr-2 h-5 w-5" /> : null}
                     {isRedirecting ? 'Redirigiendo...' : 'Activar Ahora'}
                 </Button>
-                 <p className="text-xs text-muted-foreground text-center mt-4">Serás redirigido a la plataforma de pagos segura de Wompi.</p>
-            </CardContent>
+                 <p className="text-xs text-muted-foreground text-center">Serás redirigido a la plataforma de pagos segura de Wompi.</p>
+            </CardFooter>
         </Card>
     );
 }
