@@ -84,7 +84,7 @@ function UpgradeToPremium({ price, companyId, user }: { price: number; companyId
                 <p className="text-3xl font-bold text-center mb-4">{formatCurrency(price)}</p>
                 <Button onClick={handlePayment} disabled={isRedirecting} className="w-full">
                     {isRedirecting ? <LogoSpinner className="mr-2 h-5 w-5" /> : null}
-                    {isRedirecting ? 'Redirigiendo a Wompi...' : 'Activar con Wompi'}
+                    {isRedirecting ? 'Redirigiendo...' : 'Activar Ahora'}
                 </Button>
                  <p className="text-xs text-muted-foreground text-center mt-4">Serás redirigido a la plataforma de pagos segura de Wompi.</p>
             </CardContent>
@@ -312,7 +312,7 @@ export function OperatorDashboard({ companyId }: { companyId: string }) {
                   {company.logoUrl ? (
                       <Image src={company.logoUrl} alt={company.name} width={48} height={48} className="rounded-md object-contain h-12 w-12 sm:h-16 sm:w-16" />
                   ) : (
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
+                        <div className="w-12 h-12 sm:w-16 sm:w-16 bg-muted rounded-md flex items-center justify-center text-xs text-muted-foreground">
                           Logo
                       </div>
                   )}
