@@ -149,6 +149,9 @@ export function HistorySheet({ allShifts, settings, holidays, benefits, deductio
                                                   company={company}
                                                   user={user}
                                                   userProfile={userProfile}
+                                                  shifts={shifts}
+                                                  settings={settings}
+                                                  holidays={holidays}
                                                 />
 
                                                 <h4 className="font-semibold text-center mt-4 mb-2 border-t pt-4">Desglose por Día</h4>

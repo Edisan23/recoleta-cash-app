@@ -6,7 +6,7 @@ import jsPDF from 'jspdf';
 import { Button } from '@/components/ui/button';
 import { Download, Loader2 } from 'lucide-react';
 import { PayrollVoucher } from './PayrollVoucher';
-import type { Company, PayrollSummary, UserProfile } from '@/types/db-entities';
+import type { Company, PayrollSummary, UserProfile, Shift, CompanySettings } from '@/types/db-entities';
 import { User } from 'firebase/auth';
 
 interface PrintVoucherButtonProps {
@@ -15,9 +15,12 @@ interface PrintVoucherButtonProps {
     company: Company | null;
     user: User | null;
     userProfile: UserProfile | null;
+    shifts: Shift[];
+    settings: CompanySettings | null;
+    holidays: Date[];
 }
 
-export const PrintVoucherButton: React.FC<PrintVoucherButtonProps> = ({ summary, period, company, user, userProfile }) => {
+export const PrintVoucherButton: React.FC<PrintVoucherButtonProps> = ({ summary, period, company, user, userProfile, shifts, settings, holidays }) => {
     const voucherRef = useRef<HTMLDivElement>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -64,6 +67,9 @@ export const PrintVoucherButton: React.FC<PrintVoucherButtonProps> = ({ summary,
                     company={company}
                     user={user}
                     userProfile={userProfile}
+                    shifts={shifts}
+                    settings={settings}
+                    holidays={holidays}
                 />
             </div>
             <Button onClick={handleDownload} disabled={isLoading} className="w-full mt-4">
